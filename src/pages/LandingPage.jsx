@@ -17,7 +17,7 @@ export default function LandingPage() {
       <button className="primary-btn" onClick={start}>
         시작하기
       </button>
-      <p className="hint">한국관광공사 OpenAPI + 카카오맵 기반</p>
+      <p className="hint">공공 관광데이터 · 카카오맵 기반</p>
     </div>
   )
 }

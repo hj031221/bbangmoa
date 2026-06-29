@@ -59,6 +59,9 @@ export default function MapResultPage() {
           </ol>
         </aside>
       </div>
+
+      {/* 팀 내부용 기획안 바로가기 (지도 화면 우하단) */}
+      <a className="plan-link" href="/계획.html" target="_blank" rel="noreferrer">📋 기획안</a>
     </div>
   )
 }
