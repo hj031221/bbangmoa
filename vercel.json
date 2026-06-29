@@ -1,0 +1,7 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    { "source": "/tourapi/:path*", "destination": "https://apis.data.go.kr/:path*" },
+    { "source": "/((?!tourapi/|assets/|.*\\..*).*)", "destination": "/index.html" }
+  ]
+}

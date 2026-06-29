@@ -1,0 +1,22 @@
+{
+  "name": "daejeon-bread-map",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "대전 빵집 지도 — 한국관광공사 API 공모전 (취향 설문 → 추천 → 카카오맵)",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.2",
+    "zustand": "^4.5.5"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.2",
+    "vite": "^5.4.8"
+  }
+}

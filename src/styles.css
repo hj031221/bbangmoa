@@ -1,0 +1,65 @@
+/* ─────────────────────────────────────────────────────────────
+   구조용 최소 스타일만. 실제 비주얼은 디자이너가 담당.
+   (레이아웃이 깨지지 않을 정도의 뼈대만 잡아둠)
+   ───────────────────────────────────────────────────────────── */
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, "Apple SD Gothic Neo", sans-serif; color: #222; }
+button { cursor: pointer; font: inherit; }
+
+.page { padding: 24px; max-width: 1200px; margin: 0 auto; }
+
+/* 랜딩 */
+.landing { text-align: center; padding-top: 12vh; }
+.landing h1 { font-size: 2rem; }
+.primary-btn { padding: 12px 28px; font-size: 1.1rem; border: none; border-radius: 8px; background: #e8552d; color: #fff; }
+.ghost-btn { padding: 8px 14px; border: 1px solid #ccc; border-radius: 6px; background: #fff; }
+.hint { color: #888; font-size: .85rem; margin-top: 24px; }
+
+/* 설문 */
+.survey-progress { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+.survey-progress-bar { flex: 1; height: 8px; background: #eee; border-radius: 4px; overflow: hidden; }
+.survey-progress-fill { height: 100%; background: #e8552d; transition: width .25s; }
+.survey-progress-text { font-size: .85rem; color: #666; }
+.survey-question { font-size: 1.4rem; margin-bottom: 20px; }
+.survey-options { display: grid; gap: 12px; }
+.survey-option { padding: 16px; border: 1px solid #ddd; border-radius: 10px; background: #fff; text-align: left; font-size: 1rem; }
+.survey-option.selected { border-color: #e8552d; background: #fff5f1; }
+.survey-nav { display: flex; justify-content: space-between; margin-top: 28px; }
+
+/* 결과 */
+.result-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.result-header h2 { font-size: 1.2rem; margin: 0; }
+.badge { font-size: .75rem; padding: 3px 8px; border-radius: 10px; }
+.badge.warn { background: #fff2cc; color: #946c00; }
+.banner { padding: 8px 12px; border-radius: 6px; background: #f0f0f0; margin-bottom: 8px; font-size: .9rem; }
+.banner.error { background: #fde8e8; color: #a12; }
+
+.result-body { display: grid; grid-template-columns: 1fr 340px; gap: 16px; height: 70vh; }
+.result-map { height: 100%; }
+.map-wrap { position: relative; width: 100%; height: 100%; border-radius: 10px; overflow: hidden; }
+.map-canvas { width: 100%; height: 100%; background: #eef0f2; }
+.map-error { position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; background: rgba(255,255,255,.92); padding: 20px; font-size: .9rem; color: #555; }
+
+.result-side { overflow-y: auto; }
+.rec-card { border: 1px solid #eee; border-radius: 10px; padding: 14px; margin-bottom: 12px; }
+.rec-card.empty { color: #999; text-align: center; }
+.rec-img { width: 100%; height: 140px; object-fit: cover; border-radius: 8px; margin-bottom: 8px; }
+.rec-name { margin: 4px 0; font-size: 1.1rem; }
+.rec-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.rec-tag { font-size: .75rem; color: #e8552d; background: #fff1ec; padding: 2px 8px; border-radius: 10px; }
+.rec-addr, .rec-tel, .rec-desc { font-size: .85rem; color: #555; margin: 4px 0; }
+.rec-meta { display: flex; justify-content: space-between; font-size: .75rem; color: #999; margin-top: 8px; }
+.rec-link { display: inline-block; margin-top: 8px; font-size: .85rem; color: #e8552d; }
+
+.rec-list { list-style: none; padding: 0; margin: 0; }
+.rec-list-item { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; cursor: pointer; }
+.rec-list-item:hover { background: #f6f6f6; }
+.rec-list-item.active { background: #fff5f1; }
+.rec-list-item .rank { width: 22px; height: 22px; border-radius: 50%; background: #e8552d; color: #fff; font-size: .75rem; display: flex; align-items: center; justify-content: center; }
+.rl-name { flex: 1; font-size: .9rem; }
+.rl-score { font-size: .75rem; color: #999; }
+
+@media (max-width: 760px) {
+  .result-body { grid-template-columns: 1fr; height: auto; }
+  .result-map { height: 50vh; }
+}

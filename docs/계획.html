@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>대전 빵집 지도 · 기획/아키텍처 계획서 (실데이터 반영)</title>
+<style>
+  :root{
+    --bg:#FAF3E8; --cream:#FBF6EF; --card:#FFFFFF;
+    --ink:#2B2018; --muted:#8A7A66; --line:#EADCC6;
+    --brown:#6B4A2B; --brown2:#8B5E34;
+    --accent:#E8862B; --accent2:#C9621A; --gold:#E5B45B;
+    --green:#3FA877; --blue:#3E7CB1; --purple:#8A6CC2; --red:#D7644B;
+    --shadow:0 6px 22px rgba(80,50,20,.10); --r:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.55;font-size:15px}
+  a{color:var(--accent2)}
+  .wrap{display:flex;min-height:100vh}
+  nav.side{width:248px;flex:0 0 248px;background:linear-gradient(180deg,#3a2817,#5a3d22);color:#f3e7d4;position:sticky;top:0;height:100vh;overflow:auto;padding:22px 14px}
+  nav.side h1{font-size:17px;margin:4px 8px 2px;letter-spacing:-.3px}
+  nav.side .sub{font-size:11.5px;color:#d8b98f;margin:0 8px 8px}
+  nav.side .ok{font-size:11px;color:#9fe0bf;margin:0 8px 16px;background:rgba(63,168,119,.15);padding:5px 8px;border-radius:7px}
+  nav.side a{display:flex;gap:9px;align-items:center;color:#ecddc7;text-decoration:none;padding:8px 11px;border-radius:10px;font-size:13.5px;margin-bottom:3px;cursor:pointer}
+  nav.side a .n{opacity:.55;font-size:11px;width:16px}
+  nav.side a:hover{background:rgba(255,255,255,.08)}
+  nav.side a.active{background:var(--accent);color:#fff;font-weight:600}
+  nav.side .foot{margin:18px 8px 0;font-size:11px;color:#caa57a;border-top:1px solid rgba(255,255,255,.12);padding-top:12px}
+  main{flex:1;padding:34px 40px 80px;max-width:1080px;margin:0 auto}
+  section.page{display:none;animation:fade .25s ease}
+  section.page.show{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .crumb{font-size:12px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase}
+  h2.t{font-size:25px;margin:4px 0 6px;letter-spacing:-.5px}
+  .lead{color:var(--muted);margin:0 0 22px;font-size:14.5px}
+  h3{font-size:16.5px;margin:26px 0 10px;display:flex;align-items:center;gap:8px}
+  h3 .dot{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;box-shadow:var(--shadow);margin-bottom:16px}
+  .grid{display:grid;gap:14px}
+  .g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}
+  @media(max-width:900px){.g2,.g3,.g4{grid-template-columns:1fr}}
+  .pill{display:inline-block;font-size:11.5px;padding:2px 9px;border-radius:999px;font-weight:600}
+  .p-core{background:#FCEBD7;color:var(--accent2)}.p-sig{background:#E6F2EA;color:var(--green)}
+  .p-bonus{background:#EAE6F6;color:var(--purple)}.p-self{background:#E9EEF4;color:var(--blue)}.p-todo{background:#FBE3DD;color:var(--red)}
+  .star{color:var(--accent);letter-spacing:-2px}
+  table{width:100%;border-collapse:collapse;font-size:13px;background:var(--card);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow);margin-bottom:8px}
+  th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:#F3E7D4;color:var(--brown);font-size:12px}
+  tr:last-child td{border-bottom:none}
+  code{background:#F1E7D6;padding:1px 6px;border-radius:6px;font-size:12.5px;color:var(--accent2);font-family:"JetBrains Mono",ui-monospace,monospace}
+  .muted{color:var(--muted)}
+  ul.tight{margin:6px 0;padding-left:18px}ul.tight li{margin:4px 0}
+  .kv{display:flex;gap:10px;margin:6px 0;font-size:13.5px}.kv b{flex:0 0 120px;color:var(--brown)}
+  .note{background:#FFF8EC;border-left:3px solid var(--gold);padding:10px 14px;border-radius:8px;font-size:13px;margin:12px 0}
+  .warn{background:#FDEEE9;border-left:3px solid var(--red);padding:10px 14px;border-radius:8px;font-size:13px;margin:12px 0}
+  .okbox{background:#EDF7F1;border-left:3px solid var(--green);padding:10px 14px;border-radius:8px;font-size:13px;margin:12px 0}
+  .flow{display:flex;gap:10px;align-items:stretch;flex-wrap:wrap}
+  .box{background:var(--card);border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;font-size:13px;flex:1;min-width:120px}
+  .box .h{font-weight:700;font-size:13.5px;margin-bottom:3px;color:var(--brown)}
+  .box small{color:var(--muted);font-size:11.5px}
+  .box.acc{border-color:var(--accent);background:#FFF7EE}.box.k{border-color:var(--blue);background:#F2F7FB}.box.s{border-color:var(--green);background:#F1F8F3}
+  .arrow{align-self:center;color:var(--accent);font-size:20px;font-weight:700}
+  .layer{border:1.5px dashed var(--line);border-radius:14px;padding:14px;margin-bottom:12px;background:rgba(255,255,255,.5)}
+  .layer .lh{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px}
+  .tag{display:inline-block;background:#F1E7D6;color:var(--accent2);font-size:11px;padding:1px 7px;border-radius:6px;margin:1px}
+  .stat{font-size:30px;font-weight:800;color:var(--accent2);letter-spacing:-1px}
+  .statlbl{font-size:12px;color:var(--muted)}
+  /* desktop wireframe */
+  .wf{border:2px solid var(--brown);border-radius:12px;overflow:hidden;background:#fff;box-shadow:var(--shadow)}
+  .wf .wfbar{background:#F3E7D4;padding:9px 14px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--line);font-size:13px}
+  .wf .wfbar .logo{font-weight:800;color:var(--brown)}
+  .wf .wfbar .sp{flex:1}
+  .wf .wfbar .chip{background:#fff;border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:11.5px}
+  .wf .wfbody{display:flex;height:330px}
+  .wf .wfmap{flex:1.6;background:linear-gradient(135deg,#dCe9d6,#cfe0e6);position:relative;border-right:1px solid var(--line)}
+  .wf .wfmap .pin{position:absolute;width:14px;height:14px;background:var(--accent);border:2px solid #fff;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 1px 3px rgba(0,0,0,.3)}
+  .wf .wfmap .ml{position:absolute;left:12px;top:10px;background:rgba(255,255,255,.85);border-radius:8px;padding:4px 9px;font-size:11px;color:var(--muted)}
+  .wf .wflist{flex:1;overflow:auto;padding:10px}
+  .wf .lc{border:1px solid var(--line);border-radius:9px;padding:9px;margin-bottom:8px;font-size:12px}
+  .wf .lc.sel{border-color:var(--accent);background:#FFF7EE}
+  .wf .lc b{font-size:13px}
+  .wf .lc .rank{display:inline-block;width:18px;height:18px;background:var(--accent);color:#fff;border-radius:50%;text-align:center;line-height:18px;font-size:11px;margin-right:5px}
+  .wf .wfdetail{flex:1.05;border-left:1px solid var(--line);padding:12px;font-size:12px;background:#FBF6EF;overflow:auto}
+  .wf .wfdetail .badge{display:inline-block;background:#E6F2EA;color:var(--green);font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:999px}
+  .wf .dt{display:flex;gap:6px;margin:5px 0;color:var(--ink)}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;margin:10px 0}
+  .legend span{display:flex;gap:5px;align-items:center}
+  .swatch{width:13px;height:13px;border-radius:4px;display:inline-block}
+  .st{font-weight:700;font-size:12px;padding:2px 8px;border-radius:6px;white-space:nowrap}
+  .st-done{background:#E6F2EA;color:var(--green)}
+  .st-can{background:#FCEBD7;color:var(--accent2)}
+  .st-part{background:#FBF1DD;color:#b07d1a}
+  .st-no{background:#EFE9E2;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="side">
+    <h1>🥐 대전 빵집 지도</h1>
+    <div class="sub">2026 관광데이터 활용 공모전 · 계획서</div>
+    <div class="ok">✅ 실데이터 연동 동작중 (지도·44곳·상세)</div>
+    <a data-go="overview" class="active"><span class="n">01</span> 개요 · 카테고리</a>
+    <a data-go="arch"><span class="n">02</span> 아키텍처 구조도</a>
+    <a data-go="mvp"><span class="n">03</span> 웹 MVP 화면설계</a>
+    <a data-go="survey"><span class="n">04</span> 설문 · 추천방향</a>
+    <a data-go="data"><span class="n">05</span> 확보 데이터 (실측)</a>
+    <a data-go="ideas"><span class="n">06</span> 기획 × 가능·완료·미완</a>
+    <a data-go="api"><span class="n">07</span> API · 비중 전략</a>
+    <a data-go="route"><span class="n">08</span> 경로 · 지도 · 그래프</a>
+    <a data-go="design"><span class="n">09</span> 디자인</a>
+    <a data-go="next"><span class="n">10</span> env · 키 · 다음</a>
+    <div class="foot">갱신 2026-06-28 · 키 3종 연동 완료<br>실측 데이터 반영본</div>
+  </nav>
+
+  <main>
+    <!-- 01 -->
+    <section class="page show" id="overview">
+      <div class="crumb">01 · Overview</div>
+      <h2 class="t">한눈에 보는 프로젝트</h2>
+      <p class="lead">대전+빵집. 취향 설문 → 카카오맵 위 취향기반 추천. <b>현재 실데이터로 엔드투엔드 동작.</b></p>
+      <div class="grid g4">
+        <div class="card"><div class="statlbl">병합 빵집(1쿼리)</div><div class="stat">44</div><div class="statlbl">카카오 전체 ~201곳</div></div>
+        <div class="card"><div class="statlbl">관광공사 제과</div><div class="stat">3</div><div class="statlbl">+ 카페 53곳</div></div>
+        <div class="card"><div class="statlbl">레이아웃</div><div class="stat" style="font-size:20px;padding-top:8px">데스크톱 웹</div><div class="statlbl">지도+리스트+상세</div></div>
+        <div class="card"><div class="statlbl">저장</div><div class="stat" style="font-size:20px;padding-top:8px">무백엔드</div><div class="statlbl">localStorage</div></div>
+      </div>
+      <h3><span class="dot"></span>기능 카테고리</h3>
+      <div class="grid g3">
+        <div class="card" style="border-top:3px solid var(--accent)"><span class="pill p-core">CORE</span>
+          <ul class="tight"><li>취향 설문(VS 4축) — <b>완료</b></li><li>빵집 지도+추천(44곳) — <b>완료</b></li><li>빵집 상세(영업/주차/메뉴) — 데이터 확보</li><li>빵 종류 소개(자체)</li></ul></div>
+        <div class="card" style="border-top:3px solid var(--green)"><span class="pill p-sig">SIGNATURE</span>
+          <ul class="tight"><li>빵지순례 코스(경로)</li><li>스탬프·나만의 리스트</li><li>비슷한 가게 추천</li></ul></div>
+        <div class="card" style="border-top:3px solid var(--purple)"><span class="pill p-bonus">BONUS</span>
+          <ul class="tight"><li>베이커리 카페 지도(53곳)</li><li>방문자 트렌드(#18)</li><li>퀴즈류</li></ul></div>
+      </div>
+      <h3><span class="dot"></span>심사 제약</h3>
+      <div class="card">
+        <div class="kv"><b>관광공사 필수</b><span>미활용=심사제외. 호출내역 검증. → areaBasedList2+detailIntro2/Common2/Image2 실호출중 ✅</span></div>
+        <div class="kv"><b>배점</b><span>기획력30·완성도30·데이터활용20·발전성20 · 대전특화 가점+2 & RTO 특별상</span></div>
+        <div class="kv"><b>금지</b><span>서비스 내 "한국관광공사"/"KTO" 명칭·로고 → <span class="st st-no">푸터 문구 수정 필요</span></span></div>
+        <div class="kv"><b>일정</b><span>1차 마감 9/21 16:00 · 발표심사 10/28</span></div>
+      </div>
+    </section>
+
+    <!-- 02 -->
+    <section class="page" id="arch">
+      <div class="crumb">02 · Architecture</div>
+      <h2 class="t">아키텍처 구조도</h2>
+      <p class="lead">소스를 모르는 화면 · 공통 Bakery 객체로 병합 · 플러그인형 지도. <b>현재 실데이터가 이 경로로 흐름.</b></p>
+      <div class="legend">
+        <span><i class="swatch" style="background:#FFF7EE;border:1.5px solid var(--accent)"></i> 관광공사</span>
+        <span><i class="swatch" style="background:#F2F7FB;border:1.5px solid var(--blue)"></i> 카카오</span>
+        <span><i class="swatch" style="background:#F1F8F3;border:1.5px solid var(--green)"></i> 자체/무백엔드</span>
+      </div>
+      <div class="layer"><div class="lh">① 화면 (React SPA · 데스크톱 웹)</div>
+        <div class="flow"><div class="box"><div class="h">LandingPage</div></div><div class="arrow">→</div>
+          <div class="box"><div class="h">SurveyPage</div><small>VS 4축</small></div><div class="arrow">→</div>
+          <div class="box"><div class="h">MapResultPage</div><small>지도+리스트+상세</small></div></div></div>
+      <div class="layer"><div class="lh">② 데이터 파이프라인 — useBakeries (실데이터 검증됨)</div>
+        <div class="flow">
+          <div class="box acc"><div class="h">tourApi.js</div><small>areaBasedList2(제과/카페)<br>detail*2 · <code>/tourapi</code> proxy</small></div>
+          <div class="box k"><div class="h">kakaoLocal.js</div><small>로컬 검색 ~201곳</small></div>
+          <div class="arrow">→</div>
+          <div class="box acc"><div class="h">normalize.js</div><small>병합·중복제거 → 44곳</small></div>
+          <div class="arrow">→</div>
+          <div class="box"><div class="h">recommend.js</div><small>태그 가중합·정렬</small></div></div></div>
+      <div class="layer"><div class="lh">③ 지도 렌더 (카카오맵 JS · 도메인 등록 완료)</div>
+        <div class="flow"><div class="box k"><div class="h">useKakaoLoader</div></div><div class="arrow">→</div>
+          <div class="box k"><div class="h">MapView·MarkerLayer</div><small>마커 88개 렌더 확인</small></div><div class="arrow">→</div>
+          <div class="box"><div class="h">features/index.js</div><small>클러스터·내위치·경로</small></div></div></div>
+      <div class="card"><b>공통 Bakery 객체:</b> <code>{ id, source, name, address, phone, lat, lng, category, thumbnail, url, contentId, tags[], score? }</code>
+        <div class="muted" style="font-size:12.5px;margin-top:6px">관광공사 단독: thumbnail·contentId(→detailIntro2 상세) / 카카오 단독: url(place_url)·밀도좌표 / 병합: 이름정규화 매칭, 관광공사 우선</div></div>
+    </section>
+
+    <!-- 03 WEB MVP -->
+    <section class="page" id="mvp">
+      <div class="crumb">03 · Web MVP</div>
+      <h2 class="t">웹(데스크톱) MVP 화면설계</h2>
+      <p class="lead">⚠️ 디자이너 목업은 모바일 앱 — 실제 제품은 <b>데스크톱 웹</b>이라 별도 설계. 핵심은 <b>지도 중심 3분할</b>.</p>
+
+      <h3><span class="dot"></span>결과 화면 — 지도 중심 3분할 (와이어프레임)</h3>
+      <div class="wf">
+        <div class="wfbar"><span class="logo">🥐 대전 빵집 지도</span>
+          <span class="chip">취향 다시</span><span class="chip">🕒 지금 열린 곳</span><span class="chip">⭐ 명물만</span>
+          <span class="sp"></span><span class="chip">대전 ▾</span></div>
+        <div class="wfbody">
+          <div class="wfmap"><span class="ml">카카오맵 · 마커/클러스터</span>
+            <span class="pin" style="left:38%;top:42%"></span><span class="pin" style="left:55%;top:33%"></span>
+            <span class="pin" style="left:48%;top:60%"></span><span class="pin" style="left:64%;top:52%"></span>
+            <span class="pin" style="left:30%;top:70%"></span></div>
+          <div class="wflist">
+            <div class="muted" style="font-size:11px;margin-bottom:6px">추천 44곳 · 점수순</div>
+            <div class="lc sel"><span class="rank">1</span><b>성심당 본점</b> <span style="color:var(--accent2);font-size:11px">★명물</span><div class="muted">대전 중구 대종로480번길 15</div></div>
+            <div class="lc"><span class="rank">2</span><b>성심당 대전역점</b><div class="muted">대전 동구 중앙로 215</div></div>
+            <div class="lc"><span class="rank">3</span><b>달달빵집</b><div class="muted">대전 중구 동서대로 1388</div></div>
+            <div class="lc"><span class="rank">4</span><b>꾸드뱅</b><div class="muted">유성구 지족동로 146</div></div>
+          </div>
+          <div class="wfdetail">
+            <b style="font-size:14px">성심당 본점</b> <span class="badge">영업 중</span>
+            <div class="muted" style="margin:3px 0 8px">대전 중구 대종로480번길 15</div>
+            <div style="height:64px;border-radius:8px;background:linear-gradient(135deg,#F4C77E,#E8862B);margin-bottom:8px"></div>
+            <div class="dt">🕒 08:00~22:00 · 연중무휴</div>
+            <div class="dt">🅿️ 주차 불가 (인근 공영)</div>
+            <div class="dt">🥪 대표 튀김소보로</div>
+            <div class="dt">📞 1588-8069</div>
+            <div class="muted" style="font-size:10.5px;margin-top:6px">🕒🅿️🥪 = 관광공사 detailIntro2 · 사진 = detailImage2</div>
+          </div>
+        </div>
+      </div>
+      <div class="note">좌 <b>지도(카카오맵)</b> · 중 <b>추천 리스트(점수순)</b> · 우 <b>상세 패널</b>. 리스트/마커 클릭 → 우측 상세 갱신 + 지도 이동. 상단바: 취향재설정 · <b>지금 열린 곳 토글(opentimefood)</b> · 명물 필터.</div>
+
+      <h3><span class="dot"></span>전체 흐름</h3>
+      <div class="flow">
+        <div class="box"><div class="h">랜딩</div><small>시작하기</small></div><div class="arrow">→</div>
+        <div class="box"><div class="h">취향 설문</div><small>VS 4축(모달/전체)</small></div><div class="arrow">→</div>
+        <div class="box"><div class="h">(선택) 빵 종류 소개</div><small>자체 콘텐츠</small></div><div class="arrow">→</div>
+        <div class="box acc"><div class="h">지도 결과 3분할</div><small>위 와이어프레임</small></div></div>
+      <div class="muted" style="font-size:12.5px;margin-top:10px">모바일 대응은 후순위: 동일 컴포넌트를 1컬럼(지도 상단 / 리스트 하단 / 상세 모달)로 접는 방식.</div>
+    </section>
+
+    <!-- 04 SURVEY -->
+    <section class="page" id="survey">
+      <div class="crumb">04 · Survey · Recommendation</div>
+      <h2 class="t">설문 · 추천 방향</h2>
+      <p class="lead">VS(빵 MBTI) 초안은 <code>surveyConfig.js</code>에 반영·동작중. 알고리즘 설계는 사용자 몫 — 여기선 데이터로 가능한 방향과 결과 해석만.</p>
+
+      <h3><span class="dot"></span>VS 문항 초안 (반영됨)</h3>
+      <table>
+        <tr><th>축</th><th>VS</th><th>가중치</th></tr>
+        <tr><td>Q1 맛</td><td>🍰 달달 vs 짭짤 🥖</td><td>dessert+3 / meal+3</td></tr>
+        <tr><td>Q2 탐험</td><td>⭐ 명물 vs 동네 🔍</td><td>famous+3 / value+2·meal+1</td></tr>
+        <tr><td>Q3 상황</td><td>🚶 혼자 vs 함께 ☕</td><td>value+1·meal+1 / mood+3·dessert+1</td></tr>
+        <tr><td>Q4 형태</td><td>🍽️ 바로 vs 선물 🎁</td><td>mood+1 / togo+3·famous+1</td></tr>
+      </table>
+      <div class="muted" style="font-size:12.5px">정보이득: Q2·Q4가 관광객↔현지인/자기소비↔선물을 가장 잘 가름. Q1은 오프너. 2문항(Q1·Q2)만으로도 추천 가능.</div>
+
+      <h3><span class="dot"></span>데이터로 가능한 추천 방향 (선택지)</h3>
+      <table>
+        <tr><th>방향</th><th>쓰는 데이터</th><th>상태</th></tr>
+        <tr><td>콘텐츠 가중합(태그·점수)</td><td>설문 태그 · 빵집 태그</td><td><span class="st st-done">동작중</span></td></tr>
+        <tr><td>메뉴 기반 태그 강화</td><td>detailIntro2 <code>firstmenu·treatmenu</code> (실값 확인: 튀김소보로 등)</td><td><span class="st st-can">가능·미적용</span></td></tr>
+        <tr><td>명물 가중</td><td>관광공사 등재=★famous (성심당)</td><td><span class="st st-done">동작중</span></td></tr>
+        <tr><td>행동 기반 재가중</td><td>클릭·스탬프·찜 로깅(현재 0)</td><td><span class="st st-no">데이터 누적 후</span></td></tr>
+      </table>
+
+      <h3><span class="dot"></span>결과값 해석 (방향만)</h3>
+      <div class="card"><ul class="tight">
+        <li>설문 결과값 = 태그별 가중치 벡터 <code>{dessert:7, mood:6, …}</code></li>
+        <li>빵집 점수 = (빵집 태그)·(가중치) 합 → 클수록 적합. 동점 처리(다양 vs 1순위)는 해석 선택지.</li>
+        <li>트리/적응형·학습형 추천은 데이터 쌓인 뒤 선택지 — 지금은 설계 안 함.</li>
+      </ul></div>
+    </section>
+
+    <!-- 05 DATA -->
+    <section class="page" id="data">
+      <div class="crumb">05 · Data (measured)</div>
+      <h2 class="t">확보 데이터 (실측)</h2>
+      <p class="lead">2026-06-28 실호출 기준. <b>지금 실제로 끌어올 수 있는 데이터</b>를 전부 나열. (밀도/채움률 = 실측치)</p>
+
+      <h3><span class="dot"></span>관광공사 KorService2 — 대전 커버리지</h3>
+      <table>
+        <tr><th>구분</th><th>대전 totalCount</th><th>비고</th></tr>
+        <tr><td>제과 FD030100 (순수 빵집)</td><td><b>3</b></td><td>성심당 · 그린베이커리(유성 관평) · 꾸드뱅(유성 지족)</td></tr>
+        <tr><td>카페 FD050100</td><td><b>53</b></td><td>베이커리 카페 다수 포함</td></tr>
+        <tr><td>피자·햄버거·샌드위치 FD030200</td><td>0</td><td>—</td></tr>
+        <tr><td>키워드 "베이커리" / "성심당" / "케이크"</td><td>2 / 2 / 1</td><td>"빵"·"제과" 키워드는 0</td></tr>
+      </table>
+      <div class="muted" style="font-size:12px">채움률(제과): 좌표 100% · 대표이미지 100% · 주소 100% · <b>전화 0%</b></div>
+
+      <h3><span class="dot"></span>관광공사 — 끌어올 수 있는 필드</h3>
+      <div class="grid g2">
+        <div class="card"><b>목록/공통</b> (areaBasedList2 · detailCommon2)
+          <ul class="tight"><li>이름·주소·좌표·대표이미지·분류</li><li>개요(overview)·홈페이지</li><li>detailImage2: 추가 사진 갤러리</li></ul></div>
+        <div class="card"><b>음식점 상세</b> (detailIntro2 · 실값 확인됨)
+          <ul class="tight"><li>영업시간 <code>opentimefood</code> = "08:00~22:00"</li><li>주차 <code>parkingfood</code> = "불가능(인근 공영)"</li><li>휴무 <code>restdatefood</code> · 대표/취급메뉴 <code>firstmenu/treatmenu</code></li><li>포장·문의전화·개업일·규모·카드·예약</li></ul></div>
+      </div>
+      <div class="muted" style="font-size:12px">확장 서비스(미연동): #18 지역별 방문자수 · #19 연관관광지 · locationBasedList2(주변 관광지)</div>
+
+      <h3><span class="dot"></span>카카오 · 자체</h3>
+      <div class="grid g2">
+        <div class="card"><b>카카오 로컬 (밀도)</b>
+          <ul class="tight"><li>"대전 빵집" <b>~201곳</b> · 이름·도로명주소·전화·카테고리·place_url·좌표</li><li>카카오맵: 지도·마커·클러스터·길찾기</li></ul></div>
+        <div class="card"><b>자체 / 무백엔드</b>
+          <ul class="tight"><li>취향 태그 · 추천점수</li><li>localStorage: 스탬프·찜</li><li>빵 사전 콘텐츠(담당자 작성)</li></ul></div>
+      </div>
+      <div class="okbox">💡 핵심: <b>밀도는 카카오(~201), 깊이·명물·검증은 관광공사</b>(3곳 풀상세 + 카페 53). 둘을 병합한 게 현재 44곳.</div>
+    </section>
+
+    <!-- 06 IDEAS -->
+    <section class="page" id="ideas">
+      <div class="crumb">06 · Ideas × Status</div>
+      <h2 class="t">기획 아이디어 × 가능 · 완료 · 미완</h2>
+      <p class="lead">기획1·2.pdf 아이디어를 <b>실데이터 보유 현황</b>에 비춰 분류. 결정·우선순위는 사용자.</p>
+      <div class="legend">
+        <span><i class="st st-done">완료</i> 지금 동작</span>
+        <span><i class="st st-can">가능</i> 데이터 있음·미착수</span>
+        <span><i class="st st-part">부분</i> 일부 한계</span>
+        <span><i class="st st-no">데이터X</i> 자체제작/백엔드 필요</span>
+      </div>
+      <table>
+        <tr><th>기획 아이디어</th><th>상태</th><th>근거 데이터 / 필요한 것</th></tr>
+        <tr><td>빵 MBTI (취향 설문)</td><td><span class="st st-done">완료</span></td><td>VS 4축 surveyConfig 동작</td></tr>
+        <tr><td>빵집 지도 + 추천</td><td><span class="st st-done">완료</span></td><td>병합 44곳 · 마커 · 점수순 랭킹</td></tr>
+        <tr><td>빵집 상세(영업·주차·메뉴)</td><td><span class="st st-can">가능</span></td><td>detailIntro2 실값 확인 · 화면 연동만 남음</td></tr>
+        <tr><td>오늘의 빵 추천</td><td><span class="st st-can">가능</span></td><td>자체 로직 + 관광공사 대표이미지</td></tr>
+        <tr><td>알쓸빵잡 / 빵 종류 소개</td><td><span class="st st-can">가능</span></td><td>자체 콘텐츠(담당자) — 데이터 불요</td></tr>
+        <tr><td>나만의 빵지순례 코스</td><td><span class="st st-can">가능</span></td><td>좌표 + locationBasedList2 + 카카오맵 + 그래프(NN)</td></tr>
+        <tr><td>비슷한 가게 추천</td><td><span class="st st-can">가능</span></td><td>태그 유사도 / 관광공사 #19 연관관광지</td></tr>
+        <tr><td>베이커리 카페 전용 지도</td><td><span class="st st-can">가능</span></td><td>관광공사 카페 53곳 + 카카오</td></tr>
+        <tr><td>빵 여권(스탬프) · 나만의 리스트</td><td><span class="st st-can">가능</span></td><td>localStorage (단일기기) — 무백엔드</td></tr>
+        <tr><td>신상 빵빵 모음</td><td><span class="st st-can">가능</span></td><td>areaBasedSyncList2 modifiedtime 정렬</td></tr>
+        <tr><td>초성 퀴즈</td><td><span class="st st-can">가능</span></td><td>빵집 이름 데이터 보유</td></tr>
+        <tr><td>월간 랭킹(방문자수)</td><td><span class="st st-part">부분</span></td><td>관광공사 #18 = 지역단위만(가게별 방문수 불가)</td></tr>
+        <tr><td>이달의 빵집 3·2·1</td><td><span class="st st-part">부분</span></td><td>에디토리얼 or #18 활용 — 가게별 객관지표는 없음</td></tr>
+        <tr><td>빵 가격 맞추기 / 빵 단면 퀴즈</td><td><span class="st st-no">데이터X</span></td><td>가격·단면 사진 = API에 없음 → 자체 콘텐츠 제작</td></tr>
+        <tr><td>퀴즈 랭킹 / 후기 시스템</td><td><span class="st st-no">데이터X</span></td><td>공유 랭킹·후기 저장 = 백엔드 필요</td></tr>
+      </table>
+      <div class="note">요약: <b>완료 2 · 데이터로 바로 가능 9 · 부분 2 · 자체제작/백엔드 필요 2.</b> "가능" 항목 중 무엇을 다음에 할지는 사용자 선택.</div>
+    </section>
+
+    <!-- 07 API + STRATEGY -->
+    <section class="page" id="api">
+      <div class="crumb">07 · API · Strategy</div>
+      <h2 class="t">API 후보 · 관광공사 비중 전략</h2>
+      <p class="lead">실측 밀도(제과 3 · 카페 53 · 카카오 ~201) 위에서 <b>관광공사 비중을 어떻게 가져갈지</b> — 선택지 제시, 결정은 사용자.</p>
+
+      <h3><span class="dot"></span>비중 전략 (택1 또는 조합)</h3>
+      <div class="grid g3">
+        <div class="card" style="border-top:3px solid var(--accent)"><b>A. 상세·명물 백본</b>
+          <div class="muted" style="font-size:12.5px;margin-top:5px">카카오로 빵집 좌표 다 깔고(~201), 관광공사 등재 3곳엔 <b>풀상세 + 명물 인증 뱃지</b>. 깊이로 승부.</div>
+          <div style="margin-top:8px"><span class="tag">관광공사 호출: 목록+상세</span><span class="tag">필수요건 충족</span></div></div>
+        <div class="card" style="border-top:3px solid var(--green)"><b>B. 빵+카페 통합</b>
+          <div class="muted" style="font-size:12.5px;margin-top:5px">관광공사 <b>카페 53곳</b>을 "베이커리 카페"로 끌어와 관광공사 비중↑. 순수 빵집 아닌 것 섞임(트레이드오프).</div>
+          <div style="margin-top:8px"><span class="tag">관광공사 데이터량↑</span></div></div>
+        <div class="card" style="border-top:3px solid var(--purple)"><b>C. 호출 확장</b>
+          <div class="muted" style="font-size:12.5px;margin-top:5px">A/B + <code>locationBasedList2</code>(주변 관광지)·<b>#18 방문자수</b>까지 호출해 "관광 데이터 활용" 두껍게.</div>
+          <div style="margin-top:8px"><span class="tag">발전성·데이터활용↑</span></div></div>
+      </div>
+      <div class="note">📌 결정 대기: A만으로도 필수요건 충족. 데이터활용 점수를 더 노리면 B·C. <b>네 선택을 받아 이 문서·구현에 반영.</b></div>
+
+      <h3><span class="dot"></span>엔드포인트 후보 (☐ = 채택 미정)</h3>
+      <table>
+        <tr><th>선택</th><th>엔드포인트</th><th>주는 데이터</th><th>현재</th></tr>
+        <tr><td>✅</td><td><code>areaBasedList2</code></td><td>제과 3·카페 53 목록</td><td>연동중</td></tr>
+        <tr><td>✅</td><td>카카오 로컬</td><td>빵집 ~201 밀도</td><td>연동중</td></tr>
+        <tr><td>☐</td><td><code>detailIntro2</code></td><td>영업시간·주차·메뉴(실값 확인)</td><td>데이터O·화면 미연동</td></tr>
+        <tr><td>☐</td><td><code>detailCommon2 / detailImage2</code></td><td>개요·홈페이지·사진갤러리</td><td>미연동</td></tr>
+        <tr><td>☐</td><td><code>locationBasedList2</code></td><td>빵집 주변 관광지(코스)</td><td>미연동</td></tr>
+        <tr><td>☐</td><td>#18 방문자수 / #19 연관관광지</td><td>트렌드 / 유사추천</td><td>미연동</td></tr>
+      </table>
+    </section>
+
+    <!-- 08 ROUTE -->
+    <section class="page" id="route">
+      <div class="crumb">08 · Route · Graph</div>
+      <h2 class="t">경로 · 지도 · 그래프</h2>
+      <p class="lead">"빵지순례 코스" = 시그니처. 이제 좌표 데이터가 있으니 고전 그래프는 바로 가능.</p>
+      <div class="grid g2">
+        <div class="card"><h3 style="margin-top:0"><span class="dot"></span>그래프 모델</h3>
+          <ul class="tight"><li>노드: 빵집(찜/상위N) + 주변 관광지(locationBasedList2)</li><li>엣지: 직선거리(Haversine) → 카카오 길찾기 도보시간</li><li>가중치: 거리 + (1−취향점수) + 영업여부</li></ul></div>
+        <div class="card"><h3 style="margin-top:0"><span class="dot"></span>알고리즘 단계</h3>
+          <table><tr><th>단계</th><th>방법</th></tr><tr><td>MVP</td><td>최근접 이웃(NN) 3~5곳</td></tr><tr><td>개선</td><td>2-opt</td></tr><tr><td>정밀</td><td>TSP(Held-Karp, N≤10)</td></tr><tr><td>실거리</td><td>카카오 길찾기</td></tr></table></div>
+      </div>
+      <div class="card"><h3 style="margin-top:0"><span class="dot"></span>그래프 데이터 · GNN — 필요 데이터부터</h3>
+        <table>
+          <tr><th>접근</th><th>필요 데이터</th><th>현재 보유</th><th>시점</th></tr>
+          <tr><td>고전 그래프(다익스트라·TSP·NN)</td><td>좌표 + 거리/시간</td><td>좌표 ✅ · 실거리=카카오 길찾기</td><td>지금 가능</td></tr>
+          <tr><td>GNN(학습형)</td><td>노드피처 + <b>상호작용 라벨 다량</b></td><td>❌ 0(콜드스타트)</td><td>데이터 누적 후</td></tr>
+        </table>
+        <div class="warn" style="margin-top:8px">길찾기 자체는 고전 그래프로 충분. GNN은 사용자 행동 로그(스탬프·클릭·찜)를 먼저 누적해야 의미 있음 = "데이터부터".</div></div>
+    </section>
+
+    <!-- 09 DESIGN -->
+    <section class="page" id="design">
+      <div class="crumb">09 · Design</div>
+      <h2 class="t">디자인</h2>
+      <p class="lead">디자이너 별도. 여기선 데이터흐름이 얹힐 톤·웹 그리드 기준만.</p>
+      <div class="grid g2">
+        <div class="card"><h3 style="margin-top:0"><span class="dot"></span>팔레트 (색 토큰 · 디자이너 전달용)</h3>
+          <table style="font-size:12px">
+            <tr><th></th><th>이름</th><th>HEX</th><th>CSS 변수</th><th>용도</th></tr>
+            <tr><td><span style="display:inline-block;width:20px;height:20px;border-radius:5px;background:#FAF3E8;border:1px solid var(--line)"></span></td><td>크림</td><td><code>#FAF3E8</code></td><td><code>--bg</code></td><td>배경</td></tr>
+            <tr><td><span style="display:inline-block;width:20px;height:20px;border-radius:5px;background:#FFFFFF;border:1px solid var(--line)"></span></td><td>카드 화이트</td><td><code>#FFFFFF</code></td><td><code>--card</code></td><td>카드 배경</td></tr>
+            <tr><td><span style="display:inline-block;width:20px;height:20px;border-radius:5px;background:#E8862B"></span></td><td>크러스트 오렌지</td><td><code>#E8862B</code></td><td><code>--accent</code></td><td>강조·버튼·마커</td></tr>
+            <tr><td><span style="display:inline-block;width:20px;height:20px;border-radius:5px;background:#C9621A"></span></td><td>크러스트 딥</td><td><code>#C9621A</code></td><td><code>--accent2</code></td><td>강조 텍스트·호버</td></tr>
+            <tr><td><span style="display:inline-block;width:20px;height:20px;border-radius:5px;background:#E5B45B"></span></td><td>골드</td><td><code>#E5B45B</code></td><td><code>--gold</code></td><td>포인트</td></tr>
+            <tr><td><span style="display:inline-block;width:20px;height:20px;border-radius:5px;background:#6B4A2B"></span></td><td>브라운</td><td><code>#6B4A2B</code></td><td><code>--brown</code></td><td>제목·아이콘</td></tr>
+            <tr><td><span style="display:inline-block;width:20px;height:20px;border-radius:5px;background:#2B2018"></span></td><td>잉크</td><td><code>#2B2018</code></td><td><code>--ink</code></td><td>본문 텍스트</td></tr>
+            <tr><td><span style="display:inline-block;width:20px;height:20px;border-radius:5px;background:#8A7A66"></span></td><td>뮤트</td><td><code>#8A7A66</code></td><td><code>--muted</code></td><td>보조 텍스트</td></tr>
+            <tr><td><span style="display:inline-block;width:20px;height:20px;border-radius:5px;background:#EADCC6"></span></td><td>라인</td><td><code>#EADCC6</code></td><td><code>--line</code></td><td>테두리</td></tr>
+            <tr><td><span style="display:inline-block;width:20px;height:20px;border-radius:5px;background:#3FA877"></span></td><td>영업중 그린</td><td><code>#3FA877</code></td><td><code>--green</code></td><td>상태(영업중)</td></tr>
+          </table>
+          <div class="muted" style="font-size:11.5px;margin-top:4px">디자이너 정보 받으면 이 토큰 교체만 하면 전체 반영됨. (보조: 블루 #3E7CB1 카카오 · 퍼플 #8A6CC2 보너스 · 레드 #D7644B 경고)</div></div>
+        <div class="card"><h3 style="margin-top:0"><span class="dot"></span>웹 동기화 항목</h3>
+          <ul class="tight"><li><b>데스크톱 3분할</b> 비율(지도1.6 / 리스트1 / 상세1.05)</li><li>VS 설문 컴포넌트</li><li>상세 패널 필드 순서(영업·주차·메뉴·사진)</li><li>모바일은 1컬럼 접기</li></ul></div></div>
+      <div class="warn">규정: 화면 내 "한국관광공사" 문구 금지 → "공공 관광데이터" 등으로. (현재 푸터에 노출됨, 수정 대상)</div>
+    </section>
+
+    <!-- 10 NEXT -->
+    <section class="page" id="next">
+      <div class="crumb">10 · env · Next</div>
+      <h2 class="t">env 키 · 다음</h2>
+      <p class="lead">키 3종 발급·연동 완료. 발급 가이드 → <a href="키발급가이드.html"><b>키발급가이드.html</b></a></p>
+      <div class="card"><table>
+        <tr><th>변수</th><th>상태</th></tr>
+        <tr><td><code>VITE_KAKAO_JS_KEY</code> (+ JS SDK 도메인 localhost:5173)</td><td><span class="st st-done">지도 동작</span></td></tr>
+        <tr><td><code>VITE_KAKAO_REST_KEY</code> (카카오맵 사용설정 ON)</td><td><span class="st st-done">검색 동작</span></td></tr>
+        <tr><td><code>VITE_TOUR_API_KEY</code> (KorService2 Decoding)</td><td><span class="st st-done">조회 동작</span></td></tr>
+      </table></div>
+      <div class="grid g2">
+        <div class="card"><h3 style="margin-top:0"><span class="dot"></span>사용자 결정 대기</h3>
+          <ul class="tight"><li>비중 전략 A/B/C (07탭)</li><li>다음 구현할 "가능" 기능 (06탭)</li></ul></div>
+        <div class="card"><h3 style="margin-top:0"><span class="dot"></span>바로 할 수 있는 것</h3>
+          <ul class="tight"><li>상세 패널에 detailIntro2 연동(영업/주차/메뉴)</li><li>푸터 "한국관광공사" 문구 규정 수정</li><li>메뉴 텍스트→태그 강화</li></ul></div>
+      </div>
+    </section>
+  </main>
+</div>
+<script>
+  const links=document.querySelectorAll('nav.side a[data-go]');
+  const pages=document.querySelectorAll('section.page');
+  links.forEach(a=>a.addEventListener('click',()=>{
+    links.forEach(x=>x.classList.toggle('active',x===a));
+    pages.forEach(p=>p.classList.toggle('show',p.id===a.dataset.go));
+    window.scrollTo({top:0,behavior:'smooth'});
+  }));
+</script>
+</body>
+</html>
