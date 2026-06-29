@@ -34,7 +34,7 @@ export default function MapResultPage() {
         <section className="result-map">
           <MapView
             bakeries={bakeries}
-            selectedId={selected?.id}
+            selectedId={selectedBakeryId}
             onSelect={selectBakery}
           />
         </section>
