@@ -106,10 +106,12 @@
     <a data-go="survey"><span class="n">04</span> 설문 · 추천방향</a>
     <a data-go="data"><span class="n">05</span> 확보 데이터 (실측)</a>
     <a data-go="ideas"><span class="n">06</span> 기획 × 가능·완료·미완</a>
-    <a data-go="api"><span class="n">07</span> API · 비중 전략</a>
-    <a data-go="route"><span class="n">08</span> 경로 · 지도 · 그래프</a>
-    <a data-go="design"><span class="n">09</span> 디자인</a>
-    <a data-go="next"><span class="n">10</span> env · 키 · 다음</a>
+    <a data-go="evidence"><span class="n">＋</span> 데이터 근거 (MVP)</a>
+    <a data-go="api"><span class="n">07</span> 핵심 방향 (빵+명소+경로)</a>
+    <a data-go="route"><span class="n">08</span> 그래프 알고리즘 (경로)</a>
+    <a data-go="tree"><span class="n">09</span> 트리 알고리즘 (추천)</a>
+    <a data-go="design"><span class="n">10</span> 디자인</a>
+    <a data-go="next"><span class="n">11</span> env · 키 · 다음</a>
     <div class="foot">갱신 2026-06-28 · 키 3종 연동 완료<br>실측 데이터 반영본</div>
   </nav>
 
@@ -120,7 +122,7 @@
       <h2 class="t">한눈에 보는 프로젝트</h2>
       <p class="lead">대전+빵집. 취향 설문 → 카카오맵 위 취향기반 추천. <b>현재 실데이터로 엔드투엔드 동작.</b></p>
       <div class="grid g4">
-        <div class="card"><div class="statlbl">병합 빵집(1쿼리)</div><div class="stat">44</div><div class="statlbl">카카오 전체 ~201곳</div></div>
+        <div class="card"><div class="statlbl">수집 빵집</div><div class="stat">360</div><div class="statlbl">카카오 다중쿼리·구별·dedup</div></div>
         <div class="card"><div class="statlbl">관광공사 제과</div><div class="stat">3</div><div class="statlbl">+ 카페 53곳</div></div>
         <div class="card"><div class="statlbl">레이아웃</div><div class="stat" style="font-size:20px;padding-top:8px">데스크톱 웹</div><div class="statlbl">지도+리스트+상세</div></div>
         <div class="card"><div class="statlbl">저장</div><div class="stat" style="font-size:20px;padding-top:8px">무백엔드</div><div class="statlbl">localStorage</div></div>
@@ -146,30 +148,43 @@
     <!-- 02 -->
     <section class="page" id="arch">
       <div class="crumb">02 · Architecture</div>
-      <h2 class="t">아키텍처 구조도</h2>
-      <p class="lead">소스를 모르는 화면 · 공통 Bakery 객체로 병합 · 플러그인형 지도. <b>현재 실데이터가 이 경로로 흐름.</b></p>
+      <h2 class="t">아키텍처 — 데이터 흐름</h2>
+      <p class="lead">외부 API → 공통 Bakery 객체로 병합 → 추천 → 지도. 화면은 데이터 소스를 모른다.</p>
       <div class="legend">
         <span><i class="swatch" style="background:#FFF7EE;border:1.5px solid var(--accent)"></i> 관광공사</span>
         <span><i class="swatch" style="background:#F2F7FB;border:1.5px solid var(--blue)"></i> 카카오</span>
         <span><i class="swatch" style="background:#F1F8F3;border:1.5px solid var(--green)"></i> 자체/무백엔드</span>
       </div>
-      <div class="layer"><div class="lh">① 화면 (React SPA · 데스크톱 웹)</div>
-        <div class="flow"><div class="box"><div class="h">LandingPage</div></div><div class="arrow">→</div>
-          <div class="box"><div class="h">SurveyPage</div><small>VS 4축</small></div><div class="arrow">→</div>
-          <div class="box"><div class="h">MapResultPage</div><small>지도+리스트+상세</small></div></div></div>
-      <div class="layer"><div class="lh">② 데이터 파이프라인 — useBakeries (실데이터 검증됨)</div>
+
+      <div class="layer"><div class="lh">① 외부 데이터 소스</div>
         <div class="flow">
-          <div class="box acc"><div class="h">tourApi.js</div><small>areaBasedList2(제과/카페)<br>detail*2 · <code>/tourapi</code> proxy</small></div>
-          <div class="box k"><div class="h">kakaoLocal.js</div><small>로컬 검색 ~201곳</small></div>
+          <div class="box acc"><div class="h">관광공사 KorService2</div><small>areaBasedList2(제과 FD030100, 실측 3) · detailIntro2/Common2/Image2(상세) · locationBasedList2(명소)</small></div>
+          <div class="box k"><div class="h">카카오</div><small>로컬 다중쿼리·구별검색(360곳) · 카카오맵 JS · 길찾기</small></div>
+        </div>
+      </div>
+
+      <div class="layer"><div class="lh">② 파이프라인 — useBakeries (regionId 캐시)</div>
+        <div class="flow">
+          <div class="box acc"><div class="h">normalize.js</div><small>병합·중복제거 → 360곳<br>관광공사 우선, 카카오가 빈 필드 보강</small></div>
           <div class="arrow">→</div>
-          <div class="box acc"><div class="h">normalize.js</div><small>병합·중복제거 → 44곳</small></div>
-          <div class="arrow">→</div>
-          <div class="box"><div class="h">recommend.js</div><small>태그 가중합·정렬</small></div></div></div>
-      <div class="layer"><div class="lh">③ 지도 렌더 (카카오맵 JS · 도메인 등록 완료)</div>
-        <div class="flow"><div class="box k"><div class="h">useKakaoLoader</div></div><div class="arrow">→</div>
-          <div class="box k"><div class="h">MapView·MarkerLayer</div><small>마커 88개 렌더 확인</small></div><div class="arrow">→</div>
-          <div class="box"><div class="h">features/index.js</div><small>클러스터·내위치·경로</small></div></div></div>
-      <div class="card"><b>공통 Bakery 객체:</b> <code>{ id, source, name, address, phone, lat, lng, category, thumbnail, url, contentId, tags[], score? }</code>
+          <div class="box"><div class="h">recommend.js</div><small>설문 태그 가중합 → 정렬<br>(트리 추천, STEP)</small></div>
+        </div>
+      </div>
+
+      <div class="layer"><div class="lh">③ 화면 (React SPA · 데스크톱)</div>
+        <div class="flow">
+          <div class="box"><div class="h">랜딩</div></div><div class="arrow">→</div>
+          <div class="box"><div class="h">설문</div><small>VS 4축</small></div><div class="arrow">→</div>
+          <div class="box acc"><div class="h">지도 결과</div><small>지도(대전 마스크·클러스터 360·선택 포커스) + 리스트 + 상세(detailIntro2)</small></div>
+        </div>
+      </div>
+
+      <div class="flow">
+        <div class="box"><div class="h">경로 (그래프)</div><small>NN+2-opt · 계획·데모 분리</small></div>
+        <div class="box s"><div class="h">localStorage</div><small>스탬프·찜 (무백엔드)</small></div>
+      </div>
+
+      <div class="card" style="margin-top:12px"><b>공통 Bakery 객체:</b> <code>{ id, source, name, address, phone, lat, lng, category, thumbnail, url, contentId, tags[], score? }</code>
         <div class="muted" style="font-size:12.5px;margin-top:6px">관광공사 단독: thumbnail·contentId(→detailIntro2 상세) / 카카오 단독: url(place_url)·밀도좌표 / 병합: 이름정규화 매칭, 관광공사 우선</div></div>
     </section>
 
@@ -256,35 +271,37 @@
     <section class="page" id="data">
       <div class="crumb">05 · Data (measured)</div>
       <h2 class="t">확보 데이터 (실측)</h2>
-      <p class="lead">2026-06-28 실호출 기준. <b>지금 실제로 끌어올 수 있는 데이터</b>를 전부 나열. (밀도/채움률 = 실측치)</p>
+      <p class="lead">실호출로 측정한, 지금 끌어올 수 있는 데이터 전부를 정리한다.</p>
 
-      <h3><span class="dot"></span>관광공사 KorService2 — 대전 커버리지</h3>
+      <h3><span class="dot"></span>빵집 — 카카오 로컬 (밀도)</h3>
       <table>
-        <tr><th>구분</th><th>대전 totalCount</th><th>비고</th></tr>
-        <tr><td>제과 FD030100 (순수 빵집)</td><td><b>3</b></td><td>성심당 · 그린베이커리(유성 관평) · 꾸드뱅(유성 지족)</td></tr>
-        <tr><td>카페 FD050100</td><td><b>53</b></td><td>베이커리 카페 다수 포함</td></tr>
-        <tr><td>피자·햄버거·샌드위치 FD030200</td><td>0</td><td>—</td></tr>
-        <tr><td>키워드 "베이커리" / "성심당" / "케이크"</td><td>2 / 2 / 1</td><td>"빵"·"제과" 키워드는 0</td></tr>
+        <tr><th>항목</th><th>값</th></tr>
+        <tr><td>대전 빵집 (다중키워드 + 구별검색, dedup)</td><td><b>360곳</b> <span class="muted">(단일쿼리 땐 ~44~201)</span></td></tr>
+        <tr><td>구별 분포</td><td>동구 62 · 중구 83 · 서구 87 · 유성 74 · 대덕 54</td></tr>
+        <tr><td>필드</td><td>이름 · 도로명주소 · 전화 · 카테고리 · place_url · 좌표</td></tr>
+        <tr><td>지도</td><td>클러스터링(줌별 묶음) · 대전 마스크 · 재방문 캐시</td></tr>
       </table>
-      <div class="muted" style="font-size:12px">채움률(제과): 좌표 100% · 대표이미지 100% · 주소 100% · <b>전화 0%</b></div>
 
-      <h3><span class="dot"></span>관광공사 — 끌어올 수 있는 필드</h3>
-      <div class="grid g2">
-        <div class="card"><b>목록/공통</b> (areaBasedList2 · detailCommon2)
-          <ul class="tight"><li>이름·주소·좌표·대표이미지·분류</li><li>개요(overview)·홈페이지</li><li>detailImage2: 추가 사진 갤러리</li></ul></div>
-        <div class="card"><b>음식점 상세</b> (detailIntro2 · 실값 확인됨)
-          <ul class="tight"><li>영업시간 <code>opentimefood</code> = "08:00~22:00"</li><li>주차 <code>parkingfood</code> = "불가능(인근 공영)"</li><li>휴무 <code>restdatefood</code> · 대표/취급메뉴 <code>firstmenu/treatmenu</code></li><li>포장·문의전화·개업일·규모·카드·예약</li></ul></div>
-      </div>
-      <div class="muted" style="font-size:12px">확장 서비스(미연동): #18 지역별 방문자수 · #19 연관관광지 · locationBasedList2(주변 관광지)</div>
+      <h3><span class="dot"></span>관광공사 KorService2 — 대전 콘텐츠 (전 타입)</h3>
+      <table>
+        <tr><th>타입</th><th>대전 수</th><th>빵 연계</th></tr>
+        <tr><td>제과 FD030100 (순수 빵집)</td><td><b>3</b></td><td>명물 풀상세(성심당 등)</td></tr>
+        <tr><td>카페 FD050100</td><td><b>53</b></td><td>베이커리 카페</td></tr>
+        <tr><td>관광지</td><td><b>139</b></td><td>코스 주변 명소</td></tr>
+        <tr><td>쇼핑 · 시장</td><td><b>239</b></td><td>전통시장 연계(중앙시장 등)</td></tr>
+        <tr><td>문화시설 / 축제 / 여행코스</td><td>49 / 18 / 13</td><td>코스 노드 · 시즌 · 큐레이션 참고</td></tr>
+        <tr><td>음식점(전체)</td><td>360</td><td>식사 연계</td></tr>
+      </table>
 
-      <h3><span class="dot"></span>카카오 · 자체</h3>
-      <div class="grid g2">
-        <div class="card"><b>카카오 로컬 (밀도)</b>
-          <ul class="tight"><li>"대전 빵집" <b>~201곳</b> · 이름·도로명주소·전화·카테고리·place_url·좌표</li><li>카카오맵: 지도·마커·클러스터·길찾기</li></ul></div>
-        <div class="card"><b>자체 / 무백엔드</b>
-          <ul class="tight"><li>취향 태그 · 추천점수</li><li>localStorage: 스탬프·찜</li><li>빵 사전 콘텐츠(담당자 작성)</li></ul></div>
-      </div>
-      <div class="okbox">💡 핵심: <b>밀도는 카카오(~201), 깊이·명물·검증은 관광공사</b>(3곳 풀상세 + 카페 53). 둘을 병합한 게 현재 44곳.</div>
+      <h3><span class="dot"></span>관광공사 상세 필드 (detailIntro2 · 실값)</h3>
+      <div class="card">성심당 예 — 영업 <code>opentimefood</code>=08:00~22:00 · 주차 <code>parkingfood</code>=불가(인근 공영) · 대표 <code>firstmenu</code>=튀김소보로 · <code>treatmenu</code>·<code>restdatefood</code>·포장·문의전화·개업일·규모·카드·예약. + detailCommon2(개요·홈페이지) · detailImage2(사진). <span class="muted">제과 채움률: 좌표·이미지·주소 100%, 전화 0%.</span></div>
+      <div class="muted" style="font-size:12px">미연동 확장: #18 방문자수 · #19 연관관광지 · locationBasedList2(주변 명소)</div>
+
+      <h3><span class="dot"></span>자체 / 무백엔드</h3>
+      <div class="card">취향 태그 · 추천점수 · localStorage(스탬프·찜) · 빵 사전 콘텐츠(담당자).</div>
+
+      <div class="okbox">💡 정리: <b>밀도 = 카카오 360곳</b> · <b>깊이·명물·검증 = 관광공사 상세</b> · <b>관광 연계 = 관광지 139·시장 239·축제 18</b>. 데이터는 충분히 풍부하다.</div>
+      <div class="warn">⚠️ 단, 현재 앱 실행에서 관광공사(tour) 호출이 일시 0건(CP2 보고서) — dev 프록시 이슈로 추정. 별도 점검(CP3) 필요. 위 수치는 직접 API 실측치라 데이터 자체는 유효.</div>
     </section>
 
     <!-- 06 IDEAS -->
@@ -316,64 +333,200 @@
         <tr><td>빵 가격 맞추기 / 빵 단면 퀴즈</td><td><span class="st st-no">데이터X</span></td><td>가격·단면 사진 = API에 없음 → 자체 콘텐츠 제작</td></tr>
         <tr><td>퀴즈 랭킹 / 후기 시스템</td><td><span class="st st-no">데이터X</span></td><td>공유 랭킹·후기 저장 = 백엔드 필요</td></tr>
       </table>
-      <div class="note">요약: <b>완료 2 · 데이터로 바로 가능 9 · 부분 2 · 자체제작/백엔드 필요 2.</b> "가능" 항목 중 무엇을 다음에 할지는 사용자 선택.</div>
+      <div class="note">요약: <b>완료 2 · 데이터로 바로 가능 9 · 부분 2 · 자체제작/백엔드 필요 2.</b> 실측 근거와 MVP 방식은 → <b>데이터 근거 (MVP)</b> 탭.</div>
     </section>
 
-    <!-- 07 API + STRATEGY -->
-    <section class="page" id="api">
-      <div class="crumb">07 · API · Strategy</div>
-      <h2 class="t">API 후보 · 관광공사 비중 전략</h2>
-      <p class="lead">실측 밀도(제과 3 · 카페 53 · 카카오 ~201) 위에서 <b>관광공사 비중을 어떻게 가져갈지</b> — 선택지 제시, 결정은 사용자.</p>
-
-      <h3><span class="dot"></span>비중 전략 (택1 또는 조합)</h3>
-      <div class="grid g3">
-        <div class="card" style="border-top:3px solid var(--accent)"><b>A. 상세·명물 백본</b>
-          <div class="muted" style="font-size:12.5px;margin-top:5px">카카오로 빵집 좌표 다 깔고(~201), 관광공사 등재 3곳엔 <b>풀상세 + 명물 인증 뱃지</b>. 깊이로 승부.</div>
-          <div style="margin-top:8px"><span class="tag">관광공사 호출: 목록+상세</span><span class="tag">필수요건 충족</span></div></div>
-        <div class="card" style="border-top:3px solid var(--green)"><b>B. 빵+카페 통합</b>
-          <div class="muted" style="font-size:12.5px;margin-top:5px">관광공사 <b>카페 53곳</b>을 "베이커리 카페"로 끌어와 관광공사 비중↑. 순수 빵집 아닌 것 섞임(트레이드오프).</div>
-          <div style="margin-top:8px"><span class="tag">관광공사 데이터량↑</span></div></div>
-        <div class="card" style="border-top:3px solid var(--purple)"><b>C. 호출 확장</b>
-          <div class="muted" style="font-size:12.5px;margin-top:5px">A/B + <code>locationBasedList2</code>(주변 관광지)·<b>#18 방문자수</b>까지 호출해 "관광 데이터 활용" 두껍게.</div>
-          <div style="margin-top:8px"><span class="tag">발전성·데이터활용↑</span></div></div>
-      </div>
-      <div class="note">📌 결정 대기: A만으로도 필수요건 충족. 데이터활용 점수를 더 노리면 B·C. <b>네 선택을 받아 이 문서·구현에 반영.</b></div>
-
-      <h3><span class="dot"></span>엔드포인트 후보 (☐ = 채택 미정)</h3>
+    <!-- 06+ DATA EVIDENCE -->
+    <section class="page" id="evidence">
+      <div class="crumb">＋ Data Evidence</div>
+      <h2 class="t">데이터 근거 — 뭐가 되고 안 되나 (MVP)</h2>
+      <p class="lead">"가능"하다고 한 기능을 실측 데이터로 "된다 / 부분 / 안된다" 근거와 함께, MVP 방식까지 정리한다.</p>
       <table>
-        <tr><th>선택</th><th>엔드포인트</th><th>주는 데이터</th><th>현재</th></tr>
-        <tr><td>✅</td><td><code>areaBasedList2</code></td><td>제과 3·카페 53 목록</td><td>연동중</td></tr>
-        <tr><td>✅</td><td>카카오 로컬</td><td>빵집 ~201 밀도</td><td>연동중</td></tr>
-        <tr><td>☐</td><td><code>detailIntro2</code></td><td>영업시간·주차·메뉴(실값 확인)</td><td>데이터O·화면 미연동</td></tr>
-        <tr><td>☐</td><td><code>detailCommon2 / detailImage2</code></td><td>개요·홈페이지·사진갤러리</td><td>미연동</td></tr>
-        <tr><td>☐</td><td><code>locationBasedList2</code></td><td>빵집 주변 관광지(코스)</td><td>미연동</td></tr>
-        <tr><td>☐</td><td>#18 방문자수 / #19 연관관광지</td><td>트렌드 / 유사추천</td><td>미연동</td></tr>
+        <tr><th>기능</th><th>MVP 방식 (최소 구현)</th><th>실측 데이터 (근거)</th><th>판정</th></tr>
+        <tr><td>빵집 지도 + 추천</td><td>카카오 360곳 마커·클러스터, 취향 점수순</td><td>360곳 · 5개 구 분포</td><td><span class="st st-done">✅ 동작</span></td></tr>
+        <tr><td>빵집 상세(영업·주차·메뉴)</td><td>클릭 → detailIntro2 패널</td><td>성심당 08:00~22:00·주차불가·튀김소보로 확인</td><td><span class="st st-can">✅ 된다</span></td></tr>
+        <tr><td>베이커리 카페 지도</td><td>관광공사 카페 레이어 토글</td><td>카페 53곳</td><td><span class="st st-can">✅ 된다</span></td></tr>
+        <tr><td>명소 연계 / 빵+관광</td><td>locationBasedList2 주변 명소</td><td>관광지 139·시장 239 / 성심당 1.2km 8곳</td><td><span class="st st-can">✅ 된다</span></td></tr>
+        <tr><td>빵지순례 코스</td><td>NN+2-opt + 카카오 길찾기</td><td>좌표 360 + 명소</td><td><span class="st st-part">🟡 계획(데모 미반영)</span></td></tr>
+        <tr><td>비슷한 가게</td><td>태그 유사도 / #19 연관관광지</td><td>태그 보유 / #19</td><td><span class="st st-part">🟡 부분</span></td></tr>
+        <tr><td>신상 빵집</td><td>areaBasedSyncList2 modifiedtime</td><td>관광공사 modifiedtime</td><td><span class="st st-can">🟡 가능</span></td></tr>
+        <tr><td>오늘 뜨는 대전(트렌드)</td><td>#18 방문자수 위젯</td><td>지역단위 월별만(가게별 X)</td><td><span class="st st-part">🟠 부분</span></td></tr>
+        <tr><td>월간 랭킹(가게별 방문수)</td><td>—</td><td>가게별 실시간·방문수 데이터 없음</td><td><span class="st st-no">❌ 데이터X</span></td></tr>
+        <tr><td>빵 가격 / 단면 퀴즈</td><td>자체 콘텐츠 제작</td><td>가격·단면 데이터 API에 없음</td><td><span class="st st-no">❌ 자체제작</span></td></tr>
+        <tr><td>후기 · 퀴즈 랭킹</td><td>—</td><td>공유 저장 = 백엔드 필요</td><td><span class="st st-no">❌ 보류</span></td></tr>
       </table>
+      <div class="okbox">근거 요약: <b>데이터로 바로 되는 것 = 빵집 지도·상세·카페·명소 연계.</b> 코스는 계획(데모 분리). 가게별 실시간·후기는 데이터·백엔드 한계로 보류.</div>
     </section>
 
-    <!-- 08 ROUTE -->
-    <section class="page" id="route">
-      <div class="crumb">08 · Route · Graph</div>
-      <h2 class="t">경로 · 지도 · 그래프</h2>
-      <p class="lead">"빵지순례 코스" = 시그니처. 이제 좌표 데이터가 있으니 고전 그래프는 바로 가능.</p>
+    <!-- 07 DIRECTION -->
+    <section class="page" id="api">
+      <div class="crumb">07 · Direction</div>
+      <h2 class="t">핵심 방향 — 빵 + 명소 + 경로</h2>
+      <p class="lead">비중 <b>A+C 채택</b>. 한 줄 비전: <b>"대전의 빵과 관광 명소를 잇는, 취향 기반 추천 + 경로 지도".</b> 빵만 점 찍는 지도가 아니라, 취향(트리)으로 추천하고 동선(그래프)으로 묶는다.</p>
+
+      <h3><span class="dot"></span>채택: A + C</h3>
       <div class="grid g2">
-        <div class="card"><h3 style="margin-top:0"><span class="dot"></span>그래프 모델</h3>
-          <ul class="tight"><li>노드: 빵집(찜/상위N) + 주변 관광지(locationBasedList2)</li><li>엣지: 직선거리(Haversine) → 카카오 길찾기 도보시간</li><li>가중치: 거리 + (1−취향점수) + 영업여부</li></ul></div>
-        <div class="card"><h3 style="margin-top:0"><span class="dot"></span>알고리즘 단계</h3>
-          <table><tr><th>단계</th><th>방법</th></tr><tr><td>MVP</td><td>최근접 이웃(NN) 3~5곳</td></tr><tr><td>개선</td><td>2-opt</td></tr><tr><td>정밀</td><td>TSP(Held-Karp, N≤10)</td></tr><tr><td>실거리</td><td>카카오 길찾기</td></tr></table></div>
+        <div class="card" style="border-top:3px solid var(--accent)"><b>A. 상세·명물 백본</b>
+          <div class="muted" style="font-size:12.5px;margin-top:5px">빵집 좌표 밀도는 카카오(수백 곳), 관광공사 등재 빵집엔 <b>풀상세(영업·주차·메뉴) + 명물 인증</b>. 깊이로 승부.</div></div>
+        <div class="card" style="border-top:3px solid var(--purple)"><b>C. 호출 확장 (명소 연계)</b>
+          <div class="muted" style="font-size:12.5px;margin-top:5px">관광공사 <b>관광지·시장·축제</b>(locationBasedList2 등)와 방문자수(#18)까지 끌어와, 빵을 <b>관광 동선</b>에 얹음.</div></div>
       </div>
-      <div class="card"><h3 style="margin-top:0"><span class="dot"></span>그래프 데이터 · GNN — 필요 데이터부터</h3>
-        <table>
-          <tr><th>접근</th><th>필요 데이터</th><th>현재 보유</th><th>시점</th></tr>
-          <tr><td>고전 그래프(다익스트라·TSP·NN)</td><td>좌표 + 거리/시간</td><td>좌표 ✅ · 실거리=카카오 길찾기</td><td>지금 가능</td></tr>
-          <tr><td>GNN(학습형)</td><td>노드피처 + <b>상호작용 라벨 다량</b></td><td>❌ 0(콜드스타트)</td><td>데이터 누적 후</td></tr>
-        </table>
-        <div class="warn" style="margin-top:8px">길찾기 자체는 고전 그래프로 충분. GNN은 사용자 행동 로그(스탬프·클릭·찜)를 먼저 누적해야 의미 있음 = "데이터부터".</div></div>
+
+      <h3><span class="dot"></span>맵에 무엇을 표시하나 (레이어)</h3>
+      <table>
+        <tr><th>레이어</th><th>소스 · 대전 수량</th><th>역할</th></tr>
+        <tr><td>🥐 <b>빵집</b></td><td>카카오 밀도(전체 ~201) + 관광공사 제과 3</td><td>메인 마커. 취향 점수순 추천</td></tr>
+        <tr><td>⭐ 명물 뱃지</td><td>관광공사 등재(성심당 등)</td><td>"검증된 명물" 표시 + 풀상세</td></tr>
+        <tr><td>📷 <b>명소/관광지</b> (토글)</td><td>관광공사 관광지 <b>139</b> · 문화시설 49 · 시장/쇼핑 <b>239</b> · 축제 18</td><td>빵 주변 가볼 곳 · 경로 노드</td></tr>
+        <tr><td>🗺️ 대전 마스크</td><td>행정경계</td><td>대전만 환하게(완료)</td></tr>
+      </table>
+      <div class="note">💡 명소를 섞으면 "빵 전용" 느낌이 흐려질 수 있어 → <b>레이어 토글</b>(빵만 / 빵+명소)로 on/off. 경로 만들 때만 명소를 노드로 합류시키는 것도 방법.</div>
+
+      <div class="warn">🔎 <b>맵이 비어 보이는 문제:</b> 지금은 카카오 키워드 <b>"대전 빵집" 한 번(45개)</b>만 불러서 44곳뿐. 카카오 전체는 ~201곳, 실제 대전 빵집은 더 많음. <b>해결</b>: ① 키워드 다중화(빵집·베이커리·제과·도넛·케이크) ② <b>구별 검색</b>(동·중·서·유성·대덕 각각) ③ 페이지네이션 → <b>수백 곳으로 확장</b> + 중복제거. (구현은 코딩 지시서로)</div>
+
+      <h3><span class="dot"></span>두 알고리즘 축 (8·9탭에서 깊이)</h3>
+      <div class="grid g2">
+        <div class="card"><b>🕸️ 그래프 (경로)</b> → <a href="#" onclick="document.querySelector('[data-go=route]').click();return false;">08탭</a>
+          <div class="muted" style="font-size:12.5px;margin-top:5px">현재위치 → 빵집·명소를 실시간 교통·이동수단 고려해 <b>최적 동선</b>으로.</div></div>
+        <div class="card"><b>🌳 트리 (추천)</b> → <a href="#" onclick="document.querySelector('[data-go=tree]').click();return false;">09탭</a>
+          <div class="muted" style="font-size:12.5px;margin-top:5px">설문 답을 <b>가지치기</b>로 분석해 만족도 높은 빵·빵집 추천. 데이터 쌓이면 학습형.</div></div>
+      </div>
+    </section>
+
+    <!-- 08 GRAPH -->
+    <section class="page" id="route">
+      <div class="crumb">08 · Graph Algorithm</div>
+      <h2 class="t">그래프 알고리즘 — 경로 추천</h2>
+      <p class="lead">현재 위치에서 빵집과 명소를, 실시간 교통과 이동수단까지 고려해 최적 동선으로 추천한다. 하루치 빵 투어 코스를 만드는 기능이다. 단계별 상세는 <a href="알고리즘설계.html">알고리즘설계.html</a>에서 다룬다.</p>
+
+      <h3><span class="dot"></span>8.1 그래프 = 장소(노드) + 길(엣지) + 비용(가중치)</h3>
+      <div class="card">동그라미(노드)=장소, 선(엣지)=두 장소 사이 길, 선의 숫자(가중치)=이동시간/거리. <b>"그래프 알고리즘"은 이 그림 위에서 길을 고르는 방법.</b> 빵집 지도가 딱 이 그림.</div>
+
+      <h3><span class="dot"></span>8.2 지도 내비는 어떤 알고리즘을 쓰나</h3>
+      <div class="card">Dijkstra·A* → 실서비스 내비는 <b>CH(전처리 지름길)·실시간 교통(time-dependent)·대중교통(RAPTOR)</b>으로 즉답한다. 즉 <b>"두 지점 빠른 길 + 실시간 교통"은 내비 API가 이미 해결</b>한 영역이다. 원리 복습은 <a href="알고리즘설계.html">알고리즘설계.html</a>의 <b>＋내비 알고리즘 심화</b> 탭에서 다룬다.</div>
+
+      <h3><span class="dot"></span>8.3 ⭐ 그래서 분담 — 내비 엔진은 API, 우리는 "순회+가중치+모드"</h3>
+      <div class="okbox">
+        <b>① 두 지점 최단/실시간 이동시간</b> = <b>카카오 길찾기/모빌리티 API</b>에 맡김 (CH·실시간교통·도보/차/대중교통 다 내장).<br>
+        <b>② 우리가 직접 설계할 것</b> = ⒜ 여러 곳을 <b>어떤 순서로</b> 돌까(순회·TSP) ⒝ 취향·혼잡을 <b>가중치</b>로 ⒞ <b>이동수단 선택</b> 로직. → 이게 우리 차별화 영역.
+      </div>
+
+      <h3><span class="dot"></span>8.4 우리 경로추천 설계</h3>
+      <div class="grid g2">
+        <div class="card"><b>노드·엣지·비용</b>
+          <ul class="tight">
+            <li><b>노드</b>: 현재위치 + 추천 빵집 상위 N + 주변 명소(관광공사)</li>
+            <li><b>엣지 비용</b>: 카카오 API 실시간 이동시간(선택한 이동수단)</li>
+          </ul>
+          <div style="background:#3a2817;color:#F4C77E;padding:11px 13px;border-radius:9px;font-family:ui-monospace,monospace;font-size:12px;line-height:1.7;margin-top:8px">
+            cost(i→j) = α·<span style="color:#9fe0bf">이동시간(API,실시간)</span><br>
+            &nbsp;&nbsp;+ β·<span style="color:#f4a3a3">혼잡패널티</span> − γ·<span style="color:#f4c77e">취향점수</span> − δ·<span style="color:#f4c77e">영업가능</span>
+          </div>
+        </div>
+        <div class="card"><b>순회 알고리즘 (방문 순서)</b>
+          <table>
+            <tr><th>상황</th><th>방법</th></tr>
+            <tr><td>"지금 가까운 곳"</td><td>현재위치 기준 <b>NN 1-step</b></td></tr>
+            <tr><td>코스 3~7곳</td><td>NN → <b>2-opt</b>(꼬임풀기)</td></tr>
+            <tr><td>코스 ≤~12곳 최적</td><td><b>Held-Karp</b>(DP)</td></tr>
+            <tr><td>이동수단</td><td>도보/차/대중교통 각각 API → <b>빠름·편함·저렴</b> 비교 제시</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <h3><span class="dot"></span>8.5 고도화 · AI</h3>
+      <table>
+        <tr><th>아이디어</th><th>필요 데이터</th><th>현실 평가 (정직)</th></tr>
+        <tr><td>실시간 교통량 예측(시계열·ML)</td><td>도로별 시간대 교통 이력</td><td><span class="st st-no">카카오가 이미 함</span> 우리 직접은 데이터 없음 → API값 사용</td></tr>
+        <tr><td>학습형 동선 선호<br>(사용자가 선호하는 코스 학습)</td><td>사용자 코스 선택·완주 로그</td><td><span class="st st-part">데이터 누적 후</span> 지금 0(콜드스타트)</td></tr>
+        <tr><td>강화학습(RL) 동선 최적화</td><td>대량 시뮬·보상설계</td><td><span class="st st-no">연구 레벨·과함</span> 공모전엔 부적합</td></tr>
+        <tr><td><b>가중치 튜닝 + 규칙형 멀티모달</b></td><td>좌표·API·취향(보유)</td><td><span class="st st-can">현실적 차별화</span> 지금 가능 · 설명가능</td></tr>
+      </table>
+      <div class="warn">정직한 한계: <b>"내비 알고리즘을 처음부터" = 비현실.</b> 우리 차별화 = <b>API를 똑똑하게 조합 + 취향/혼잡 가중치 + 순회 최적화 + 멀티모달 비교.</b> 학습형(선호·GNN)은 행동 데이터 쌓인 뒤 "발전성"으로.</div>
+
+      <div class="note">📌 결정: 코스 3~5곳 기준으로 NN + 2-opt 채택. 멀티모달 비교는 가중치 튜닝과 함께 진행. 혼잡 반영과 학습형은 다음 단계로 분리한다.</div>
+
+      <h3><span class="dot"></span>8.6 경로를 지도에 어떻게 표현 (MVP)</h3>
+      <div class="wf">
+        <div class="wfbar"><span class="logo">🥐 코스</span><span class="chip">📍 현재 위치</span><span class="chip">🚶 도보</span><span class="sp"></span><span class="chip">코스 만들기</span></div>
+        <div class="wfbody">
+          <div class="wfmap" style="position:relative">
+            <span class="ml">대전 · 빵 투어 동선</span>
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%">
+              <polyline points="18,72 36,50 54,36 70,48 60,68" fill="none" stroke="#E8862B" stroke-width="1.4" stroke-dasharray="3 2"/>
+            </svg>
+            <span style="position:absolute;left:18%;top:72%;font-size:17px;transform:translate(-50%,-60%)">📍</span>
+            <span style="position:absolute;left:36%;top:50%;width:19px;height:19px;background:#E8862B;color:#fff;border-radius:50%;line-height:19px;text-align:center;font-size:11px;font-weight:700;transform:translate(-50%,-50%);box-shadow:0 1px 3px rgba(0,0,0,.3)">1</span>
+            <span style="position:absolute;left:54%;top:36%;width:19px;height:19px;background:#E8862B;color:#fff;border-radius:50%;line-height:19px;text-align:center;font-size:11px;font-weight:700;transform:translate(-50%,-50%);box-shadow:0 1px 3px rgba(0,0,0,.3)">2</span>
+            <span style="position:absolute;left:70%;top:48%;width:19px;height:19px;background:#E8862B;color:#fff;border-radius:50%;line-height:19px;text-align:center;font-size:11px;font-weight:700;transform:translate(-50%,-50%);box-shadow:0 1px 3px rgba(0,0,0,.3)">3</span>
+            <span style="position:absolute;left:60%;top:68%;width:19px;height:19px;background:#E8862B;color:#fff;border-radius:50%;line-height:19px;text-align:center;font-size:11px;font-weight:700;transform:translate(-50%,-50%);box-shadow:0 1px 3px rgba(0,0,0,.3)">4</span>
+          </div>
+          <div class="wfdetail">
+            <b style="font-size:13px">코스 순서</b>
+            <div class="dt">📍 현재 위치 (출발)</div>
+            <div class="dt">① 성심당 본점 · 도보 6분</div>
+            <div class="dt">② 둔산 베이커리 · 4분</div>
+            <div class="dt">③ 골목 디저트 · 5분</div>
+            <div class="dt">④ 관저 베이크 · 7분</div>
+            <div style="margin-top:8px;font-weight:700;color:var(--brown)">총 약 28분 · 4곳</div>
+          </div>
+        </div>
+      </div>
+      <div class="muted" style="font-size:12.5px">현재 위치(핀) 기준 NN+2-opt 순서 → 카카오 Polyline 경로선 + 번호 마커, 우측 패널에 순서·구간시간·총 소요. 좌(지도)·우(코스 패널) 구성.</div>
+
+      <div class="warn">🔸 <b>분리(중요):</b> 현재 위치 기반 경로 추천은 <b>계획에만 넣고 실제 데모에는 반영하지 않는다.</b> 메인 코어(설문 → 추천 → 상세)를 먼저 완성하고, 경로는 이후 데모로 붙인다. 현재 위치 권한·UX는 별도 검토가 필요하다.</div>
+    </section>
+
+    <!-- 09 TREE -->
+    <section class="page" id="tree">
+      <div class="crumb">09 · Tree Algorithm</div>
+      <h2 class="t">트리 알고리즘 — 취향 추천</h2>
+      <p class="lead">설문 답을 분석해 만족도 높은 빵·빵집을 더 정확히 추천한다. 정확도를 높이려면 추가 데이터가 필요하며, 그 데이터 그림까지 정리한다.</p>
+
+      <h3><span class="dot"></span>9.1 결정트리(Decision Tree)란? <span class="muted" style="font-size:12px">(아주 기초)</span></h3>
+      <div class="card">
+        질문으로 <b>가지치기</b> 하며 답을 좁히는 것. 예:
+        <div style="font-family:ui-monospace,monospace;font-size:12.5px;background:#FBF1DD;border-radius:8px;padding:10px;margin-top:6px;line-height:1.8">
+          달달? ──예→ 명물? ──예→ <b>성심당(케이크)</b><br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└아니→ <b>동네 디저트집</b><br>
+          &nbsp;&nbsp;└아니(짭짤)→ 혼자? ──예→ <b>소금빵 테이크아웃</b> …
+        </div>
+        <div class="muted" style="font-size:12px;margin-top:6px">지금 <code>recommend.js</code>의 "태그 가중합"은 <b>가장 단순한 트리(규칙)</b>의 일종.</div>
+      </div>
+
+      <h3><span class="dot"></span>9.2 적용 단계 — 점점 똑똑하게</h3>
+      <table>
+        <tr><th>단계</th><th>방식</th><th>필요 데이터</th><th>지금?</th></tr>
+        <tr><td>L1 규칙 트리</td><td>손으로 분기 설계 (현재)</td><td>없음</td><td><span class="st st-done">동작</span></td></tr>
+        <tr><td>L2 <b>정보이득 적응형</b><br>(ID3/CART)</td><td>남은 후보를 <b>가장 잘 가르는 질문</b>을 다음에 제시 → 질문 수↓·정확도↑·설명가능</td><td>빵집 속성 분포(보유)</td><td><span class="st st-can">가능</span></td></tr>
+        <tr><td>L3 <b>학습형 트리</b><br>(랜덤포레스트 등)</td><td>"어떤 답 조합 → 어떤 빵집에 만족"을 데이터로 학습</td><td>사용자 피드백 라벨(다량)</td><td><span class="st st-part">데이터 후</span></td></tr>
+        <tr><td>L4 협업필터/임베딩</td><td>"비슷한 취향 사람이 좋아한 집" / 빵집 벡터 유사도</td><td>상호작용 행렬·임베딩</td><td><span class="st st-no">데이터 후</span></td></tr>
+      </table>
+
+      <h3><span class="dot"></span>9.3 ⭐ 만족도↑의 핵심 = 피드백 루프</h3>
+      <div class="okbox">추천 후 <b>"이 추천 맘에 들었나요? 👍/👎"</b> → 그 라벨을 모아 트리/모델을 <b>재학습</b>. 이게 정확도가 오르는 근본 원리. <b>설문(입력) + 피드백(정답)</b>이 쌍으로 쌓여야 "정확한 분석"이 됨.</div>
+
+      <h3><span class="dot"></span>9.4 추가로 필요한 데이터</h3>
+      <table>
+        <tr><th>필요 데이터</th><th>왜</th><th>어디서</th></tr>
+        <tr><td><b>빵집 풍부 속성</b><br>(메뉴·가격·분위기·리뷰)</td><td>취향과 매칭할 "특징"이 많아야 정교</td><td>관광공사 detailIntro2(메뉴) · 카카오 · 리뷰</td></tr>
+        <tr><td><b>사용자 피드백</b><br>(클릭·찜·👍/방문)</td><td>"정답 라벨" = 학습의 연료</td><td>자체 로깅(localStorage→백엔드)</td></tr>
+        <tr><td>맥락(시간·동행·날씨)</td><td>같은 사람도 상황 따라 다름</td><td>설문/센서/시간</td></tr>
+      </table>
+      <div class="note">🤖 <b>AI 연계 (실제 가능·차별화):</b> 빵집 <b>메뉴·리뷰 텍스트를 LLM/임베딩</b>(예: Claude API)으로 분석해 "달달함·식사성·분위기" 같은 <b>특성 점수로 벡터화</b> → 추천 피처로. 휴리스틱 태깅보다 훨씬 정밀. <b>데이터 부족을 AI로 메우는</b> 길.</div>
+
+      <h3><span class="dot"></span>9.5 정직한 평가 + 로드맵</h3>
+      <div class="card"><ul class="tight">
+        <li><b>공모전 단계</b>: <b>L1→L2(적응형) + 메뉴/리뷰 임베딩</b>이 현실적. 설명가능(왜 이 빵집?)해서 심사·UX 유리.</li>
+        <li><b>발전성</b>: 피드백 쌓이면 L3 학습형 → "쓸수록 똑똑해지는 추천"으로 서사.</li>
+        <li>트리는 <b>해석가능</b>이 강점(딥러닝 블랙박스와 대비) — 포폴에서 "왜 이 알고리즘" 설명하기 좋음.</li>
+      </ul></div>
+      <div class="note">📌 결정: 1차 목표는 L2 정보이득 적응형. 피드백 로깅과 메뉴·리뷰 임베딩은 발전 단계에서 검토한다.</div>
     </section>
 
     <!-- 09 DESIGN -->
     <section class="page" id="design">
-      <div class="crumb">09 · Design</div>
+      <div class="crumb">10 · Design</div>
       <h2 class="t">디자인</h2>
       <p class="lead">디자이너 별도. 여기선 데이터흐름이 얹힐 톤·웹 그리드 기준만.</p>
       <div class="grid g2">
@@ -399,7 +552,7 @@
 
     <!-- 10 NEXT -->
     <section class="page" id="next">
-      <div class="crumb">10 · env · Next</div>
+      <div class="crumb">11 · env · Next</div>
       <h2 class="t">env 키 · 다음</h2>
       <p class="lead">키 3종 발급·연동 완료. 발급 가이드 → <a href="키발급가이드.html"><b>키발급가이드.html</b></a></p>
       <div class="card"><table>

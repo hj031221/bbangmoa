@@ -64,12 +64,24 @@ export async function getDetail(contentId) {
   return extractItems(json)[0] || null
 }
 
-// 지역 설정에 정의된 키워드들을 모두 긁어 합친다.
+// 지역 + 신분류(제과 FD030100)로 관광공사 빵집을 가져온다.
+//  ⚠️ searchKeyword2("대전 빵" 등)는 실측 0건이라 폐기. areaBasedList2 + 제과 분류가
+//     성심당 등 등재 빵집(실측 3곳)을 안정적으로 반환한다.
 export async function fetchTourBakeries(regionId) {
   if (!tourEnabled()) return []
   const region = getRegion(regionId)
-  const lists = await Promise.allSettled(
-    region.tourKeywords.map((kw) => searchByKeyword(kw, { regionId })),
-  )
-  return lists.flatMap((r) => (r.status === 'fulfilled' ? r.value : []))
+  const json = await getJson(`${BASE}/areaBasedList2`, {
+    params: {
+      ...COMMON,
+      contentTypeId: 39, // 음식점
+      lDongRegnCd: region.lDongRegnCd,
+      lclsSystm1: 'FD',
+      lclsSystm2: 'FD03',
+      lclsSystm3: 'FD030100', // 제과(빵집)
+      arrange: 'C',
+      numOfRows: 100,
+      pageNo: 1,
+    },
+  })
+  return extractItems(json)
 }

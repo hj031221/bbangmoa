@@ -4,7 +4,7 @@ import { useAppStore } from '../../store/useAppStore'
 import { getRegion } from '../../config/regions'
 import { DAEJEON_RING } from '../../data/daejeonBoundary'
 import MarkerLayer from './MarkerLayer'
-import { getEnabledFeatures } from './features'
+import { getEnabledFeatures, createClusterer } from './features'
 
 // 카카오맵 컨테이너 + 대전 마스킹(스포트라이트) + 마커 레이어 + 확장기능 실행기.
 export default function MapView({ bakeries, selectedId, onSelect }) {
@@ -13,6 +13,7 @@ export default function MapView({ bakeries, selectedId, onSelect }) {
   const region = getRegion(regionId)
   const containerRef = useRef(null)
   const [map, setMap] = useState(null)
+  const [clusterer, setClusterer] = useState(null)
 
   // 지도 생성 + 대전 외곽 딤 + 시점 고정 (1회)
   useEffect(() => {
@@ -56,6 +57,8 @@ export default function MapView({ bakeries, selectedId, onSelect }) {
     m.setBounds(bounds)
     m.setMaxLevel(9)
 
+    // 마커 클러스터러 생성(기능 enabled 시). MarkerLayer 가 이걸로 마커를 묶는다.
+    setClusterer(createClusterer({ map: m, kakao }))
     setMap(m)
   }, [loaded, map, region])
 
@@ -83,6 +86,7 @@ export default function MapView({ bakeries, selectedId, onSelect }) {
           bakeries={bakeries}
           selectedId={selectedId}
           onSelect={onSelect}
+          clusterer={clusterer}
         />
       )}
     </div>
