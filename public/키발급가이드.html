@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>API 키 발급 가이드 · 대전 빵집 지도</title>
+<style>
+  :root{
+    --bg:#FAF3E8; --card:#fff; --ink:#2B2018; --muted:#8A7A66; --line:#EADCC6;
+    --brown:#6B4A2B; --accent:#E8862B; --accent2:#C9621A; --gold:#E5B45B;
+    --green:#3FA877; --blue:#3E7CB1; --red:#D7644B; --shadow:0 6px 22px rgba(80,50,20,.10);
+  }
+  *{box-sizing:border-box}
+  body{margin:0; font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif; background:var(--bg); color:var(--ink); line-height:1.6; font-size:15px}
+  a{color:var(--accent2)}
+  header{background:linear-gradient(120deg,#5a3d22,#3a2817); color:#f6ecdc; padding:30px 7vw 26px}
+  header h1{margin:0 0 6px; font-size:24px}
+  header p{margin:0; color:#d8b98f; font-size:13.5px}
+  header .back{display:inline-block; margin-bottom:14px; color:#f0c89a; text-decoration:none; font-size:13px}
+  .toc{display:flex; gap:8px; flex-wrap:wrap; margin-top:16px}
+  .toc a{background:rgba(255,255,255,.1); color:#f6ecdc; text-decoration:none; padding:7px 13px; border-radius:999px; font-size:13px}
+  .toc a:hover{background:var(--accent)}
+  main{max-width:860px; margin:0 auto; padding:30px 22px 80px}
+  section{margin-bottom:34px}
+  h2{font-size:20px; display:flex; align-items:center; gap:10px; border-bottom:2px solid var(--line); padding-bottom:8px}
+  h2 .badge{font-size:12px; background:var(--accent); color:#fff; padding:3px 10px; border-radius:999px}
+  .kakao h2 .badge{background:#3C1E1E; color:#FEE500}
+  .gov h2 .badge{background:#1957A6}
+  .step{display:flex; gap:14px; margin:16px 0}
+  .step .num{flex:0 0 30px; height:30px; border-radius:50%; background:var(--accent); color:#fff; font-weight:800; display:flex; align-items:center; justify-content:center; font-size:14px}
+  .gov .step .num{background:var(--blue)}
+  .step .body{flex:1}
+  .step .body b{color:var(--brown)}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; box-shadow:var(--shadow); margin:10px 0}
+  code{background:#F1E7D6; padding:2px 7px; border-radius:6px; font-size:13px; color:var(--accent2); font-family:"JetBrains Mono",ui-monospace,monospace; word-break:break-all}
+  pre{background:#2B2018; color:#f3e7d4; padding:13px 15px; border-radius:10px; overflow:auto; font-size:12.5px; line-height:1.5}
+  pre code{background:none; color:#F4C77E; padding:0}
+  .note{background:#FFF8EC; border-left:3px solid var(--gold); padding:10px 14px; border-radius:8px; font-size:13.5px; margin:10px 0}
+  .warn{background:#FDEEE9; border-left:3px solid var(--red); padding:10px 14px; border-radius:8px; font-size:13.5px; margin:10px 0}
+  .ok{background:#EDF7F1; border-left:3px solid var(--green); padding:10px 14px; border-radius:8px; font-size:13.5px; margin:10px 0}
+  table{width:100%; border-collapse:collapse; font-size:13px; background:var(--card); border-radius:10px; overflow:hidden; box-shadow:var(--shadow); margin:10px 0}
+  th,td{text-align:left; padding:9px 11px; border-bottom:1px solid var(--line); vertical-align:top}
+  th{background:#F3E7D4; color:var(--brown)}
+  tr:last-child td{border-bottom:none}
+  .key{display:inline-block; background:#E9EEF4; color:var(--blue); font-size:11.5px; font-weight:700; padding:1px 8px; border-radius:6px}
+  ul.tight{margin:6px 0; padding-left:18px}
+  ul.tight li{margin:5px 0}
+  .pin{font-size:12px; color:var(--muted)}
+</style>
+</head>
+<body>
+<header>
+  <a class="back" href="계획.html">← 계획서로 돌아가기</a>
+  <h1>🔑 API 키 발급 가이드</h1>
+  <p>대전 빵집 지도 · 카카오 2종 + 한국관광공사 1종 = 총 3개 키. 발급 → <code>.env</code> 등록까지.</p>
+  <div class="toc">
+    <a href="#need">발급할 키</a>
+    <a href="#kakao">카카오 (JS·REST)</a>
+    <a href="#gov">한국관광공사</a>
+    <a href="#env">.env 적용</a>
+    <a href="#test">동작 테스트</a>
+    <a href="#trouble">문제 해결</a>
+  </div>
+</header>
+<main>
+
+  <section id="need">
+    <h2>발급할 키 3개</h2>
+    <table>
+      <tr><th>env 변수</th><th>발급처</th><th>용도</th></tr>
+      <tr><td><span class="key">VITE_KAKAO_JS_KEY</span></td><td>Kakao Developers</td><td>카카오맵 표시</td></tr>
+      <tr><td><span class="key">VITE_KAKAO_REST_KEY</span></td><td>같은 카카오 앱</td><td>로컬 키워드검색(빵집 좌표)</td></tr>
+      <tr><td><span class="key">VITE_TOUR_API_KEY</span></td><td>data.go.kr (공공데이터포털)</td><td>관광공사 KorService2(빵집 수집·상세)</td></tr>
+    </table>
+    <div class="note">카카오 두 키는 <b>같은 애플리케이션</b>에서 한 번에 나옵니다. 즉 실제 발급 작업은 ① 카카오 앱 1개 + ② 관광공사 서비스 1개, 두 군데입니다.</div>
+  </section>
+
+  <section id="kakao" class="kakao">
+    <h2><span class="badge">KAKAO</span> 카카오 — JavaScript 키 + REST API 키</h2>
+
+    <div class="step"><div class="num">1</div><div class="body">
+      <b>카카오 디벨로퍼스 로그인</b><br>
+      <a href="https://developers.kakao.com" target="_blank">developers.kakao.com</a> 접속 → 우상단 <b>로그인</b>(카카오계정).
+    </div></div>
+
+    <div class="step"><div class="num">2</div><div class="body">
+      <b>애플리케이션 추가</b><br>
+      상단 <b>내 애플리케이션</b> → <b>애플리케이션 추가하기</b> → 앱 이름(예: <code>대전빵집지도</code>), 사업자명(개인이면 본인/팀명) 입력 → 저장.
+    </div></div>
+
+    <div class="step"><div class="num">3</div><div class="body">
+      <b>앱 키 2개 복사</b><br>
+      생성된 앱 클릭 → 좌측 <b>앱 키</b> 메뉴. 4종(네이티브/JavaScript/REST API/Admin)이 보입니다.
+      <table>
+        <tr><th>화면에 보이는 키</th><th>→ env 변수</th></tr>
+        <tr><td><b>JavaScript 키</b></td><td><span class="key">VITE_KAKAO_JS_KEY</span></td></tr>
+        <tr><td><b>REST API 키</b></td><td><span class="key">VITE_KAKAO_REST_KEY</span></td></tr>
+      </table>
+      <div class="warn">⚠️ <b>Admin 키는 절대 프론트엔드/깃에 넣지 마세요.</b> 우리는 JavaScript·REST 두 개만 씁니다.</div>
+    </div></div>
+
+    <div class="step"><div class="num">4</div><div class="body">
+      <b>Web 플랫폼 등록 (지도 표시 필수)</b><br>
+      좌측 <b>앱 설정 → 플랫폼</b> → <b>Web 플랫폼 등록</b> → 사이트 도메인에 아래를 추가:
+      <pre><code>http://localhost:5173</code></pre>
+      <span class="pin">배포 후에는 실제 도메인(예: https://내서비스.vercel.app)도 같은 화면에서 추가. 포트·http/https까지 정확히 일치해야 함.</span>
+      <div class="warn">이 단계를 빼면 지도가 <b>"앱 도메인 불일치"</b>로 안 뜹니다. 지도 안 나오면 여기부터 확인.</div>
+    </div></div>
+
+    <div class="step"><div class="num">5</div><div class="body">
+      <b>카카오맵 · 로컬 사용 확인</b><br>
+      좌측 <b>제품 설정</b>에 <b>카카오맵</b> 항목이 있으면 <b>ON</b>. 로컬 키워드검색은 별도 활성화 없이 REST 키로 호출됩니다(헤더 <code>Authorization: KakaoAK {REST키}</code>). 일/월 쿼터는 <b>대시보드</b>에서 확인.
+    </div></div>
+    <div class="ok">✅ 결과: <span class="key">VITE_KAKAO_JS_KEY</span>, <span class="key">VITE_KAKAO_REST_KEY</span> 두 값 확보 + localhost:5173 플랫폼 등록 완료.</div>
+  </section>
+
+  <section id="gov" class="gov">
+    <h2><span class="badge">data.go.kr</span> 한국관광공사 — KorService2 인증키</h2>
+
+    <div class="step"><div class="num">1</div><div class="body">
+      <b>공공데이터포털 로그인</b><br>
+      <a href="https://www.data.go.kr" target="_blank">data.go.kr</a> → 회원가입/로그인(카카오·네이버 간편가입 가능).
+    </div></div>
+
+    <div class="step"><div class="num">2</div><div class="body">
+      <b>서비스 검색</b><br>
+      상단 검색창에 <code>한국관광공사 국문 관광정보 서비스</code> 입력 → <b>오픈API</b> 탭 결과에서
+      <b>「한국관광공사_국문 관광정보 서비스_GW」</b>(= KorService2) 클릭.
+      <div class="note">"_GW"가 붙은 최신(KorService2) 항목을 고르세요. 구버전(KorService1)도 검색되니 주의.</div>
+    </div></div>
+
+    <div class="step"><div class="num">3</div><div class="body">
+      <b>활용신청</b><br>
+      상세페이지 우측 <b>활용신청</b> → 활용목적(예: <i>웹 서비스 개발 / 관광데이터 공모전 출품</i>) 작성 → 라이선스 동의 → 신청.
+      <div class="ok">보통 <b>자동승인(즉시)</b>. 간혹 1~2일 걸릴 수 있음.</div>
+    </div></div>
+
+    <div class="step"><div class="num">4</div><div class="body">
+      <b>인증키 확인</b><br>
+      상단 <b>마이페이지 → 데이터활용 → Open API → 개발계정</b> → 방금 신청한 서비스 클릭. 하단 <b>일반 인증키</b>에 두 값이 보입니다:
+      <table>
+        <tr><th>표시</th><th>사용 여부</th></tr>
+        <tr><td><b>일반 인증키 (Decoding)</b></td><td>✅ <b>이 값을</b> <span class="key">VITE_TOUR_API_KEY</span> 에</td></tr>
+        <tr><td>일반 인증키 (Encoding)</td><td>❌ 사용 안 함</td></tr>
+      </table>
+      <div class="warn">⚠️ <b>반드시 Decoding 값.</b> 우리 코드(fetch)가 파라미터를 자동 인코딩하므로, 인코딩 키를 넣으면 <b>이중 인코딩</b>되어 <code>SERVICE_KEY_IS_NOT_REGISTERED_ERROR</code> 가 납니다.</div>
+    </div></div>
+
+    <div class="step"><div class="num">5</div><div class="body">
+      <b>트래픽 / 운영계정</b><br>
+      개발계정은 보통 <b>일 1,000회</b> 제한 — 개발·데모엔 충분.
+      <div class="note">📌 <b>공모전 제출 주의:</b> 1차 심사 때 <b>운영계정 신청정보(신청자명·인증키)</b>를 요구합니다. 개발이 안정되면 같은 서비스로 <b>운영계정 신청</b>도 미리 해두세요.</div>
+    </div></div>
+    <div class="ok">✅ 결과: <span class="key">VITE_TOUR_API_KEY</span> = 관광공사 Decoding 인증키 확보.</div>
+  </section>
+
+  <section id="env">
+    <h2>.env 적용</h2>
+    <div class="step"><div class="num">1</div><div class="body">
+      <b>예시 파일 복사</b> (프로젝트 루트 <code>C:\Users\user\관광공모전</code>)
+      <pre><code># PowerShell
+Copy-Item .env.example .env
+
+# 또는 Git Bash
+cp .env.example .env</code></pre>
+    </div></div>
+    <div class="step"><div class="num">2</div><div class="body">
+      <b><code>.env</code> 값 채우기</b>
+      <pre><code>VITE_KAKAO_JS_KEY=발급받은_자바스크립트_키
+VITE_KAKAO_REST_KEY=발급받은_REST_API_키
+VITE_TOUR_API_KEY=관광공사_Decoding_인증키</code></pre>
+    </div></div>
+    <div class="step"><div class="num">3</div><div class="body">
+      <b>dev 서버 재시작</b> — Vite는 <code>.env</code>를 시작 시 1회만 읽습니다.
+      <pre><code>npm run dev   # 이미 떠 있으면 Ctrl+C 후 재실행</code></pre>
+    </div></div>
+    <div class="ok">✅ 화면 상단의 <b>"샘플 데이터"</b> 뱃지가 사라지고 실제 대전 빵집이 뜨면 성공.</div>
+    <div class="warn">🔒 <code>.env</code>는 <code>.gitignore</code>에 의해 커밋되지 않습니다. 키를 깃/스크린샷에 노출하지 마세요.</div>
+  </section>
+
+  <section id="test">
+    <h2>동작 테스트 (키 받자마자)</h2>
+    <p>브라우저 주소창에 아래 URL을 붙여넣어(<code>인증키</code> 자리에 <b>Decoding 키</b>) 대전 <b>제과(빵집)</b>가 나오는지 바로 확인 — 이건 CORS와 무관하게 됩니다.</p>
+    <pre><code>https://apis.data.go.kr/B551011/KorService2/areaBasedList2?serviceKey=인증키&numOfRows=10&pageNo=1&MobileOS=ETC&MobileApp=test&_type=json&arrange=C&contentTypeId=39&lDongRegnCd=30&lclsSystm1=FD&lclsSystm2=FD03&lclsSystm3=FD030100</code></pre>
+    <ul class="tight">
+      <li><code>lDongRegnCd=30</code> = 대전 · <code>FD030100</code> = 제과</li>
+      <li><code>totalCount</code> 숫자 = 대전 관광공사 등록 빵집 수 (밀도 실측의 핵심!)</li>
+      <li>카카오 로컬 테스트는 헤더가 필요해 브라우저 주소창으론 안 됨 → 앱 안에서 확인</li>
+    </ul>
+    <div class="note">이 <code>totalCount</code>가 작으면(예: 수십 개) 카카오 로컬로 동네 빵집을 보강, 충분하면 관광공사 비중을 키웁니다. 키 주시면 제가 <code>scripts/probe.js</code>로 채움률까지 한 번에 뽑아드립니다.</div>
+  </section>
+
+  <section id="trouble">
+    <h2>문제 해결</h2>
+    <table>
+      <tr><th>증상</th><th>원인 / 해결</th></tr>
+      <tr><td>지도가 회색/안 뜸</td><td>카카오 <b>JS 키</b> 오타, 또는 <b>Web 플랫폼에 localhost:5173 미등록</b>. 포트·http 확인</td></tr>
+      <tr><td>빵집 검색 0개 / 401</td><td>카카오 <b>REST 키</b> 또는 헤더 <code>Authorization: KakaoAK</code> 누락</td></tr>
+      <tr><td><code>SERVICE_KEY_IS_NOT_REGISTERED_ERROR</code></td><td>관광공사 키를 <b>인코딩</b> 값으로 넣음 → <b>Decoding</b> 값으로 교체. 또는 활용신청 미승인</td></tr>
+      <tr><td>관광공사 응답이 XML 에러</td><td><code>_type=json</code> 확인, 일일 트래픽 초과 여부 확인</td></tr>
+      <tr><td>브라우저 콘솔 <b>CORS</b> 에러</td><td>관광공사는 직접 호출 불가 → 이미 설정된 <code>/tourapi</code> dev proxy 경유(코드에 반영됨). 배포 시 서버리스로 교체</td></tr>
+      <tr><td>.env 바꿨는데 그대로</td><td>dev 서버 <b>재시작</b> 필요(Vite는 시작 시 1회 로드)</td></tr>
+    </table>
+    <div class="note">막히면 증상 + 콘솔 메시지 캡처해서 채팅에 주세요. 바로 짚어드립니다.</div>
+  </section>
+
+  <p style="text-align:center; color:var(--muted); font-size:13px; margin-top:40px">
+    <a href="계획.html">← 계획서로 돌아가기</a> · 대전 빵집 지도 · 2026 관광데이터 활용 공모전
+  </p>
+</main>
+</body>
+</html>

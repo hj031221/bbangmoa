@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>빵지순례 경로 추천 · 알고리즘 설계 (단계별)</title>
+<style>
+  :root{--bg:#FAF3E8;--card:#fff;--ink:#2B2018;--muted:#8A7A66;--line:#EADCC6;--brown:#6B4A2B;--accent:#E8862B;--accent2:#C9621A;--gold:#E5B45B;--green:#3FA877;--blue:#3E7CB1;--purple:#8A6CC2;--red:#D7644B;--shadow:0 6px 22px rgba(80,50,20,.10)}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.65;font-size:15px}
+  a{color:var(--accent2)}
+  header{background:linear-gradient(120deg,#5a3d22,#3a2817);color:#f6ecdc;padding:26px 7vw 22px}
+  header .back{display:inline-block;margin-bottom:12px;color:#f0c89a;text-decoration:none;font-size:13px}
+  header h1{margin:0 0 6px;font-size:23px}
+  header p{margin:0;color:#e8cba2;font-size:13.5px;max-width:780px}
+  .stepnav{display:flex;gap:7px;flex-wrap:wrap;padding:16px 7vw;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+  .stepnav button{font-size:12.5px;border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 13px;cursor:pointer;color:var(--brown)}
+  .stepnav button.on{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700}
+  .stepnav button.todo{opacity:.6}
+  main{max-width:880px;margin:0 auto;padding:28px 22px 90px}
+  .step{display:none}.step.show{display:block}
+  h2{font-size:22px;margin:6px 0 4px;letter-spacing:-.4px}
+  h3{font-size:16.5px;margin:24px 0 8px;display:flex;align-items:center;gap:8px}
+  h3 .d{width:8px;height:8px;border-radius:50%;background:var(--accent);display:inline-block}
+  .lead{color:var(--muted);font-size:14px;margin:0 0 6px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:var(--shadow);margin:12px 0}
+  table{width:100%;border-collapse:collapse;font-size:13px;background:#fff;border-radius:12px;overflow:hidden;box-shadow:var(--shadow);margin:10px 0}
+  th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:#F3E7D4;color:var(--brown);font-size:12px}
+  tr:last-child td{border-bottom:none}
+  code{background:#F1E7D6;padding:1px 6px;border-radius:6px;font-size:12.5px;color:var(--accent2);font-family:"JetBrains Mono",ui-monospace,monospace}
+  .muted{color:var(--muted)}
+  ul.tight{margin:6px 0;padding-left:18px}ul.tight li{margin:5px 0}
+  .note{background:#FFF8EC;border-left:3px solid var(--gold);padding:11px 15px;border-radius:8px;font-size:13.5px;margin:12px 0}
+  .key{background:#EDF7F1;border-left:3px solid var(--green);padding:11px 15px;border-radius:8px;font-size:13.5px;margin:12px 0}
+  .warn{background:#FDEEE9;border-left:3px solid var(--red);padding:11px 15px;border-radius:8px;font-size:13.5px;margin:12px 0}
+  .pro{color:var(--green);font-weight:600}.con{color:var(--red);font-weight:600}
+  .pick{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px}
+  .pick-yes{background:#E6F2EA;color:var(--green)}.pick-maybe{background:#FBF1DD;color:#b07d1a}.pick-no{background:#EFE9E2;color:var(--muted)}
+  .diagram{background:#fff;border:1px dashed var(--line);border-radius:12px;padding:18px;text-align:center;font-size:13px;color:var(--muted);margin:12px 0}
+  .nodey{display:inline-block;background:var(--accent);color:#fff;border-radius:50%;width:34px;height:34px;line-height:34px;text-align:center;font-weight:700;margin:0 26px;position:relative}
+  .edge{display:inline-block;color:var(--brown);font-size:11px}
+  .grp{font-weight:800;color:var(--brown);font-size:13px;margin:14px 0 2px}
+  .formula{background:#2B2018;color:#F4C77E;padding:14px 16px;border-radius:10px;font-family:ui-monospace,monospace;font-size:13px;line-height:1.7;overflow:auto}
+  .roadmap .it{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+  .roadmap .n{flex:0 0 54px;font-weight:800;color:var(--accent2)}
+  .roadmap .it.cur{background:#FFF7EE;border-radius:8px;padding:10px 12px}
+  .ask{background:#fff;border:2px solid var(--accent);border-radius:12px;padding:14px 16px;margin:16px 0}
+</style>
+</head>
+<body>
+<header>
+  <a class="back" href="계획.html">← 계획서로</a>
+  <h1>🧭 빵지순례 경로 추천 — 알고리즘 설계 (단계별)</h1>
+  <p>경로 추천은 보조 기능이며, 직접 설계하는 파트다. 기초부터 정리해 한 단계씩 좁혀간다.</p>
+</header>
+<div class="stepnav" id="stepnav">
+  <button class="on" data-s="1">STEP 1 · 알고리즘 넓게 깔기</button>
+  <button data-s="2">STEP 2 · 최단경로 깊이</button>
+  <button data-s="nav">＋ 내비 알고리즘 심화</button>
+  <button class="todo" data-s="3">STEP 3 · 방문순서 최적화</button>
+  <button data-s="4">STEP 4 · 실시간 교통 연결</button>
+  <button class="todo" data-s="5">STEP 5 · 데이터·수식 확정</button>
+  <button class="todo" data-s="6">STEP 6 · 구현·데모</button>
+  <button class="todo" data-s="7">STEP 7 · 혼잡 반영</button>
+  <button class="todo" data-s="8">STEP 8 · 가중치 튜닝·멀티모달</button>
+</div>
+
+<main>
+  <!-- STEP 1 -->
+  <section class="step show" id="s1">
+    <h2>STEP 1 · 알고리즘을 넓게 깔아보자</h2>
+    <p class="lead">알고리즘 이름만 아는 상태를 기준으로, 용어는 그때그때 쉬운 말로 풀어 정리한다.</p>
+
+    <h3><span class="d"></span>1.1 우리가 풀 문제 (한 문장)</h3>
+    <div class="card">
+      여러 빵집(+주변 관광지)을 <b>어떤 순서로</b> 돌면 좋을지를, <b>b) 실시간 교통을 반영한 이동시간</b>으로 짧게 + <b>c) 사람 덜 몰리는 쪽</b>으로 추천한다. 이동수단은 <b>차/도보</b>(지도 API가 지원하는 형태 그대로).
+    </div>
+
+    <h3><span class="d"></span>1.2 '그래프'가 뭐냐 (제일 기초)</h3>
+    <div class="diagram">
+      <span class="nodey">A</span><span class="edge">— 7분 —</span><span class="nodey">B</span><span class="edge">— 4분 —</span><span class="nodey">C</span>
+      <div style="margin-top:14px">동그라미(A·B·C) = <b>노드(node)</b> = 장소(빵집·관광지)<br>선 = <b>엣지(edge)</b> = 두 장소 사이 길 · 선에 적힌 값 = <b>가중치(weight)</b> = 이동시간/거리</div>
+    </div>
+    <p class="muted" style="font-size:13px">"그래프 알고리즘"은 결국 <b>이 동그라미·선 그림 위에서 길을 어떻게 고를까</b>를 푸는 방법들이야. 빵집 지도가 딱 이 그림이고.</p>
+
+    <h3><span class="d"></span>1.3 ⭐ 먼저 알 핵심: 지도 API가 이미 해주는 게 있다</h3>
+    <div class="key">
+      <b>"두 지점 사이 최단/최快 경로"는 카카오·네이버 지도 API가 이미 계산해줘</b> (도로망 + 실시간 교통 포함). 즉 우리가 Dijkstra 같은 걸 직접 안 짜도 돼. 지도 API를 <b>"A→B 몇 분 걸려?"를 물어보는 계산기</b>로 쓰면 됨.<br>
+      → 그럼 <b>우리가 진짜 설계할 건</b>: ① 여러 곳을 <b>어떤 순서로</b> 돌지(방문순서) ② 그 순서를 정할 때 <b>취향·혼잡을 어떻게 점수에 섞을지</b>(가중치).
+    </div>
+    <p class="muted" style="font-size:13px">그래도 Dijkstra/A* 같은 "최단경로" 알고리즘을 아래에 깔아두는 이유: <b>원리를 알아야</b> 가중치를 어디에 어떻게 넣을지 감이 와. (그리고 지도 API 못 쓰는 상황 대비)</p>
+
+    <h3><span class="d"></span>1.4 알고리즘 카탈로그 (넓게)</h3>
+
+    <div class="grp">그룹 A · 두 지점 "최단경로" 찾기 (지도 API가 대신해주는 영역)</div>
+    <table>
+      <tr><th>이름</th><th>쉽게 말하면</th><th>장점 / 단점</th><th>우리에게</th></tr>
+      <tr><td><b>Dijkstra</b><br>다익스트라</td><td>출발점에서 가까운 곳부터 물결처럼 퍼뜨려 모든 지점까지 최단시간을 구함</td><td><span class="pro">정확·이해 쉬움</span> / <span class="con">목적지 하나여도 주변 다 계산</span></td><td><span class="pick pick-maybe">원리만</span> 지도 API가 내장</td></tr>
+      <tr><td><b>A*</b><br>에이스타</td><td>Dijkstra + "목적지는 저쪽" 방향 힌트(휴리스틱)로 더 빨리 도달</td><td><span class="pro">빠름</span> / <span class="con">힌트 설계 필요</span></td><td><span class="pick pick-maybe">원리만</span></td></tr>
+      <tr><td><b>Bellman-Ford</b></td><td>음수 비용도 처리하는 최단경로</td><td><span class="pro">유연</span> / <span class="con">느림</span></td><td><span class="pick pick-no">불필요</span> 음수 비용 없음</td></tr>
+    </table>
+
+    <div class="grp">그룹 B · 여러 곳을 "어떤 순서로 돌까" (★우리 핵심 영역)</div>
+    <table>
+      <tr><th>이름</th><th>쉽게 말하면</th><th>장점 / 단점</th><th>우리에게</th></tr>
+      <tr><td><b>완전탐색</b><br>(brute TSP)</td><td>가능한 모든 순서를 다 따져 제일 좋은 걸 고름</td><td><span class="pro">무조건 최적</span> / <span class="con">곳 늘면 폭발(10곳=36만 경우)</span></td><td><span class="pick pick-no">큰 N엔 X</span></td></tr>
+      <tr><td><b>최근접 이웃(NN)</b><br>그리디</td><td>지금 위치에서 제일 가까운 곳으로 계속 이동</td><td><span class="pro">아주 단순·빠름</span> / <span class="con">가끔 비효율 동선</span></td><td><span class="pick pick-yes">시작점으로 최고</span></td></tr>
+      <tr><td><b>2-opt</b></td><td>NN 결과에서 꼬인 두 구간을 풀어 더 짧게 다듬음</td><td><span class="pro">큰 개선·간단</span> / <span class="con">완벽최적은 아님</span></td><td><span class="pick pick-yes">NN 보정용 추천</span></td></tr>
+      <tr><td><b>Held-Karp</b><br>(DP)</td><td>똑똑하게 모든 순서를 정리해 최적해(완전탐색보다 빠름)</td><td><span class="pro">최적</span> / <span class="con">~15곳까지만 현실적</span></td><td><span class="pick pick-maybe">곳 적을 때</span></td></tr>
+      <tr><td><b>유전 알고리즘 등</b><br>(메타휴리스틱)</td><td>여러 순서를 섞고 변형하며 점점 좋게(진화 흉내)</td><td><span class="pro">큰 문제에 강함</span> / <span class="con">과함·튜닝 필요</span></td><td><span class="pick pick-no">우리 규모엔 과함</span></td></tr>
+    </table>
+
+    <div class="grp">그룹 C · "실시간·혼잡(b+c)"을 어디에 녹이나</div>
+    <table>
+      <tr><th>방법</th><th>쉽게 말하면</th><th>우리에게</th></tr>
+      <tr><td><b>실시간 이동시간을 엣지값으로</b></td><td>A→B 걸리는 시간을 지도 API의 <b>실시간 교통 반영</b> 값으로 받아 그래프 가중치로 씀 → 이게 (b)</td><td><span class="pick pick-yes">핵심 (b)</span></td></tr>
+      <tr><td><b>혼잡 패널티 비용</b></td><td>붐비는 곳/시간은 "비용 +α" 줘서 알고리즘이 피하게 → 이게 (c)</td><td><span class="pick pick-yes">핵심 (c)</span> 단, 혼잡 데이터 출처 정해야</td></tr>
+      <tr><td><b>시간의존 경로</b><br>(time-dependent)</td><td>"오후 6시엔 이 길이 더 막힘"처럼 시간대별 비용 변화 반영</td><td><span class="pick pick-maybe">고급 · 후순위</span></td></tr>
+    </table>
+
+    <div class="grp">그룹 D · 보조 탐색 (참고)</div>
+    <table>
+      <tr><th>이름</th><th>쉽게 말하면</th><th>우리에게</th></tr>
+      <tr><td><b>BFS / DFS</b></td><td>그래프를 넓게/깊게 훑는 기본 탐색 (가중치 없음)</td><td><span class="pick pick-no">경로추천엔 부적합</span> 기초 개념용</td></tr>
+    </table>
+
+    <h3><span class="d"></span>1.5 그래서 우리 방향 추천 (b+c)</h3>
+    <div class="key">
+      <b>① 거리/시간 = 카카오 길찾기(실시간 교통) ② 순서 = NN으로 짜고 → 2-opt로 다듬기 ③ 혼잡(c) = 비용에 패널티 더하기.</b><br>
+      = 직접 짤 건 사실상 <b>NN + 2-opt(아주 짧은 코드)</b>뿐. 최단경로·실시간 교통은 지도 API가 해결. 곳이 적으면(≤10) Held-Karp로 "최적" 옵션도 가능.
+    </div>
+    <div class="warn"><b>정직한 빈칸:</b> (c)혼잡의 <b>데이터 출처</b>가 아직 미정. 가게단위 실시간 혼잡은 무료 공개 데이터가 없음 → 후보: ⒜ 시간대 가정(영업시간·러시아워 룰) ⒝ 관광공사 지역 방문 추이/예측(#18/#21, 동네단위) ⒞ 자체 클릭/체크인 누적. STEP 4에서 이걸 정한다.</div>
+
+    <h3><span class="d"></span>1.6 비용(가중치) 수식 — 자리부터 잡기</h3>
+    <p class="muted" style="font-size:13px">두 장소 i→j로 갈 때의 "비용"을 이렇게 둘 수 있어. (값·계수는 STEP 4~5에서 데이터 보고 채움)</p>
+    <div class="formula">
+      cost(i→j) = α · <span style="color:#9fe0bf">이동시간(i→j)</span>   ← 카카오 실시간 교통<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; + β · <span style="color:#f4a3a3">혼잡패널티(j, 시각)</span>   ← (c), 출처 STEP4<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; − γ · <span style="color:#f4c77e">취향점수(j)</span>   ← 설문 결과(이미 있음)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; − δ · <span style="color:#f4c77e">영업가능(j, 시각)</span>   ← 관광공사 opentimefood<br>
+      <br>
+      목표: 코스 전체 Σcost 최소  (= 짧고·안 붐비고·취향 맞고·열려있는 동선)
+    </div>
+    <div class="note">α,β,γ,δ = "각 요소를 얼마나 중요하게 볼지" 손잡이. 이거 튜닝이 네가 재밌어할 부분. 데이터 들어오면 같이 돌려보며 잡자.</div>
+
+    <h3><span class="d"></span>1.7 다음 단계 로드맵</h3>
+    <div class="card roadmap">
+      <div class="it cur"><div class="n">STEP 1</div><div><b>알고리즘 넓게 깔기</b> — 지금 여기. 지형·후보·우리 방향 잡음.</div></div>
+      <div class="it"><div class="n">STEP 2</div><div>최단경로(Dijkstra/A*) <b>원리만</b> 그림으로 깊이 — 가중치 감각 익히기.</div></div>
+      <div class="it"><div class="n">STEP 3</div><div>방문순서(NN→2-opt→Held-Karp) <b>예시로 직접</b> 돌려보기.</div></div>
+      <div class="it"><div class="n">STEP 4</div><div>실시간 교통 연결 — 카카오 길찾기 이동시간을 엣지 비용으로.</div></div>
+      <div class="it"><div class="n">STEP 5</div><div>수식 계수(α~δ) 확정 + 관광공사/카카오 데이터 연결.</div></div>
+      <div class="it"><div class="n">STEP 6</div><div>지도 옆 코스 <b>실제 구현·데모</b> (Polyline+순서+주변장소).</div></div>
+      <div class="it"><div class="n">STEP 7</div><div>혼잡 반영 — 시간대·수요 데이터로 붐비는 곳·시간 회피. (다음 단계)</div></div>
+      <div class="it"><div class="n">STEP 8</div><div>가중치 튜닝 + 규칙형 멀티모달 — α~δ 조정, 도보/차/대중교통 비교. (다음 단계)</div></div>
+    </div>
+
+    <div class="ask">
+      <b>STEP 1 결정 (확정):</b>
+      <ul class="tight" style="margin-bottom:0">
+        <li>프레임: 최단경로·실시간 이동시간은 지도 API를 사용하고, 방문 순서 + 가중치 설계에 집중한다.</li>
+        <li>코스 규모는 3~5곳 → 방문 순서는 NN + 2-opt (STEP 3).</li>
+        <li>혼잡 반영은 다음 단계로 분리(STEP 7). 가중치 튜닝·규칙형 멀티모달은 STEP 8.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- placeholders -->
+  <section class="step" id="s2">
+    <h2>STEP 2 · 최단경로 깊이 — 내비는 어떻게 길을 찾나</h2>
+    <p class="lead">두 지점 사이 가장 빠른 길을 계산하는 논리. 실제 구현은 지도 API에 맡기지만, 원리를 알아야 우리 가중치를 어디에 넣을지 보인다.</p>
+
+    <h3><span class="d"></span>2.1 최단경로 문제</h3>
+    <div class="card">가중치 그래프(장소=노드, 길=엣지, 소요시간=가중치)에서 <b>출발 → 도착 비용이 최소인 경로</b>를 찾는 문제.</div>
+
+    <h3><span class="d"></span>2.2 BFS — 가중치가 없을 때 (기초)</h3>
+    <div class="card">모든 길의 비용이 같다면, 출발점에서 <b>한 겹씩 넓게</b> 퍼뜨려 가장 적은 칸수로 도달하는 곳을 찾는다. 길마다 시간이 다르면 부정확 → Dijkstra가 필요하다.</div>
+
+    <h3><span class="d"></span>2.3 Dijkstra — 최단경로의 기본</h3>
+    <div class="card">
+      핵심 한 줄: <b>"아직 확정되지 않은 노드 중 출발점에서 가장 가까운 것을 하나씩 확정"</b>을 반복한다.
+      <ul class="tight">
+        <li>각 노드까지의 잠정 최단거리를 들고, 가장 작은 값을 확정한 뒤 그 이웃들의 거리를 갱신(완화, relaxation)한다.</li>
+        <li>우선순위 큐로 "가장 가까운 미확정 노드"를 빠르게 꺼낸다.</li>
+        <li>제약: <b>음수 가중치 불가</b>(한 번 확정한 값을 뒤집지 않기 때문). 도로 소요시간은 음수가 없어 적합.</li>
+      </ul>
+      <div class="diagram"><span class="nodey">출발</span><span class="edge">— 2분 —</span><span class="nodey">A</span><span class="edge">— 5분 —</span><span class="nodey">B</span><div style="margin-top:12px">가장 가까운 A(2분)를 먼저 확정 → A를 거쳐 B를 2+5=7분으로 갱신 → 다음 가까운 노드 확정 … 반복</div></div>
+    </div>
+
+    <h3><span class="d"></span>2.4 A* — Dijkstra + 방향 힌트</h3>
+    <div class="card">
+      Dijkstra는 사방으로 퍼진다. A*는 <b>"목적지는 저쪽"이라는 추정거리(휴리스틱 h)</b>를 더해 목적지 쪽을 먼저 탐색한다.
+      <div class="formula">우선순위 f(n) = g(n) [출발→n 실제 비용] + h(n) [n→목적지 추정 비용]</div>
+      <ul class="tight"><li>h가 실제보다 과대평가만 하지 않으면(admissible) 최적 경로를 보장한다.</li><li>직선거리를 h로 쓰면 도로 길찾기에서 Dijkstra보다 훨씬 빠르다.</li></ul>
+    </div>
+
+    <h3><span class="d"></span>2.5 Bellman-Ford (참고)</h3>
+    <div class="card">음수 가중치도 처리하지만 느리다. 도로 길찾기에는 불필요하다.</div>
+
+    <h3><span class="d"></span>2.6 비교 (기본 4종)</h3>
+    <table>
+      <tr><th>알고리즘</th><th>특징</th><th>속도</th></tr>
+      <tr><td>BFS</td><td>가중치 없는 최소 칸수</td><td>빠름</td></tr>
+      <tr><td>Dijkstra</td><td>최단경로 기본</td><td>중간</td></tr>
+      <tr><td>A*</td><td>휴리스틱 가속</td><td>빠름</td></tr>
+      <tr><td>Bellman-Ford</td><td>음수 허용</td><td>느림</td></tr>
+    </table>
+    <div class="note">👉 실제 내비(카카오·네이버·구글)가 <b>수백만 노드 도로망을 어떻게 밀리초에</b> 푸는지 — CH 지름길·실시간 교통은 <a href="#" onclick="document.querySelector('[data-s=nav]').click();return false;">＋ 내비 알고리즘 심화</a> 탭에서 따로 깊게 다룬다.</div>
+
+    <h3><span class="d"></span>2.7 우리에게 — 결론</h3>
+    <div class="note">최단경로와 실시간 이동시간은 <b>카카오 길찾기 API가 제공</b>한다. 우리는 그 값을 비용식의 <b>엣지 가중치</b>로 받아, <b>여러 곳의 방문 순서(STEP 3, NN + 2-opt)</b>와 취향·혼잡 가중치 설계에 집중한다. 내비 엔진은 빌려 쓰고, "어디를 어떤 순서로"가 우리 몫이다.</div>
+  </section>
+
+  <!-- NAV (심화) -->
+  <section class="step" id="snav">
+    <h2>＋ 내비 알고리즘 심화 — 수백만 노드를 밀리초에</h2>
+    <p class="lead">카카오·네이버·구글 내비가 전국 도로망에서 즉답하는 원리. 우리는 API로 결과만 받지만, 논리는 깊게 정리한다.</p>
+
+    <h3><span class="d"></span>왜 Dijkstra·A*만으로는 부족한가</h3>
+    <div class="card">전국 도로망은 노드 수백만·엣지 수천만이다. 요청마다 Dijkstra가 절반만 훑어도 수십만 노드를 봐야 해 느리다. 그래서 도로망을 <b>미리 전처리</b>해 질의 비용을 줄인다.</div>
+
+    <h3><span class="d"></span>① Contraction Hierarchies (CH) — "지름길을 미리 만든다"</h3>
+    <div class="key">
+      <b>아이디어:</b> 노드마다 "중요도"를 매기고, <b>덜 중요한 노드부터 하나씩 제거(수축, contract)</b>한다. 노드를 빼면 그 노드를 거치던 최단경로가 끊기므로, <b>양옆 이웃을 직접 잇는 지름길(shortcut)</b>을 추가한다(비용 = 원래 우회 비용과 동일).
+      <div class="diagram">
+        <span class="nodey">A</span><span class="edge">3</span><span class="nodey" style="background:#bbb">V</span><span class="edge">4</span><span class="nodey">B</span>
+        <div style="margin-top:12px">덜 중요한 V를 수축 → <b>A—B 지름길(비용 7) 추가</b>. 이제 V 없이도 A↔B 최단이 유지된다.</div>
+      </div>
+      모든 노드를 수축하면 <b>중요도 계층(hierarchy)</b>과 지름길들이 남는다.
+      <ul class="tight">
+        <li><b>질의:</b> 출발·도착에서 각각 <b>중요도가 올라가는 방향으로만</b> 양방향 탐색 → 지름길로 크게 점프하며 적은 노드만 본다.</li>
+        <li><b>결과:</b> 전국 경로도 밀리초. 전처리는 오래 걸려도 한 번만 해두면 된다.</li>
+      </ul>
+    </div>
+
+    <h3><span class="d"></span>② 그 외 전처리 가속 기법</h3>
+    <table>
+      <tr><th>기법</th><th>아이디어</th></tr>
+      <tr><td><b>ALT</b></td><td>랜드마크 몇 개까지의 거리를 미리 계산 → <b>삼각부등식</b>으로 A* 휴리스틱을 강화 → 탐색 축소</td></tr>
+      <tr><td><b>Arc-Flags</b></td><td>지도를 구역으로 나누고, 각 엣지에 "이 구역행 최단경로에 쓰이는가" 플래그 → 무관한 방향 가지치기</td></tr>
+      <tr><td><b>Hub Labeling</b></td><td>노드마다 "허브 + 거리" 라벨 저장 → 두 노드 거리 = 라벨 교집합의 최소합. 질의 최고속(메모리 큼)</td></tr>
+      <tr><td><b>양방향 Dijkstra</b></td><td>출발·도착에서 동시에 탐색해 중간에서 만남 → 탐색 공간 절반</td></tr>
+    </table>
+
+    <h3><span class="d"></span>③ 실시간 교통 (time-dependent)</h3>
+    <div class="card">엣지 비용(소요시간)이 <b>시간에 따라 변하는 함수</b>다(러시아워엔 큼). 실시간·예측 교통으로 비용을 갱신하면 막히는 길은 자동으로 회피된다. CH의 시간의존 버전(<b>Customizable CH</b>)은 교통이 바뀌어도 전처리를 빠르게 갱신해 실서비스에서 쓰인다.</div>
+
+    <h3><span class="d"></span>④ 실서비스는 어떻게</h3>
+    <div class="note">구글·카카오·네이버 = <b>자체 도로망 + 실시간 교통 + CH류 전처리 + 분산 서버</b>의 조합. 우리는 길찾기 API로 "A→B 실시간 소요시간·경로"만 받아, 그 값을 <a href="#" onclick="document.querySelector('[data-s=3]').click();return false;">STEP 3 방문순서</a>와 가중치 설계에 넣는다.</div>
+  </section>
+  <section class="step" id="s3">
+    <h2>STEP 3 · 방문순서 최적화 (TSP)</h2>
+    <p class="lead">여러 곳을 한 번씩 도는 가장 짧은 순서를 정한다. 우리 코스는 3~5곳이므로 NN으로 짜고 2-opt로 다듬는다.</p>
+
+    <h3><span class="d"></span>3.1 문제 = 외판원(TSP)</h3>
+    <div class="card">현재 위치에서 N개 장소를 한 번씩 모두 들르는 <b>가장 짧은(빠른) 순서</b>를 찾는 것. 두 지점 거리·시간은 STEP 2의 API 값을 쓴다.</div>
+
+    <h3><span class="d"></span>3.2 완전탐색 — 정답이지만 폭발</h3>
+    <div class="card">모든 순서를 따진다. 경우의 수 = (N−1)!/2. <b>5곳=12가지 · 8곳=2,520 · 10곳=18만</b> → 곳이 늘면 불가능.</div>
+
+    <h3><span class="d"></span>3.3 NN (최근접 이웃) — 빠른 시작</h3>
+    <div class="card">현재 위치에서 <b>가장 가까운 곳으로 계속 이동</b>한다. 아주 단순하고 빠르다. 단점은 마지막에 먼 곳이 남아 동선이 꼬일 수 있다는 것.</div>
+
+    <h3><span class="d"></span>3.4 2-opt — 꼬임 풀기</h3>
+    <div class="card">
+      완성된 경로에서 <b>교차하는 두 구간을 골라 뒤집어</b> 더 짧아지면 채택한다. 이를 반복해 NN 결과를 다듬는다.
+      <div class="diagram"><span style="font-size:13px">A → C → B → D (교차) &nbsp;⇒&nbsp; <b>A → B → C → D</b> (교차가 풀려 짧아짐)</span></div>
+    </div>
+
+    <h3><span class="d"></span>3.5 Held-Karp (DP) — 작을 때 최적</h3>
+    <div class="card">비트마스크 동적계획법으로 <b>최적해</b>를 구한다. N ≤ 약 15까지 현실적. 우리 3~5곳엔 충분하지만, NN+2-opt로도 사실상 최적이라 보통 그것으로 충분하다.</div>
+
+    <h3><span class="d"></span>3.6 비교 · 우리 선택</h3>
+    <table>
+      <tr><th>방법</th><th>품질</th><th>속도</th><th>적용</th></tr>
+      <tr><td>완전탐색</td><td>최적</td><td>N 작을 때만</td><td>≤6곳</td></tr>
+      <tr><td><b>NN → 2-opt</b></td><td>거의 최적</td><td>빠름</td><td>★ 우리 3~5곳</td></tr>
+      <tr><td>Held-Karp</td><td>최적</td><td>N≤15</td><td>대안</td></tr>
+    </table>
+    <div class="note">결론: <b>NN으로 초기 순서를 짜고 2-opt로 다듬는다.</b> 거리·시간은 카카오 API(STEP 2)에서 받고, "지금 위치에서 가까운 곳"은 NN의 첫 스텝이다.</div>
+  </section>
+  <section class="step" id="s4">
+    <h2>STEP 4 · 실시간 교통 연결</h2>
+    <p class="lead">STEP 2·3에서 정한 노드·순서를, 실제 이동시간으로 잇는다. 카카오 길찾기로 엣지 비용을 실시간 값으로 채운다. (혼잡은 STEP 7, 가중치 튜닝·멀티모달은 STEP 8)</p>
+
+    <h3><span class="d"></span>4.1 무엇을 연결하나</h3>
+    <div class="card">노드(현재 위치·빵집·명소) 사이의 <b>이동시간</b>을 카카오 길찾기 API로 받아, 그래프 <b>엣지 가중치</b>로 쓴다. 직선거리(Haversine)는 1차 정렬용, 실거리는 확정 단계용.</div>
+
+    <h3><span class="d"></span>4.2 어떤 API · 무엇을 주나</h3>
+    <table>
+      <tr><th>모드</th><th>API</th><th>응답</th></tr>
+      <tr><td>자동차</td><td>카카오모빌리티 길찾기</td><td>소요시간(실시간 교통 반영)·거리·경로 좌표</td></tr>
+      <tr><td>도보</td><td>카카오 길찾기(도보)</td><td>소요시간·거리·경로 좌표</td></tr>
+    </table>
+
+    <h3><span class="d"></span>4.3 호출 전략 (비용 관리)</h3>
+    <div class="card">
+      <ul class="tight">
+        <li>먼저 <b>직선거리로 후보 정렬·NN 초안</b>(무료 계산) → 확정된 인접 쌍만 실거리 호출.</li>
+        <li>코스 3~5곳이면 호출은 한 자리수. 거리행렬이 필요하면 쌍 수 = N(N−1)/2.</li>
+        <li>같은 구간은 캐싱해 재호출 방지. 일 쿼터 상한 준수.</li>
+      </ul>
+    </div>
+
+    <h3><span class="d"></span>4.4 결과 사용</h3>
+    <div class="note">실거리·실시간 이동시간을 엣지 비용에 넣어 <b>STEP 3 순서를 재확정</b>하고, 코스 <b>총 소요시간</b>과 지도 <b>경로선(polyline)</b>을 표시한다. 이로써 "실시간 교통 반영 경로(b)"가 완성된다.</div>
+  </section>
+  <section class="step" id="s5">
+    <h2>STEP 5 · 데이터 · 수식 확정</h2>
+    <p class="lead">비용 식의 각 항을 실제 데이터에 연결하고, 계수를 정한다. 혼잡(β)은 STEP 7까지 0으로 둔다.</p>
+
+    <h3><span class="d"></span>5.1 비용 식</h3>
+    <div class="formula">cost(i→j) = α·이동시간 + β·혼잡 − γ·취향점수 − δ·영업가능</div>
+
+    <h3><span class="d"></span>5.2 각 항의 데이터 출처</h3>
+    <table>
+      <tr><th>항</th><th>데이터</th><th>상태</th></tr>
+      <tr><td>이동시간</td><td>카카오 길찾기(STEP 4)</td><td>연결 가능</td></tr>
+      <tr><td>취향점수</td><td>설문 → recommend.js 태그 가중합</td><td>보유</td></tr>
+      <tr><td>영업가능</td><td>관광공사 opentimefood + 현재시각</td><td>보유</td></tr>
+      <tr><td>혼잡</td><td>시간대 규칙 / 방문추이 / 자체로그</td><td>STEP 7</td></tr>
+    </table>
+
+    <h3><span class="d"></span>5.3 정규화</h3>
+    <div class="card">항마다 단위가 다르므로(분 vs 점수) 각 항을 <b>0~1로 정규화</b>한 뒤 가중합한다. 그래야 α~δ 비교가 의미 있다.</div>
+
+    <h3><span class="d"></span>5.4 계수(α~δ) 정하는 법</h3>
+    <div class="card"><ul class="tight">
+      <li>처음엔 <b>직관값</b>(예: α=1, γ=0.5, δ=0.3)으로 시작.</li>
+      <li>코스를 몇 개 만들어 보고 동선이 자연스러운지 보며 <b>손튜닝</b>.</li>
+      <li>피드백 데이터가 쌓이면 <b>학습으로 자동 조정</b>(발전 단계).</li>
+    </ul></div>
+
+    <h3><span class="d"></span>5.5 명소 노드 연결</h3>
+    <div class="note">관광공사 <code>locationBasedList2</code>로 빵집 반경의 관광지·시장을 가져와 코스 후보 노드에 합류시킨다(선택). 이로써 "빵 + 관광" 코스가 된다.</div>
+  </section>
+  <section class="step" id="s6">
+    <h2>STEP 6 · 구현 · 데모</h2>
+    <p class="lead">지도 옆에 코스를 그린다. 보조 기능이므로 "보여주기 데모" 수준까지.</p>
+
+    <h3><span class="d"></span>6.1 화면</h3>
+    <div class="card">결과 지도에서 "코스 만들기"(현재 위치/찜 기반) → 순서대로 <b>번호 마커</b> + 카카오 <b>경로선(Polyline)</b> + 사이드 패널에 <b>방문 순서·총 소요시간</b>.</div>
+
+    <h3><span class="d"></span>6.2 데이터 흐름</h3>
+    <div class="diagram" style="font-size:13px">
+      현재 위치 → 후보(빵집+명소) → <b>NN+2-opt 순서</b>(STEP 3) → <b>카카오 실거리</b>(STEP 4) → Polyline·총시간
+    </div>
+
+    <h3><span class="d"></span>6.3 범위</h3>
+    <div class="card">MVP = <b>도보 기준 3~5곳</b> + 경로선 + 총시간. 멀티모달·혼잡은 STEP 7·8로 분리. <code>features</code> 레지스트리에 <code>route-layer</code> 기능으로 부착.</div>
+
+    <div class="note">⚠️ 경로 추천은 보조 기능이다. <b>메인(설문 → 추천 → 상세)</b>을 먼저 완성한 뒤 데모로 붙인다.</div>
+  </section>
+  <section class="step" id="s7"><h2>STEP 7 · 혼잡 반영</h2><p class="lead">다음 단계 — 이름만 등록.</p><div class="card">시간대·수요 데이터(시간대 규칙 / 관광공사 방문 추이 / 자체 로그)로 붐비는 곳·시간을 비용 패널티로 반영해 회피한다. 데이터 확보 후 진행.</div></section>
+  <section class="step" id="s8"><h2>STEP 8 · 가중치 튜닝 · 규칙형 멀티모달</h2><p class="lead">다음 단계 — 이름만 등록.</p><div class="card">cost 식의 α~δ를 실데이터로 조정하고, 도보·차·대중교통을 각각 API로 받아 빠름·편함·저렴 기준으로 비교·추천한다(규칙 기반).</div></section>
+</main>
+<script>
+  const btns=document.querySelectorAll('#stepnav button');
+  const steps=document.querySelectorAll('.step');
+  btns.forEach(b=>b.addEventListener('click',()=>{
+    btns.forEach(x=>x.classList.toggle('on',x===b));
+    steps.forEach(s=>s.classList.toggle('show',s.id==='s'+b.dataset.s));
+    window.scrollTo({top:0,behavior:'smooth'});
+  }));
+</script>
+</body>
+</html>
