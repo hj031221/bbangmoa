@@ -19,6 +19,7 @@ export default function LandingPage() {
   const [featureOpen, setFeatureOpen] = useState(false)
   const [stage, setStage] = useState('survey') // 'survey' | 'reveal' | 'map'
   const [showSaved, setShowSaved] = useState(false)
+  const [navOpen, setNavOpen] = useState(false)
   const answers = useAppStore((s) => s.answers)
   const district = useAppStore((s) => s.district)
   const resetAnswers = useAppStore((s) => s.resetAnswers)
@@ -33,6 +34,7 @@ export default function LandingPage() {
   const openSaved = () => {
     setShowSaved(true)
     setFeatureOpen(false)
+    setNavOpen(false)
   }
   const goHome = () => {
     setFeatureOpen(false)
@@ -87,6 +89,39 @@ export default function LandingPage() {
           <button className="bm-nav-cta" onClick={startTest}>
             취향 테스트 시작
           </button>
+          <button
+            type="button"
+            className="bm-nav-toggle"
+            aria-label="메뉴 열기"
+            aria-expanded={navOpen}
+            onClick={() => setNavOpen((v) => !v)}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
+          {navOpen && (
+            <div className="bm-nav-mobile-menu">
+              <button
+                type="button"
+                onClick={() => {
+                  startTest()
+                  setNavOpen(false)
+                }}
+              >
+                취향 테스트 시작
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  openSaved()
+                  setNavOpen(false)
+                }}
+              >
+                나만의 리스트
+              </button>
+            </div>
+          )}
         </div>
       </nav>
 
