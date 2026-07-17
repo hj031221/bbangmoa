@@ -116,7 +116,7 @@ a{ color:var(--accent-text); }
 
 /* 2) 문제 제기 */
 .bm-problem{ padding:var(--bm-sp-7) var(--bm-sp-4); background:var(--bm-card); text-align:center; }
-.bm-problem h2{ margin:0 0 var(--bm-sp-5); font-size:var(--bm-fs-h2); color:var(--bm-ink); }
+.bm-problem h2{ margin:0 auto var(--bm-sp-5); font-size:var(--bm-fs-h2); color:var(--bm-ink); }
 .bm-problem-stats{ display:flex; flex-wrap:wrap; justify-content:center; gap:var(--bm-sp-5); margin-bottom:var(--bm-sp-5); }
 .bm-stat-block{ min-width:140px; }
 .bm-stat-block-num{ font-family:'HakgyoansimDunggeunmisoTTF-B', sans-serif; font-size:var(--bm-fs-stat); color:var(--bm-accent); line-height:1.1; }
@@ -157,7 +157,7 @@ a{ color:var(--accent-text); }
 
 /* 6) 지금 시작하기 */
 .bm-final{ padding:var(--bm-sp-7) var(--bm-sp-4) var(--bm-sp-5); background:linear-gradient(var(--bm-card2) 0%, var(--bm-halo1) 100%); text-align:center; }
-.bm-final h2{ margin:0 0 var(--bm-sp-4); font-size:var(--bm-fs-h2); color:var(--bm-ink); }
+.bm-final h2{ margin:0 auto var(--bm-sp-4); font-size:var(--bm-fs-h2); color:var(--bm-ink); }
 
 .bm-footer{ max-width:var(--bm-container); margin:var(--bm-sp-6) auto 0; padding-top:var(--bm-sp-3); border-top:1px solid rgba(76,49,13,.12); display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; }
 .bm-footer img{ height:40px; width:auto; display:block; }
