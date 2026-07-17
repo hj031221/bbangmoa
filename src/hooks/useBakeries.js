@@ -11,14 +11,14 @@ import { recommend } from '../lib/recommend'
 import { SAMPLE_BAKERIES } from '../data/sampleBakeries'
 
 // 빵집 데이터 파이프라인 훅.
-//   (관광공사 + 카카오) 병합 → 추천 점수 적용 → 정렬된 Bakery[] 반환
+//   (관광공사 + 카카오) 병합 → 구(district) 필터 → 추천 점수 적용 → 정렬된 Bakery[] 반환
 //
 // 반환:
 //   bakeries  : 추천순 정렬된 Bakery[]
 //   loading   : 로딩 여부
 //   error     : 에러 객체 | null
 //   source    : 'api' | 'sample'  (키 미설정 시 sample 폴백)
-export function useBakeries({ regionId, answers }) {
+export function useBakeries({ regionId, answers, district }) {
   const [raw, setRaw] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -75,8 +75,9 @@ export function useBakeries({ regionId, answers }) {
     }
   }, [regionId])
 
-  // 설문 응답 기반 추천 정렬 (fetch 없이 재계산)
-  const bakeries = recommend(raw, answers)
+  // 구 필터 + 설문 응답 기반 추천 정렬 (fetch 없이 재계산)
+  const filtered = district ? raw.filter((b) => (b.address || '').includes(district)) : raw
+  const bakeries = recommend(filtered, answers)
 
   return { bakeries, loading, error, source }
 }
