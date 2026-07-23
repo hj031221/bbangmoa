@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { getDetail, tourEnabled } from '../../api'
 import { TASTE_TAGS } from '../../data/tasteTags'
+import { useSavedBakeries } from '../../hooks/useSavedBakeries'
 
 // 선택된 빵집 상세 카드.
 // 관광공사 출처(contentId 보유)면 detailCommon2 로 설명/대표이미지를 보강한다.
 export default function RecommendCard({ bakery }) {
   const [detail, setDetail] = useState(null)
+  const { toggleSave, isSaved } = useSavedBakeries()
 
   useEffect(() => {
     setDetail(null)
@@ -25,11 +27,21 @@ export default function RecommendCard({ bakery }) {
 
   const image = bakery.thumbnail || detail?.firstimage || null
   const overview = detail?.overview?.replace(/<[^>]+>/g, '') || ''
+  const saved = isSaved(bakery.id)
 
   return (
     <div className="rec-card">
       {image && <img className="rec-img" src={image} alt={bakery.name} />}
-      <h3 className="rec-name">{bakery.name}</h3>
+      <div className="rec-name-row">
+        <h3 className="rec-name">{bakery.name}</h3>
+        <button
+          type="button"
+          className={'save-btn' + (saved ? ' saved' : '')}
+          onClick={() => toggleSave(bakery)}
+        >
+          {saved ? '❤️ 찜함' : '🤍 찜하기'}
+        </button>
+      </div>
       <div className="rec-tags">
         {bakery.tags?.map((t) => (
           <span key={t} className="rec-tag">

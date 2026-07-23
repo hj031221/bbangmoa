@@ -1,26 +1,28 @@
-import { useNavigate } from 'react-router-dom'
-import { useAppStore } from '../store/useAppStore'
-import { useBakeries } from '../hooks/useBakeries'
-import MapView from '../components/map/MapView'
-import RecommendCard from '../components/map/RecommendCard'
+import { useAppStore } from '../../store/useAppStore'
+import { useBakeries } from '../../hooks/useBakeries'
+import MapView from './MapView'
+import RecommendCard from './RecommendCard'
 
-export default function MapResultPage() {
-  const navigate = useNavigate()
+// 취향 일치율 기반 지도 + 추천 리스트. onRetake: 취향 설문 다시 하기.
+export default function MapResult({ onRetake }) {
   const regionId = useAppStore((s) => s.regionId)
+  const district = useAppStore((s) => s.district)
   const answers = useAppStore((s) => s.answers)
   const selectedBakeryId = useAppStore((s) => s.selectedBakeryId)
   const selectBakery = useAppStore((s) => s.selectBakery)
 
-  const { bakeries, loading, error, source } = useBakeries({ regionId, answers })
+  const { bakeries, loading, error, source } = useBakeries({ regionId, answers, district })
   const selected = bakeries.find((b) => b.id === selectedBakeryId) || bakeries[0]
 
   return (
-    <div className="page result">
+    <div className="result">
       <header className="result-header">
-        <button className="ghost-btn" onClick={() => navigate('/survey')}>
-          ← 설문 다시
+        <button className="ghost-btn" onClick={onRetake}>
+          ← 취향 다시 설정
         </button>
-        <h2>대전 빵집 추천 ({bakeries.length}곳)</h2>
+        <h2>
+          대전 {district ? `${district} ` : ''}빵집 추천 ({bakeries.length}곳)
+        </h2>
         {source === 'sample' && (
           <span className="badge warn">샘플 데이터 (API 키 미설정)</span>
         )}
@@ -30,7 +32,6 @@ export default function MapResultPage() {
       {loading && <div className="banner">불러오는 중…</div>}
 
       <div className="result-body">
-        {/* 지도 */}
         <section className="result-map">
           <MapView
             bakeries={bakeries}
@@ -39,7 +40,6 @@ export default function MapResultPage() {
           />
         </section>
 
-        {/* 추천 리스트 + 상세카드 (지도 추가기능은 features 레지스트리로 확장) */}
         <aside className="result-side">
           <RecommendCard bakery={selected} />
           <ol className="rec-list">
