@@ -77,10 +77,13 @@ export function useBakeries({ regionId, answers, district }) {
 
   // 구 필터 + 설문 응답 기반 추천 정렬 (fetch 없이 재계산)
   const filtered = district ? raw.filter((b) => (b.address || '').includes(district)) : raw
-  const bakeries = recommend(filtered, answers)
+  const bakeries = recommend(filtered, answers).slice(0, MAX_RESULTS)
 
   return { bakeries, loading, error, source }
 }
+
+// 지도/리스트에 노출할 최대 추천 개수 (너무 많으면 오히려 선택이 어려워져 상위 N개만 노출)
+const MAX_RESULTS = 10
 
 // regionId → 병합된 Bakery[] 모듈 캐시 (세션 내 재호출 방지)
 const mergedCache = new Map()

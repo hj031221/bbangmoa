@@ -1,5 +1,10 @@
+import { useMemo } from 'react'
 import { useAppStore } from '../../store/useAppStore'
 import { useBakeries } from '../../hooks/useBakeries'
+import { useCurrentLocation } from '../../hooks/useCurrentLocation'
+import { getRegion } from '../../config/regions'
+import { isWithinBbox, formatDistance } from '../../lib/distance'
+import { getBakeryDistanceInfo } from '../../lib/bakeryDistance'
 import MapView from './MapView'
 import RecommendCard from './RecommendCard'
 
@@ -10,9 +15,23 @@ export default function MapResult({ onRetake }) {
   const answers = useAppStore((s) => s.answers)
   const selectedBakeryId = useAppStore((s) => s.selectedBakeryId)
   const selectBakery = useAppStore((s) => s.selectBakery)
+  const region = getRegion(regionId)
 
   const { bakeries, loading, error, source } = useBakeries({ regionId, answers, district })
-  const selected = bakeries.find((b) => b.id === selectedBakeryId) || bakeries[0]
+  const { status: locStatus, coords, label: locLabel } = useCurrentLocation()
+  const inRegion = isWithinBbox(coords, region.bbox)
+
+  // 위치 확정 시에만 빵집별 거리를 계산 (대전 밖이면 역 기준으로 자동 대체됨)
+  const bakeriesWithDist = useMemo(
+    () =>
+      bakeries.map((b) => ({
+        ...b,
+        distInfo: getBakeryDistanceInfo(b, { coords, bbox: region.bbox }),
+      })),
+    [bakeries, coords, region],
+  )
+  const selected =
+    bakeriesWithDist.find((b) => b.id === selectedBakeryId) || bakeriesWithDist[0]
 
   return (
     <div className="result">
@@ -26,6 +45,15 @@ export default function MapResult({ onRetake }) {
         {source === 'sample' && (
           <span className="badge warn">샘플 데이터 (API 키 미설정)</span>
         )}
+        {locStatus === 'ready' && (
+          <span className="badge location">
+            📍 현재 위치: {locLabel || `${coords.lat.toFixed(3)}, ${coords.lng.toFixed(3)}`}
+            {!inRegion && ' · 대전 밖 → 역 기준 거리 표시'}
+          </span>
+        )}
+        {locStatus === 'denied' && (
+          <span className="badge warn">위치 접근 거부됨 · 역 기준 거리로 표시</span>
+        )}
       </header>
 
       {error && <div className="banner error">데이터 오류: {String(error.message)}</div>}
@@ -34,7 +62,7 @@ export default function MapResult({ onRetake }) {
       <div className="result-body">
         <section className="result-map">
           <MapView
-            bakeries={bakeries}
+            bakeries={bakeriesWithDist}
             selectedId={selectedBakeryId}
             onSelect={selectBakery}
           />
@@ -43,7 +71,7 @@ export default function MapResult({ onRetake }) {
         <aside className="result-side">
           <RecommendCard bakery={selected} />
           <ol className="rec-list">
-            {bakeries.map((b, i) => (
+            {bakeriesWithDist.map((b, i) => (
               <li
                 key={b.id}
                 className={'rec-list-item' + (b.id === selected?.id ? ' active' : '')}
@@ -51,6 +79,9 @@ export default function MapResult({ onRetake }) {
               >
                 <span className="rank">{i + 1}</span>
                 <span className="rl-name">{b.name}</span>
+                {b.distInfo && (
+                  <span className="rl-dist">{formatDistance(b.distInfo.km)}</span>
+                )}
                 {typeof b.score === 'number' && b.score > 0 && (
                   <span className="rl-score">{b.score}</span>
                 )}

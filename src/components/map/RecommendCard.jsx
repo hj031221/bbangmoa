@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { getDetail, tourEnabled } from '../../api'
 import { TASTE_TAGS } from '../../data/tasteTags'
 import { useSavedBakeries } from '../../hooks/useSavedBakeries'
+import { formatDistance } from '../../lib/distance'
 
 // 선택된 빵집 상세 카드.
 // 관광공사 출처(contentId 보유)면 detailCommon2 로 설명/대표이미지를 보강한다.
@@ -50,6 +51,9 @@ export default function RecommendCard({ bakery }) {
         ))}
       </div>
       {bakery.address && <p className="rec-addr">📍 {bakery.address}</p>}
+      {bakery.distInfo && (
+        <p className="rec-dist">🚶 {bakery.distInfo.from}에서 {formatDistance(bakery.distInfo.km)}</p>
+      )}
       {bakery.phone && <p className="rec-tel">📞 {bakery.phone}</p>}
       {overview && <p className="rec-desc">{overview.slice(0, 200)}…</p>}
       <div className="rec-meta">
