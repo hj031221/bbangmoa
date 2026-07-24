@@ -9,8 +9,22 @@ import { getRegion } from '../config/regions'
 
 const REST_KEY = import.meta.env.VITE_KAKAO_REST_KEY
 const ENDPOINT = 'https://dapi.kakao.com/v2/local/search/keyword.json'
+const REGIONCODE_ENDPOINT = 'https://dapi.kakao.com/v2/local/geo/coord2regioncode.json'
 
 export const kakaoLocalEnabled = () => hasKey(REST_KEY)
+
+// 좌표 → 행정구역명 (예: "대전광역시 유성구"). GPS 로 얻은 좌표가 어디쯤인지 사용자에게 보여줄 때 사용.
+export async function reverseGeocode(lat, lng) {
+  if (!kakaoLocalEnabled()) return null
+  const headers = { Authorization: `KakaoAK ${REST_KEY}` }
+  const data = await getJson(REGIONCODE_ENDPOINT, {
+    params: { x: lng, y: lat },
+    headers,
+  })
+  const region = data?.documents?.find((d) => d.region_type === 'H') || data?.documents?.[0]
+  if (!region) return null
+  return [region.region_1depth_name, region.region_2depth_name].filter(Boolean).join(' ')
+}
 
 // 카카오 rect 파라미터: "왼쪽경도,아래위도,오른쪽경도,위위도" (lng,lat 순서)
 function bboxRect(bbox) {

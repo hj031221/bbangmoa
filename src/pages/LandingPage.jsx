@@ -5,6 +5,7 @@ import SurveyFlow from '../components/survey/SurveyFlow'
 import BreadReveal from '../components/result/BreadReveal'
 import MapResult from '../components/map/MapResult'
 import SavedListPage from './SavedListPage'
+import AuthMenu from '../components/auth/AuthMenu'
 import Hero from '../components/landing/Hero'
 import ProblemSection from '../components/landing/ProblemSection'
 import FeaturesSection from '../components/landing/FeaturesSection'
@@ -48,9 +49,12 @@ export default function LandingPage() {
   if (showSaved) {
     return (
       <div className="page">
-        <button className="ghost-btn bm-back" onClick={goHome}>
-          ← 처음으로
-        </button>
+        <div className="page-topbar">
+          <button className="ghost-btn bm-back" onClick={goHome}>
+            ← 처음으로
+          </button>
+          <AuthMenu compact />
+        </div>
         <SavedListPage />
       </div>
     )
@@ -59,9 +63,12 @@ export default function LandingPage() {
   if (featureOpen) {
     return (
       <div className="page">
-        <button className="ghost-btn bm-back" onClick={goHome}>
-          ← 처음으로
-        </button>
+        <div className="page-topbar">
+          <button className="ghost-btn bm-back" onClick={goHome}>
+            ← 처음으로
+          </button>
+          <AuthMenu compact />
+        </div>
         {stage === 'survey' && <SurveyFlow onComplete={() => setStage('reveal')} />}
         {stage === 'reveal' && (
           <BreadReveal onRetake={retakeSurvey} onShowMap={() => setStage('map')} />
@@ -89,6 +96,9 @@ export default function LandingPage() {
           <button className="bm-nav-cta" onClick={startTest}>
             취향 테스트 시작
           </button>
+          <div className="bm-nav-auth">
+            <AuthMenu />
+          </div>
           <button
             type="button"
             className="bm-nav-toggle"
@@ -120,6 +130,7 @@ export default function LandingPage() {
               >
                 나만의 리스트
               </button>
+              <AuthMenu compact />
             </div>
           )}
         </div>
