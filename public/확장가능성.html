@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>빵모아 · 확장 가능성 · 데이터 지속가능성 보고서</title>
+<style>
+  :root{--bg:#FBF3DD;--card:#fff;--card2:#FFF8EA;--line:#EADFC6;--brown:#6B4A2E;--accent:#F97658;--accent2:#F6C56A;--green:#2E9E6B;--blue:#2C7FB8;--muted:#9c8a6e;--ink:#4A3520}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;background:var(--bg);color:var(--ink);line-height:1.7}
+  .wrap{max-width:900px;margin:0 auto;padding:34px 26px}
+  header.top{text-align:center;margin-bottom:26px}
+  header.top h1{font-size:26px;color:var(--brown);margin:0 0 6px}
+  header.top .sub{color:var(--muted);font-size:14px}
+  .badge{display:inline-block;background:var(--accent2);color:var(--brown);font-size:12px;font-weight:700;border-radius:999px;padding:3px 12px;margin-top:8px}
+  .prog{background:#FFF1DD;border:1px dashed var(--accent2);border-radius:10px;padding:10px 14px;font-size:12.5px;color:#8a6a30;margin-bottom:22px;text-align:center}
+  section{margin-bottom:34px;scroll-margin-top:14px}
+  h2{font-size:20px;color:var(--brown);border-bottom:3px solid var(--accent2);padding-bottom:7px;margin:0 0 10px}
+  h2 .n{color:var(--accent);font-weight:800;margin-right:8px}
+  h3{font-size:15px;color:var(--brown);margin:18px 0 6px}
+  p{margin:9px 0} .lead{font-size:15px;color:#5c4a34}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px 18px;margin:13px 0}
+  .fig{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin:14px 0;text-align:center;overflow-x:auto}
+  .fig svg{max-width:100%;height:auto} .cap{font-size:12px;color:var(--muted);margin-top:8px}
+  .good{background:#EAF6EF;border-left:4px solid var(--green);border-radius:8px;padding:11px 15px;margin:12px 0;font-size:13.5px} .good b{color:var(--green)}
+  .warn{background:#FBE7E1;border-left:4px solid var(--accent);border-radius:8px;padding:11px 15px;margin:12px 0;font-size:13.5px} .warn b{color:#b85a34}
+  table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top} th{background:var(--card2);color:var(--brown)}
+  .kpi{display:flex;gap:12px;flex-wrap:wrap;margin:14px 0}
+  .kpi div{flex:1;min-width:120px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;text-align:center}
+  .kpi b{display:block;font-size:24px;color:var(--accent)} .kpi span{font-size:12px;color:var(--muted)}
+  .todo{color:var(--muted);font-style:italic;font-size:12.5px}
+  code{font-family:'D2Coding',Consolas,monospace;background:#f2e7d3;padding:1px 5px;border-radius:4px;font-size:12.5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>🌏 확장 가능성 · 데이터 지속가능성</h1>
+    <div class="sub">빵모아를 대전 너머로 — 어떻게 확장하고, 데이터를 어떻게 유지하나</div>
+    <div class="badge">심사 · 서비스 발전성(지속·확장) 20점 대응</div>
+  </header>
+  <div class="prog">🚧 <b>작업하며 쌓는 보고서</b> — 구현(M2~M4)이 진행되면 내용·수치가 추가됩니다. 현재 = 데이터 파이프라인·파싱 반영본.</div>
+
+  <!-- 1 -->
+  <section id="why">
+    <h2><span class="n">1</span>왜 이 문서</h2>
+    <p class="lead">공모전 심사의 <b>서비스 발전성(지속·확장) 20점</b>은 "이 서비스가 계속 굴러가고, 다른 지역으로 커질 수 있는가"를 본다. 빵모아는 <b>데이터 파이프라인이 지역에 독립적</b>이라 확장이 구조적으로 쉽다 — 그 근거를 정리한다.</p>
+    <div class="good">✅ <b>핵심 주장</b>: 대전을 "지역코드 하나"로 처리하도록 설계 → <b>다른 도시 = 코드값 교체 + 스크립트 재실행</b>. 알고리즘·UI·파서는 그대로 재사용.</div>
+  </section>
+
+  <!-- 2 -->
+  <section id="pipe">
+    <h2><span class="n">2</span>데이터 파이프라인 (지역 독립적)</h2>
+    <p class="lead">데이터는 <b>빌드타임에 1회 수집·파싱 → JSON 저장 → 런타임은 읽기만</b>. API 실시간 호출이 없어 빠르고 쿼터 부담이 없다.</p>
+    <div class="fig">
+      <svg viewBox="0 0 660 120" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif" font-size="11.5">
+        <g text-anchor="middle">
+        <rect x="6" y="36" width="130" height="50" rx="9" fill="#fff" stroke="#2C7FB8" stroke-width="2"/><text x="71" y="56" font-weight="700" fill="#2C7FB8">관광공사 API</text><text x="71" y="73" fill="#9c8a6e">lDongRegnCd=30</text>
+        <rect x="170" y="36" width="130" height="50" rx="9" fill="#fff" stroke="#6B4A2E" stroke-width="2"/><text x="235" y="56" font-weight="700" fill="#6B4A2E">파서</text><text x="235" y="73" fill="#9c8a6e">자연어→구조화</text>
+        <rect x="334" y="36" width="140" height="50" rx="9" fill="#FFF1DD" stroke="#F97658" stroke-width="3"/><text x="404" y="56" font-weight="800" fill="#F97658">daejeonTour.json</text><text x="404" y="73" fill="#9c8a6e">좌표·시간·이미지</text>
+        <rect x="508" y="36" width="146" height="50" rx="9" fill="#fff" stroke="#2E9E6B" stroke-width="2"/><text x="581" y="56" font-weight="700" fill="#2E9E6B">앱 런타임</text><text x="581" y="73" fill="#9c8a6e">읽기만 · API 0</text>
+        </g>
+        <g stroke="#c9b48f" stroke-width="2"><line x1="136" y1="61" x2="170" y2="61"/><line x1="300" y1="61" x2="334" y2="61"/><line x1="474" y1="61" x2="508" y2="61"/></g>
+        <text x="140" y="26" fill="#b85a34" font-size="11">↑ 빌드타임 (스크립트)</text>
+        <text x="581" y="26" fill="#1c6b48" font-size="11">↑ 런타임</text>
+      </svg>
+      <div class="cap"><code>scripts/prefetchTour.mjs</code> → <code>src/data/daejeonTour.json</code>. 빨간 상자만 지역마다 갱신.</div>
+    </div>
+    <h3>지금까지 파싱 결과 (대전)</h3>
+    <div class="kpi">
+      <div><b>186</b><span>관광지+문화시설 노드</span></div>
+      <div><b>145</b><span>운영시간 high 신뢰</span></div>
+      <div><b>25</b><span>medium(요일·계절)</span></div>
+      <div><b>16</b><span>low(기본창 fallback)</span></div>
+    </div>
+    <p>각 노드 = <code>{id, name, lat, lng, image, addr, hours:{open,close,confidence,raw}, rest}</code>. 음식점(맛집 360곳)은 M4에서 동일 방식으로 추가 예정. <span class="todo">← 여기 수치 누적</span></p>
+  </section>
+
+  <!-- 3 -->
+  <section id="update">
+    <h2><span class="n">3</span>데이터 업데이트 전략 <span style="font-size:13px;color:var(--muted)">("주기적 갱신 필요한가?")</span></h2>
+    <p class="lead">JSON은 <b>스냅샷</b>이다. 운영시간 변동·신규/폐업 장소가 생기므로 <b>주기적 재수집이 맞다</b> — 단 실시간일 필요는 없다.</p>
+    <table>
+      <tr><th>무엇이 변하나</th><th>변동 빈도</th><th>대응</th></tr>
+      <tr><td>관광지 운영시간·휴무</td><td>드묾(계절·연 단위)</td><td>분기~반기 재실행이면 충분</td></tr>
+      <tr><td>신규/폐업 장소</td><td>가끔</td><td>재실행 시 자동 반영</td></tr>
+      <tr><td>빵집(카카오) 개·폐업</td><td>가끔</td><td>수집 재실행</td></tr>
+      <tr><td>실시간 혼잡·웨이팅</td><td>실시간</td><td>이 파이프라인 대상 아님(별도·후속)</td></tr>
+    </table>
+    <div class="good">✅ <b>권장</b>: ① 공모전은 <b>제출(9/21)·최종(10/28) 직전 각 1회 재실행</b>으로 최신화. ② 운영 단계는 <b>월 1회 스크립트 재실행</b>(idempotent, 저비용). ③ 자동화 원하면 <b>GitHub Actions 스케줄(cron)</b>로 재실행→커밋. ④ <code>confidence:low</code> 16곳은 <b>수기 검토 후보</b> 리스트로 관리.</div>
+    <div class="warn">⚠️ 실시간이 아니므로 "오늘 임시휴무" 같은 건 못 잡음 → 상세카드에 "영업정보는 방문 전 확인" 안내 + 전화 노출로 보완.</div>
+  </section>
+
+  <!-- 4 -->
+  <section id="expand">
+    <h2><span class="n">4</span>전국 확장 시나리오</h2>
+    <p class="lead">다른 도시로 넓힐 때 <b>다시 만드는 건 데이터뿐</b>, 나머지(파서·그래프 엔진·UI)는 재사용.</p>
+    <div class="fig">
+      <svg viewBox="0 0 620 150" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif" font-size="12">
+        <text x="90" y="24" text-anchor="middle" font-weight="700" fill="#6B4A2E">지역코드만 교체</text>
+        <rect x="20" y="40" width="140" height="30" rx="7" fill="#EAF2F8" stroke="#2C7FB8"/><text x="90" y="60" text-anchor="middle" font-size="11">대전 = 30</text>
+        <rect x="20" y="78" width="140" height="30" rx="7" fill="#fff" stroke="#c9b48f"/><text x="90" y="98" text-anchor="middle" font-size="11" fill="#9c8a6e">부산 = 26 …</text>
+        <path d="M170 78 h50" stroke="#6B4A2E" stroke-width="2" marker-end="url(#ar)"/>
+        <defs><marker id="ar" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0 0 L6 3 L0 6 z" fill="#6B4A2E"/></marker></defs>
+        <rect x="230" y="55" width="150" height="40" rx="8" fill="#FFF1DD" stroke="#F97658" stroke-width="2"/><text x="305" y="72" text-anchor="middle" font-weight="700" fill="#F97658" font-size="11">스크립트 재실행</text><text x="305" y="88" text-anchor="middle" fill="#9c8a6e" font-size="10">busanTour.json</text>
+        <path d="M380 75 h50" stroke="#6B4A2E" stroke-width="2" marker-end="url(#ar)"/>
+        <rect x="440" y="45" width="160" height="60" rx="8" fill="#EAF6EF" stroke="#2E9E6B" stroke-width="2"/><text x="520" y="65" text-anchor="middle" font-weight="700" fill="#2E9E6B" font-size="11">그대로 동작</text><text x="520" y="82" text-anchor="middle" fill="#9c8a6e" font-size="10">파서·그래프·UI 재사용</text><text x="520" y="97" text-anchor="middle" fill="#9c8a6e" font-size="10">추가 개발 ≈ 0</text>
+      </svg>
+    </div>
+    <table>
+      <tr><th>구성요소</th><th>확장 시</th></tr>
+      <tr><td>관광공사 데이터 파이프라인</td><td>🔁 지역코드 교체 + 재실행 (파서 재사용)</td></tr>
+      <tr><td>빵집 데이터(카카오)</td><td>🔁 지역 키워드로 재수집</td></tr>
+      <tr><td>운영시간 파서 / 그래프 엔진 / 화면</td><td>✅ 그대로</td></tr>
+      <tr><td><code>src/config/regions.js</code></td><td>➕ 지역 항목 추가(이미 다지역 구조)</td></tr>
+    </table>
+    <div class="good">✅ <b>발전성 어필</b>: "빵모아는 <b>대전 특화</b>지만 <b>전국 프랜차이즈-없는 로컬 빵집 지도</b>로 확장 가능. 확장 비용 = 지역당 1회 프리페치(약 500 API 호출) + 데이터 검수. 코드는 재사용." </div>
+  </section>
+
+  <!-- 5 -->
+  <section id="limit">
+    <h2><span class="n">5</span>한계 · 리스크 (정직하게)</h2>
+    <ul>
+      <li><b>빵집 영업시간 롱테일</b>: 카카오 API에 시간 필드 없음 → 관광공사 미등록 빵집은 "확인 필요" 배지. 지역 확장 시에도 동일 갭.</li>
+      <li><b>거리 실API 쿼터</b>: 지역·사용자 늘면 카카오모빌리티/ODsay 호출량↑ → 프루닝·캐시로 관리(경로 그래프 문서 참조).</li>
+      <li><b>low 신뢰 16곳</b>: 자연어 파싱 실패분 → 기본창 처리, 수기 검토 대상.</li>
+      <li><span class="todo">← 구현하며 추가</span></li>
+    </ul>
+  </section>
+
+  <!-- 6 -->
+  <section id="road">
+    <h2><span class="n">6</span>보고서 완성 로드맵</h2>
+    <table>
+      <tr><th>시점</th><th>이 보고서에 채울 것</th></tr>
+      <tr><td>지금</td><td>✅ 파이프라인 · 파싱 결과(186·신뢰도) · 업데이트/확장 전략</td></tr>
+      <tr><td>M2 후</td><td>운영시간 런타임 활용(영업배지) 수치</td></tr>
+      <tr><td>M4 후</td><td>맛집 360곳 시간 추가 · 거리 API 실측 쿼터</td></tr>
+      <tr><td>마지막</td><td>전국 확장 데모(부산 등 1곳 시범 파싱) → 발전성 근거 완성</td></tr>
+    </table>
+  </section>
+</div>
+</body>
+</html>
