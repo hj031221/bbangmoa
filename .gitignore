@@ -152,3 +152,6 @@ _probe/
 
 .vercel
 .env*
+
+# 로컬 전용 지시서/보고서(#2 이후)
+docs/local/
