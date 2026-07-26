@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>빵모아 · 경로 추천 그래프 (설계 · 기획 보고)</title>
+<style>
+  :root{
+    --bg:#FBF3DD; --card:#fff; --card2:#FFF8EA; --line:#EADFC6;
+    --brown:#6B4A2E; --accent:#F97658; --accent2:#F6C56A; --green:#2E9E6B; --blue:#2C7FB8;
+    --muted:#9c8a6e; --ink:#4A3520;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;background:var(--bg);color:var(--ink);line-height:1.7}
+  .layout{display:flex;max-width:1220px;margin:0 auto}
+  aside{width:244px;flex:0 0 244px;padding:22px 14px;position:sticky;top:0;height:100vh;overflow:auto;border-right:1px solid var(--line)}
+  aside h1{font-size:16px;color:var(--brown);margin:0 0 4px}
+  aside .sub{font-size:11px;color:var(--muted);margin-bottom:14px}
+  aside a{display:block;padding:6px 11px;border-radius:9px;color:var(--ink);text-decoration:none;font-size:12.5px;margin-bottom:1px}
+  aside a:hover{background:var(--card2)} aside a.active{background:var(--accent);color:#fff;font-weight:700}
+  aside .tag{font-size:10px;color:var(--muted);padding:11px 11px 3px;text-transform:uppercase;letter-spacing:.5px}
+  main{flex:1;padding:30px 42px;max-width:900px;min-width:0}
+  section{margin-bottom:52px;scroll-margin-top:14px}
+  h2{font-size:22px;color:var(--brown);margin:0 0 8px;border-bottom:3px solid var(--accent2);padding-bottom:8px}
+  h2 .n{color:var(--accent);font-weight:800;margin-right:8px}
+  h3{font-size:15px;color:var(--brown);margin:20px 0 6px}
+  p{margin:9px 0} .lead{font-size:15px;color:#5c4a34}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px 18px;margin:13px 0}
+  .fig{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin:15px 0;text-align:center;overflow-x:auto}
+  .fig svg{max-width:100%;height:auto} .cap{font-size:12px;color:var(--muted);margin-top:8px}
+  .analogy{background:#FFF1DD;border-left:4px solid var(--accent2);border-radius:8px;padding:11px 15px;margin:12px 0;font-size:14px}
+  .why{background:#EAF2F8;border-left:4px solid var(--blue);border-radius:8px;padding:11px 15px;margin:12px 0;font-size:13.5px} .why b{color:var(--blue)}
+  .when{background:#EAF6EF;border-left:4px solid var(--green);border-radius:8px;padding:11px 15px;margin:12px 0;font-size:13.5px} .when b{color:var(--green)}
+  .calc{background:#FFF6F2;border:1px solid #F6D9C9;border-radius:10px;padding:12px 15px;margin:12px 0;font-size:13.5px}
+  .calc b{color:var(--accent)} .calc .r{color:var(--green);font-weight:700}
+  table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13px}
+  th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top} th{background:var(--card2);color:var(--brown)}
+  td.hi{background:#EAF6EF;font-weight:700;color:#1c6b48}
+  .pill{display:inline-block;font-size:11px;font-weight:700;border-radius:999px;padding:2px 9px;vertical-align:middle}
+  .now{background:#CDEBD9;color:#1c6b48} .plan{background:#D6E6F2;color:#2C6390} .learn{background:#E3E0F0;color:#5a4f8a}
+  pre{background:#2b2118;color:#f3e8d8;border-radius:11px;padding:14px 16px;overflow:auto;font-size:12.5px;line-height:1.65;margin:12px 0}
+  code{font-family:'D2Coding',Consolas,monospace}
+  .cm{color:#9db089;font-style:italic} .kw{color:#e0913a;font-weight:700} .fn{color:#7cc4e8} .st{color:#e79a83} .nm{color:#c9a0e8}
+  .banner{background:#EAF2F8;border:1px solid #cfe0ee;border-left:5px solid var(--blue);border-radius:12px;padding:14px 18px;margin:0 0 22px}
+  .banner b{color:var(--blue)}
+  .menu-btn{display:none}
+  @media(max-width:880px){
+    .layout{flex-direction:column} aside{width:100%;height:auto;position:static;flex-basis:auto;border-right:none;border-bottom:1px solid var(--line);display:none} aside.open{display:block}
+    main{padding:20px} .menu-btn{display:block;position:sticky;top:0;z-index:5;background:var(--accent);color:#fff;border:none;padding:12px;width:100%;font-size:15px;font-weight:700}
+  }
+</style>
+</head>
+<body>
+<button class="menu-btn" onclick="document.querySelector('aside').classList.toggle('open')">☰ 목차</button>
+<div class="layout">
+  <aside>
+    <h1>🧭 경로 추천 그래프</h1>
+    <div class="sub"><b>설계 · 기획 보고용</b><br>개념 + 계산 + 의사코드를<br>이 문서 하나로 관리.</div>
+    <a href="#big">0. 한눈에 · 두 모드</a>
+    <div class="tag">🟢 지금 앱에 있는 것</div>
+    <a href="#now">1. 최근접 관광지 + 코드</a>
+    <a href="#dist">2. 거리·이동시간 + 계산</a>
+    <div class="tag">🔵 설계 제안 (미탑재)</div>
+    <a href="#pipe">3. 하루 코스 파이프라인</a>
+    <a href="#prune">4. 타원 프루닝 + 공식</a>
+    <a href="#greedy">5. 왜 그리디론 부족한가</a>
+    <a href="#dp">6. ★ DP 코어 + 계산예제</a>
+    <a href="#grasp">7. GRASP (다양성)</a>
+    <a href="#twoopt">8. 2-opt (개념)</a>
+    <a href="#time">9. 시간축·귀가 + 의사코드</a>
+    <a href="#api">10. 거리 API (네이버처럼)</a>
+    <a href="#road">11. 로드맵</a>
+  </aside>
+
+  <main>
+    <div class="banner">
+      <b>📋 이 문서의 위치</b> — 현재 <b>develop 앱(단일 페이지)</b>에는 하루 코스/경로 화면이 <b>아직 없습니다.</b> 지금 앱에서 동작하는 건 <b>지도에서 빵집을 누르면 그 집의 가장 가까운 관광지 1곳을 보여주는 것</b>까지(§1·§2). §3부터는 <b>팀 보고·설계 제안</b>이며, develop 틀 위에 새로 구현할 대상입니다.
+    </div>
+
+    <!-- 0 -->
+    <section id="big">
+      <h2><span class="n">0</span>한눈에 — 두 모드</h2>
+      <p class="lead">공통 흐름(<b>위치 설문 → 취향 → 오늘의 빵 → 지도</b>) 뒤에서 갈린다. 왼쪽은 지금 되는 것, 오른쪽은 설계 제안.</p>
+      <div class="fig">
+        <svg viewBox="0 0 640 250" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif" font-size="12">
+          <rect x="8" y="8" width="624" height="52" rx="10" fill="#FFF8EA" stroke="#EADFC6"/>
+          <text x="320" y="32" text-anchor="middle" font-size="13" font-weight="700" fill="#6B4A2E">위치 설문 → 취향 → 오늘의 빵 🥐 → 지도</text>
+          <text x="320" y="49" text-anchor="middle" fill="#9c8a6e">여기까지 지금 동작. 다음이 갈린다 ↓</text>
+          <line x1="320" y1="60" x2="200" y2="92" stroke="#2E9E6B" stroke-width="2"/><line x1="320" y1="60" x2="452" y2="92" stroke="#2C7FB8" stroke-width="2"/>
+          <rect x="40" y="92" width="250" height="140" rx="12" fill="#fff" stroke="#2E9E6B" stroke-width="2"/>
+          <text x="165" y="114" text-anchor="middle" font-size="14" font-weight="800" fill="#2E9E6B">🟢 지금 앱 (지도)</text>
+          <text x="165" y="136" text-anchor="middle" fill="#4A3520">빵집 클릭 → 최근접</text>
+          <text x="165" y="156" text-anchor="middle" fill="#4A3520">관광지 1곳 표시</text>
+          <text x="165" y="176" text-anchor="middle" fill="#4A3520">기존 지도에 오버레이</text>
+          <text x="165" y="204" text-anchor="middle" font-size="11" fill="#2E9E6B" font-weight="700">✅ 동작 · 계산 = 거리뿐</text>
+          <rect x="350" y="92" width="250" height="140" rx="12" fill="#fff" stroke="#2C7FB8" stroke-width="2"/>
+          <text x="475" y="114" text-anchor="middle" font-size="14" font-weight="800" fill="#2C7FB8">🔵 하루 코스 (제안)</text>
+          <text x="475" y="136" text-anchor="middle" fill="#4A3520">+귀가 시각·장소, 이동수단</text>
+          <text x="475" y="156" text-anchor="middle" fill="#4A3520">관광2~3+빵+끼니, 순서까지</text>
+          <text x="475" y="176" text-anchor="middle" fill="#4A3520">새 화면 · 미탑재</text>
+          <text x="475" y="204" text-anchor="middle" font-size="11" fill="#2C6390" font-weight="700">🔵 계산 = DP 최적화</text>
+        </svg>
+      </div>
+      <table>
+        <tr><th>상황</th><th>쓰는 것</th><th>계산 성격</th></tr>
+        <tr><td>빵집 옆 갈 데 1곳 <span class="pill now">지금</span></td><td>Haversine 거리 + 최근접</td><td>산술 몇 번</td></tr>
+        <tr><td>수백 곳 중 후보 줄이기 <span class="pill plan">제안</span></td><td>타원 프루닝</td><td>부등식 필터</td></tr>
+        <tr><td>슬롯대로 최적 코스 <span class="pill plan">제안</span></td><td>★ <b>DP(레이어드 DAG 최장경로)</b></td><td>표 채우기(정확해)</td></tr>
+        <tr><td>"새 코스 또" <span class="pill plan">제안</span></td><td>DP top-k + 랜덤</td><td>상위경로 샘플</td></tr>
+        <tr><td>정확한 이동시간 <span class="pill plan">제안</span></td><td>거리 실API(자차·대중·도보)</td><td>외부 호출+캐시</td></tr>
+      </table>
+      <div class="why">💡 이 문서 하나가 <b>그래프의 단일 관리처</b>다(개념·계산·의사코드). 아래로 갈수록 깊어진다. ★6(DP)이 하루 코스의 심장.</div>
+    </section>
+
+    <!-- 1 지금: 최근접 관광지 -->
+    <section id="now">
+      <h2><span class="n">1</span>지금 앱: 빵집 → 최근접 관광지 1곳 <span class="pill now">동작</span></h2>
+      <p class="lead">현재 develop 지도에서 실제로 되는 것. <b>빵집을 클릭하면</b> 그 집에서 <b>가장 가까운 관광지 1곳</b>을 골라 지도에 초록핀 + 리스트에 초록배지로 표시. 계산은 "거리 재기"뿐(경로선·순서 없음).</p>
+      <div class="fig">
+        <svg viewBox="0 0 560 190" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif" font-size="12.5">
+          <circle cx="180" cy="95" r="14" fill="#F97658"/><text x="180" y="100" text-anchor="middle" fill="#fff" font-weight="800">🥐</text><text x="180" y="66" text-anchor="middle">클릭한 빵집</text>
+          <line x1="196" y1="95" x2="384" y2="120" stroke="#2E9E6B" stroke-width="2.5" stroke-dasharray="5 4"/>
+          <circle cx="400" cy="120" r="13" fill="#2E9E6B"/><text x="400" y="125" text-anchor="middle" fill="#fff" font-weight="800">📸</text><text x="400" y="150" text-anchor="middle">최근접 관광지 0.24km</text>
+          <circle cx="360" cy="55" r="8" fill="#c9b48f"/><text x="360" y="42" text-anchor="middle" font-size="10" fill="#9c8a6e">다른 관광지(무시)</text>
+        </svg>
+        <div class="cap">기본 지도엔 관광지 없음 → 빵집 클릭 시 1곳만. 다른 빵집 누르면 그 집 기준으로 교체.</div>
+      </div>
+      <h3>실제 코드 (<code>src/components/map/MapResult.jsx</code>)</h3>
+      <pre><code><span class="cm">// 빵집 한 곳에서 가장 가까운 관광지 1곳 → { name, km, lat, lng }</span>
+<span class="kw">function</span> <span class="fn">nearestAttraction</span>(bakery){
+  <span class="kw">let</span> best = <span class="kw">null</span>
+  <span class="kw">for</span>(<span class="kw">const</span> t <span class="kw">of</span> TOUR_SPOTS){
+    <span class="kw">const</span> km = <span class="fn">haversineKm</span>({lat:bakery.lat, lng:bakery.lng}, {lat:t.lat, lng:t.lng})
+    <span class="kw">if</span>(!best || km &lt; best.km) best = { name:t.name, km, lat:t.lat, lng:t.lng }
+  }
+  <span class="kw">return</span> best
+}
+<span class="cm">// 유저가 실제로 클릭한 빵집만 → 그 집의 최근접 관광지 1개만 지도에</span>
+<span class="kw">const</span> clickedBakery = selectedBakeryId ? bakeries.<span class="fn">find</span>(b=&gt;b.id===selectedBakeryId) : <span class="kw">null</span>
+<span class="kw">const</span> nearbyAttractions = clickedBakery?.nearSpot ? [clickedBakery.nearSpot] : []</code></pre>
+      <div class="when">🟢 <b>언제 충분</b>: 후보가 "빵집1 + 관광지1"뿐이라 <b>고를 게 없다</b> → 최적화·DP 불필요. 이 단계는 이 지식만으로 완성.</div>
+    </section>
+
+    <!-- 2 거리 -->
+    <section id="dist">
+      <h2><span class="n">2</span>거리 → 이동시간 + 계산 따라가기 <span class="pill now">동작</span></h2>
+      <p class="lead">두 점의 <b>위·경도</b>로 거리(km)를 재고(Haversine), 속도로 나눠 분으로. §1의 최근접 계산도 이걸 씀.</p>
+      <h3>① Haversine 실제 코드 (<code>src/lib/distance.js</code>)</h3>
+      <pre><code><span class="kw">const</span> R=<span class="nm">6371</span>, rad=d=&gt;d*Math.PI/<span class="nm">180</span>       <span class="cm">// R=지구 반지름 km</span>
+<span class="kw">function</span> <span class="fn">haversineKm</span>(a,b){
+  <span class="kw">const</span> dLat=<span class="fn">rad</span>(b.lat-a.lat), dLng=<span class="fn">rad</span>(b.lng-a.lng)
+  <span class="kw">const</span> s=Math.sin(dLat/<span class="nm">2</span>)**<span class="nm">2</span>
+        + Math.cos(<span class="fn">rad</span>(a.lat))*Math.cos(<span class="fn">rad</span>(b.lat))*Math.sin(dLng/<span class="nm">2</span>)**<span class="nm">2</span>
+  <span class="kw">return</span> <span class="nm">2</span>*R*Math.asin(Math.sqrt(s))          <span class="cm">// 구면 최단거리</span>
+}</code></pre>
+      <div class="calc"><b>계산 따라가기</b> — 대전역(36.3316, 127.4342) → 성심당 대전역점(36.3320, 127.4335)<br>
+        dLat≈0.0004°, dLng≈-0.0007° → 아주 작은 각 → <span class="r">haversineKm ≈ 0.08km</span><br>
+        도보 이동시간 = 0.08 × <b>1.3</b>(우회) ÷ (4km/h) × 60 = <span class="r">약 1.6 → 2분</span>.</div>
+      <h3>② 모드별 시간 = 거리 ÷ 속도 <span class="pill plan">코스에서 쓸 것</span></h3>
+      <pre><code><span class="kw">const</span> SPEED={walk:<span class="nm">4</span>, car:<span class="nm">24</span>}, DETOUR=<span class="nm">1.3</span>   <span class="cm">// km/h, 우회계수</span>
+<span class="kw">function</span> <span class="fn">travelMin</span>(a,b,mode){
+  <span class="kw">const</span> km=<span class="fn">haversineKm</span>(a,b)*DETOUR
+  <span class="kw">if</span>(mode===<span class="st">'transit'</span>) <span class="kw">return</span> Math.round(km/SPEED.car*<span class="nm">60</span>*<span class="nm">1.4</span>+<span class="nm">6</span>) <span class="cm">// 근사(임시)</span>
+  <span class="kw">return</span> Math.round(km/SPEED[mode]*<span class="nm">60</span>)
+}</code></pre>
+      <div class="why">💡 이 근사는 <b>도보엔 충분히 정확</b>(도보는 직선에 가까움). 하지만 <b>자차·대중교통은 실제 도로·배차가 달라 부정확</b> → §10에서 실API로 교체.</div>
+    </section>
+
+    <!-- 3 pipeline -->
+    <section id="pipe">
+      <h2><span class="n">3</span>하루 코스 파이프라인 (DP 코어) <span class="pill plan">설계 제안</span></h2>
+      <p class="lead">하루 코스는 장소가 <b>수백 개</b>. 아래 순서로 <b>정확한 최적 코스</b>를 만든다.</p>
+      <div class="fig">
+        <svg viewBox="0 0 660 130" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif" font-size="11">
+          <g text-anchor="middle">
+          <rect x="4" y="42" width="120" height="48" rx="9" fill="#fff" stroke="#6B4A2E" stroke-width="2"/><text x="64" y="62" font-weight="700" fill="#6B4A2E">① z-score</text><text x="64" y="78" fill="#9c8a6e">value 정규화</text>
+          <rect x="138" y="42" width="120" height="48" rx="9" fill="#fff" stroke="#2E9E6B" stroke-width="2"/><text x="198" y="62" font-weight="700" fill="#2E9E6B">② 타원 프루닝</text><text x="198" y="78" fill="#9c8a6e">수백→수십</text>
+          <rect x="272" y="42" width="120" height="48" rx="9" fill="#fff" stroke="#c99a3a" stroke-width="2"/><text x="332" y="62" font-weight="700" fill="#b8860b">③ 슬롯</text><text x="332" y="78" fill="#9c8a6e">순서 고정</text>
+          <rect x="406" y="36" width="126" height="60" rx="9" fill="#EAF2F8" stroke="#2C7FB8" stroke-width="3"/><text x="469" y="58" font-weight="800" fill="#2C7FB8">④ ★DP</text><text x="469" y="76" fill="#9c8a6e">최적 코스</text>
+          <rect x="546" y="42" width="110" height="48" rx="9" fill="#fff" stroke="#2C7FB8" stroke-width="2"/><text x="601" y="62" font-weight="700" fill="#2C7FB8">⑤ 다양성</text><text x="601" y="78" fill="#9c8a6e">top-k·변형</text>
+          </g>
+          <g stroke="#c9b48f" stroke-width="2"><line x1="124" y1="66" x2="138" y2="66"/><line x1="258" y1="66" x2="272" y2="66"/><line x1="392" y1="66" x2="406" y2="66"/><line x1="532" y1="66" x2="546" y2="66"/></g>
+        </svg>
+        <div class="cap">슬롯이 순서를 고정 → <b>DP가 정답</b>. (2-opt는 코스계산에서 빠짐, §8)</div>
+      </div>
+    </section>
+
+    <!-- 4 prune -->
+    <section id="prune">
+      <h2><span class="n">4</span>타원 프루닝 + 공식 <span class="pill plan">설계 제안</span></h2>
+      <p class="lead">관광지·빵집·맛집을 <b>다 계산하면 느리고 API 쿼터도 터진다.</b> 출발–도착 <b>시간예산 타원</b> 밖은 버린다.</p>
+      <div class="fig">
+        <svg viewBox="0 0 560 180" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif" font-size="12">
+          <ellipse cx="280" cy="90" rx="228" ry="55" fill="#EAF6EF" stroke="#2E9E6B" stroke-dasharray="5 4"/>
+          <circle cx="80" cy="90" r="10" fill="#2C7FB8"/><text x="80" y="76" text-anchor="middle" font-size="11">📍S 출발</text>
+          <circle cx="480" cy="90" r="10" fill="#6B4A2E"/><text x="480" y="76" text-anchor="middle" font-size="11">🏁E 도착</text>
+          <circle cx="220" cy="80" r="7" fill="#2E9E6B"/><circle cx="330" cy="100" r="7" fill="#2E9E6B"/>
+          <circle cx="150" cy="165" r="8" fill="#c9b48f"/><text x="150" y="169" text-anchor="middle" font-size="9" fill="#fff">✗</text>
+          <text x="280" y="150" text-anchor="middle" fill="#2E9E6B" font-weight="700">이 타원 안만 후보</text>
+        </svg>
+      </div>
+      <div class="calc"><b>타원의 뜻(초점=S,E)</b>: 어떤 장소 x를 들렀을 때 <b>S→x→E 이동시간 합</b>이 하루 예산을 넘으면 제외.<br>
+        <code>keep(x) ⟺ travel(S,x) + travel(x,E) ≤ 시간예산</code><br>
+        예: 예산 6시간, S→x 3.5h + x→E 3h = 6.5h &gt; 6h → <span style="color:#b85a34;font-weight:700">x 제외</span> (들르면 귀가 못 함).</div>
+      <div class="why">💡 <b>왜 먼저?</b> 뒤의 DP·거리API는 후보 수에 비례. 수백 곳 → 수십 곳으로 줄여야 빠르고 <b>거리 API N² 호출도 감당</b>(§10).</div>
+    </section>
+
+    <!-- 5 greedy -->
+    <section id="greedy">
+      <h2><span class="n">5</span>왜 그리디만으론 부족한가 <span class="pill learn">배경</span></h2>
+      <p class="lead">"매 순간 가성비 최고를 집자"(그리디)는 <b>당장</b>은 좋아도 <b>전체 최적</b>은 놓칠 수 있다.</p>
+      <div class="calc"><b>반례</b>: 지금 A(가치3, 가까움)를 집으면, 다음 칸에서 진짜 좋은 Q(가치6)로 못 잇는 배치가 될 수 있다. 그리디는 <b>앞 선택이 뒤를 망치는</b> 걸 못 본다.<br>→ 그래서 <b>모든 조합의 누적 가치를 한 번에 따지는 DP</b>가 필요(다음 절).</div>
+      <div class="why">💡 그리디·오리엔티어링은 <b>직관·근사</b>로는 유용하지만, 우리처럼 <b>슬롯 순서가 고정</b>이면 DP로 <b>정확해</b>를 그냥 낼 수 있다.</div>
+    </section>
+
+    <!-- 6 DP -->
+    <section id="dp">
+      <h2><span class="n">6</span>★ DP 코어 — 레이어드 DAG 최장경로 <span class="pill plan">핵심 제안</span></h2>
+      <p class="lead">슬롯을 <b>층(layer)</b>으로 세우면, 코스 = "각 층에서 한 곳씩 골라 잇는 길". <b>누적 가치가 최대인 길</b>을 DP로 정확히 찾는다.</p>
+      <div class="fig">
+        <svg viewBox="0 0 600 230" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif" font-size="12">
+          <g text-anchor="middle" fill="#9c8a6e" font-size="11">
+            <text x="80" y="24">슬롯1 관광</text><text x="250" y="24">슬롯2 빵집</text><text x="420" y="24">슬롯3 저녁/관광</text><text x="540" y="24">귀가</text>
+          </g>
+          <g stroke="#d9c39a" stroke-width="1.5">
+            <line x1="100" y1="70" x2="230" y2="70"/><line x1="100" y1="70" x2="230" y2="130"/>
+            <line x1="100" y1="130" x2="230" y2="70"/><line x1="100" y1="130" x2="230" y2="130"/>
+            <line x1="270" y1="70" x2="400" y2="70"/><line x1="270" y1="70" x2="400" y2="130"/>
+            <line x1="270" y1="130" x2="400" y2="70"/><line x1="270" y1="130" x2="400" y2="130"/>
+            <line x1="440" y1="70" x2="530" y2="100"/><line x1="440" y1="130" x2="530" y2="100"/>
+          </g>
+          <g stroke="#2C7FB8" stroke-width="3.5">
+            <line x1="100" y1="70" x2="230" y2="130"/><line x1="270" y1="130" x2="400" y2="70"/><line x1="440" y1="70" x2="530" y2="100"/>
+          </g>
+          <g font-weight="800" text-anchor="middle">
+            <circle cx="80" cy="70" r="18" fill="#2C7FB8"/><text x="80" y="75" fill="#fff">A</text><text x="80" y="70" fill="#fff" font-size="9" dy="-20">v3</text>
+            <circle cx="80" cy="130" r="18" fill="#e9dcc4"/><text x="80" y="135" fill="#6B4A2E">B</text>
+            <circle cx="250" cy="70" r="18" fill="#e9dcc4"/><text x="250" y="75" fill="#6B4A2E">P</text>
+            <circle cx="250" cy="130" r="18" fill="#2C7FB8"/><text x="250" y="135" fill="#fff">Q</text>
+            <circle cx="420" cy="70" r="18" fill="#2C7FB8"/><text x="420" y="75" fill="#fff">X</text>
+            <circle cx="420" cy="130" r="18" fill="#e9dcc4"/><text x="420" y="135" fill="#6B4A2E">Y</text>
+            <circle cx="540" cy="100" r="16" fill="#6B4A2E"/><text x="540" y="105" fill="#fff" font-size="11">🏁</text>
+          </g>
+          <text x="300" y="210" text-anchor="middle" fill="#2C7FB8" font-weight="700">최적 경로 = A → Q → X (누적 가치 10)</text>
+        </svg>
+      </div>
+      <h3>점화식 (핵심)</h3>
+      <pre><code><span class="cm">// best[슬롯s][노드b] = b까지 왔을 때 얻을 수 있는 최대 누적 가치</span>
+best[<span class="nm">0</span>][b] = value(b)                       <span class="cm">// 첫 슬롯</span>
+best[s][b] = value(b)
+           + <span class="fn">max</span>( best[s-<span class="nm">1</span>][a] )  over 연결가능한 a  <span class="cm">// 시각·시간창 OK인 a만</span>
+정답 = <span class="fn">argmax</span> best[마지막][*] → 역추적(backtrack)</code></pre>
+      <div class="calc"><b>계산 예제</b> (value: A3 B2 / P2 Q3 / X4 Y2)
+        <table style="margin-top:8px">
+          <tr><th>슬롯</th><th>노드</th><th>best 계산</th><th>값</th></tr>
+          <tr><td>1</td><td>A / B</td><td>value</td><td>A=3 · B=2</td></tr>
+          <tr><td>2</td><td>P</td><td>2 + max(A3,B2)</td><td>5</td></tr>
+          <tr><td>2</td><td class="hi">Q</td><td>3 + max(A3,B2)=3+3</td><td class="hi">6</td></tr>
+          <tr><td>3</td><td class="hi">X</td><td>4 + max(P5,Q6)=4+6</td><td class="hi">10 ✓최대</td></tr>
+          <tr><td>3</td><td>Y</td><td>2 + max(P5,Q6)</td><td>8</td></tr>
+        </table>
+        역추적: X(10) ← Q(6) ← A(3). → <span class="r">최적 코스 A→Q→X, 가치 10.</span> 모든 조합(2×2×2=8가지)을 안 그려도 표 한 번에 정답.</div>
+      <div class="when">🟢 <b>왜 이게 정답인가</b>: 슬롯이 순서를 고정 → "왼쪽에서 오른쪽" 한 방향 DAG. 각 노드까지 최적을 쌓아 올리면 <b>전체 최적이 보장</b>(그리디처럼 앞선택에 안 당함). 노드 수십 개라 브라우저서 즉시.</div>
+    </section>
+
+    <!-- 7 grasp -->
+    <section id="grasp">
+      <h2><span class="n">7</span>GRASP — "새 코스 또" 다양성용 <span class="pill plan">보조 제안</span></h2>
+      <p class="lead">DP는 <b>정답 1개</b>를 준다. 근데 "다른 코스 보여줘"엔 매번 같으면 재미없다. → DP <b>top-k 경로</b> 중 상위에서 약간 랜덤.</p>
+      <div class="fig">
+        <svg viewBox="0 0 520 120" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif" font-size="11.5">
+          <rect x="20" y="30" width="150" height="24" rx="6" fill="#2E9E6B"/><text x="95" y="47" text-anchor="middle" fill="#fff">1위 코스 (10점)</text>
+          <rect x="20" y="58" width="150" height="24" rx="6" fill="#5cbb8a"/><text x="95" y="75" text-anchor="middle" fill="#fff">2위 (9)</text>
+          <rect x="20" y="86" width="150" height="24" rx="6" fill="#8ed0af"/><text x="95" y="103" text-anchor="middle" fill="#1c6b48">3위 (8)</text>
+          <rect x="10" y="24" width="172" height="92" rx="10" fill="none" stroke="#2C7FB8" stroke-width="2.5"/>
+          <text x="330" y="60" text-anchor="middle" fill="#4A3520">이 상위 3 중 <tspan font-weight="700">랜덤 1개</tspan></text>
+          <text x="330" y="82" text-anchor="middle" font-size="11" fill="#9c8a6e">→ 매번 다르되 다 좋은 코스</text>
+        </svg>
+      </div>
+      <div class="why">💡 <b>변형 3종</b>(🚶여유·🎯알찬·🍽미식)도 여기서: value 가중치 λ만 바꿔 DP를 다시 돌리면 성격 다른 최적 코스가 나온다.</div>
+    </section>
+
+    <!-- 8 2opt -->
+    <section id="twoopt">
+      <h2><span class="n">8</span>2-opt — 개념만 (코스엔 안 씀) <span class="pill learn">학습용</span></h2>
+      <p class="lead">순서를 <b>자유롭게 바꿔야</b> 하는 문제(예: 외판원 TSP)에서 X자 동선을 펴는 기법.</p>
+      <div class="fig">
+        <svg viewBox="0 0 520 150" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif" font-size="12">
+          <text x="120" y="22" text-anchor="middle" font-weight="700" fill="#b85a34">꼬임(X)</text>
+          <line x1="60" y1="55" x2="180" y2="120" stroke="#F97658" stroke-width="2.5"/><line x1="180" y1="55" x2="60" y2="120" stroke="#F97658" stroke-width="2.5"/>
+          <circle cx="60" cy="55" r="6" fill="#6B4A2E"/><circle cx="180" cy="55" r="6" fill="#6B4A2E"/><circle cx="60" cy="120" r="6" fill="#6B4A2E"/><circle cx="180" cy="120" r="6" fill="#6B4A2E"/>
+          <text x="400" y="22" text-anchor="middle" font-weight="700" fill="#2E9E6B">품</text>
+          <line x1="340" y1="55" x2="460" y2="55" stroke="#2E9E6B" stroke-width="2.5"/><line x1="340" y1="120" x2="460" y2="120" stroke="#2E9E6B" stroke-width="2.5"/>
+          <circle cx="340" cy="55" r="6" fill="#6B4A2E"/><circle cx="460" cy="55" r="6" fill="#6B4A2E"/><circle cx="340" cy="120" r="6" fill="#6B4A2E"/><circle cx="460" cy="120" r="6" fill="#6B4A2E"/>
+        </svg>
+      </div>
+      <div class="when">🟢 <b>왜 우리는 코스에 안 쓰나</b>: 우리 코스는 <b>슬롯이 순서를 이미 고정</b>(오후→빵→관광→저녁→야경). 바꿀 순서가 없으니 2-opt가 할 일이 없다. → <b>개념만</b> 알아두고 코스 계산엔 DP만 쓴다.</div>
+    </section>
+
+    <!-- 9 time -->
+    <section id="time">
+      <h2><span class="n">9</span>시간축·귀가 + 의사코드 <span class="pill plan">설계 제안</span></h2>
+      <p class="lead">코스에 <b>시계</b>를 붙인다. 도착 시각이 <b>운영시간 안</b>이어야 하고 <b>귀가(예: 8시)를 못 넘긴다.</b> 이게 DP의 "연결 가능" 판정.</p>
+      <div class="fig">
+        <svg viewBox="0 0 580 120" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif" font-size="11.5">
+          <line x1="30" y1="70" x2="550" y2="70" stroke="#c9b48f" stroke-width="2"/>
+          <g text-anchor="middle">
+          <circle cx="60" cy="70" r="7" fill="#2C7FB8"/><text x="60" y="54">14:00</text><text x="60" y="96" font-size="10">📍출발</text>
+          <circle cx="180" cy="70" r="7" fill="#F97658"/><text x="180" y="54">14:20</text><text x="180" y="96" font-size="10">🥐빵집(20분)</text>
+          <circle cx="330" cy="70" r="7" fill="#2E9E6B"/><text x="330" y="54">15:10</text><text x="330" y="96" font-size="10">📸관광(운영중)</text>
+          <circle cx="470" cy="70" r="7" fill="#2E9E6B"/><text x="470" y="54">17:30</text><text x="470" y="96" font-size="10">🍽️저녁</text>
+          <circle cx="545" cy="70" r="8" fill="#6B4A2E"/><text x="545" y="54" font-weight="700" fill="#b85a34">20:00</text><text x="545" y="96" font-size="10">🏁대전역</text>
+          </g>
+        </svg>
+      </div>
+      <pre><code><span class="cm">// 도착 시각 = 이전 출발 + 이동시간. 문 열기 전 도착하면 대기.</span>
+도착(n) = 출발(이전) + <span class="fn">travelMin</span>(이전, n, mode)
+출발(n) = <span class="fn">max</span>(도착(n), open(n)) + dwell(n)
+연결가능(a→b) ⟺ 도착(b) ≤ close(b)-dwell(b)  <span class="cm">// 운영 종료 전 관람</span>
+                &amp;&amp; 도착(E) ≤ 귀가시각            <span class="cm">// 기차 데드라인</span></code></pre>
+      <div class="card"><b>운영시간 데이터</b>: 관광공사에 대전 관광지·음식점 운영시간이 <b>자연어</b>(<code>10:00~17:00</code>·<code>상시개방</code>·<code>화~일…</code>)로 있음 → 빌드 때 파싱해 <code>{open,close,휴무}</code>로 저장하는 <b>별도 자산이 이미 있음</b>(현재 develop 앱엔 미탑재). 코스 구현 시 재이식. 빵집 시간은 없으면 "확인 필요" 배지 + 항상 방문가능 처리.</div>
+    </section>
+
+    <!-- 10 API -->
+    <section id="api">
+      <h2><span class="n">10</span>거리 API — "네이버처럼" 정확히 <span class="pill plan">설계 제안</span></h2>
+      <p class="lead">§2 근사는 도보엔 OK지만 자차·대중교통은 부정확. 정확히는 <b>실API</b>. <b>3모드(자차·대중교통·도보)</b>만 하고 자전거는 뺀다.</p>
+      <table>
+        <tr><th>모드</th><th>API</th><th>정확도</th><th>MVP</th></tr>
+        <tr><td>🚗 자차</td><td><b>카카오 모빌리티</b>(실시간 교통)</td><td>정확</td><td>실API(서버리스 프록시 필요)</td></tr>
+        <tr><td>🚌 대중교통</td><td><b>ODsay</b>(환승·배차)</td><td>정확(직접계산 불가)</td><td>실API(2차 가능)</td></tr>
+        <tr><td>🚶 도보</td><td>Tmap 보행자 / OSRM</td><td>근사도 오차 작음</td><td>근사 → 2차 Tmap</td></tr>
+      </table>
+      <div class="why">💡 <b>붙는 조건 3가지</b>: ① 매트릭스 API 없음 → 코스 N곳이면 <b>쌍별 N² 호출</b> → §4 프루닝으로 후보 줄이고 <b>결과 캐시</b>. ② 한 API가 3모드를 다 못 해 → <b>제공자 조합</b>. ③ 무료 티어 <b>쿼터</b> 관리. → 정직하게 "실API 붙은 모드=정밀, 나머지=추정" 표기.</div>
+    </section>
+
+    <!-- 11 roadmap -->
+    <section id="road">
+      <h2><span class="n">11</span>로드맵 <span class="muted" style="font-size:13px;font-weight:400">— develop 틀 기준</span></h2>
+      <table>
+        <tr><th>단계</th><th>내용</th><th>절</th><th>상태</th></tr>
+        <tr><td>지금</td><td>지도에서 빵집 클릭 → 최근접 관광지 1곳(거리 계산)</td><td>1·2</td><td><span class="pill now">✅ 앱에 있음</span></td></tr>
+        <tr><td>R1</td><td>하루 코스 화면 골격 + 입력(출발지·귀가·이동수단)</td><td>0·3</td><td><span class="pill plan">🔵 제안</span></td></tr>
+        <tr><td>R2</td><td>타원 프루닝 → 슬롯 → <b>DP</b> → 코스 타임라인</td><td>4·6·9</td><td><span class="pill plan">🔵 제안</span></td></tr>
+        <tr><td>R3</td><td>다양성(변형·재생성) + 영업시간 파서 재이식</td><td>7·9</td><td><span class="pill plan">🔵 제안</span></td></tr>
+        <tr><td>R4</td><td>거리 실API(자차·대중·도보) + 맛집 슬롯</td><td>10</td><td><span class="pill plan">🔵 제안</span></td></tr>
+      </table>
+      <div class="when">🟢 각 단계 = <b>이 문서 절(개념·계산·의사코드) → 구현 → 검수</b> 한 세트. 그래프 관련은 전부 여기서 관리(여기저기 안 펼침). 협업 큰 그림은 <a href="/협업개요.html" target="_blank">협업개요.html</a>.</div>
+    </section>
+  </main>
+</div>
+<script>
+  const links=[...document.querySelectorAll('aside a')], secs=links.map(a=>document.querySelector(a.getAttribute('href')));
+  addEventListener('scroll',()=>{let c=secs.length-1;for(let i=0;i<secs.length;i++){if(secs[i]&&secs[i].getBoundingClientRect().top>90){c=i-1;break}}links.forEach((a,i)=>a.classList.toggle('active',i===Math.max(0,c)))},{passive:true});
+  links.forEach(a=>a.addEventListener('click',()=>{if(innerWidth<=880)document.querySelector('aside').classList.remove('open')}));
+</script>
+</body>
+</html>
