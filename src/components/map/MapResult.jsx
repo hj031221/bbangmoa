@@ -49,10 +49,13 @@ export default function MapResult({ onRetake }) {
   const selected =
     bakeriesWithDist.find((b) => b.id === selectedBakeryId) || bakeriesWithDist[0]
 
-  // 선택된 빵집 1곳의 최근접 관광지만 지도에 초록 마커로 표시 (항상 X → 클릭 시 1개)
+  // 유저가 실제로 클릭한 빵집만 (초기 자동선택 제외) → 그 빵집의 최근접 관광지 1개만 지도에 표시
+  const clickedBakery = selectedBakeryId
+    ? bakeriesWithDist.find((b) => b.id === selectedBakeryId)
+    : null
   const nearbyAttractions = useMemo(
-    () => (selected?.nearSpot ? [selected.nearSpot] : []),
-    [selected],
+    () => (clickedBakery?.nearSpot ? [clickedBakery.nearSpot] : []),
+    [clickedBakery],
   )
 
   return (
