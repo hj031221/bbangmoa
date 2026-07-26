@@ -309,13 +309,15 @@ a{ color:var(--accent-text); }
 .rec-link{ display:inline-block; margin-top:8px; font-size:.85rem; color:var(--accent-text); }
 
 .rec-list{ list-style:none; padding:0; margin:0; }
-.rec-list-item{ display:flex; align-items:center; gap:10px; padding:10px; border-radius:10px; cursor:pointer; }
+.rec-list-item{ display:flex; align-items:center; flex-wrap:wrap; gap:6px 10px; padding:10px; border-radius:10px; cursor:pointer; }
 .rec-list-item:hover{ background:var(--card2); }
 .rec-list-item.active{ background:var(--card2); }
 .rec-list-item .rank{ width:22px; height:22px; border-radius:50%; background:var(--accent); color:#fff; font-size:.75rem; display:flex; align-items:center; justify-content:center; font-weight:700; }
 .rl-name{ flex:1; font-size:.9rem; }
 .rl-dist{ font-size:.75rem; color:var(--muted); }
 .rl-score{ font-size:.75rem; color:var(--muted); }
+/* 근처 관광지: 이름/거리 줄 아래 전체 폭 한 줄(랭크 뱃지 폭만큼 들여쓰기) */
+.rl-near{ flex-basis:100%; padding-left:32px; font-size:.72rem; color:var(--muted); }
 
 /* 기획안 링크 (팀 내부용 · 지도 화면 우하단 구석) */
 .plan-link{ position:fixed; bottom:14px; right:16px; z-index:20; font-size:.8rem; color:var(--brown); background:var(--card); border:1px solid var(--line); border-radius:999px; padding:6px 12px; text-decoration:none; box-shadow:0 3px 10px rgba(80,50,20,.12); }

@@ -3,10 +3,25 @@ import { useAppStore } from '../../store/useAppStore'
 import { useBakeries } from '../../hooks/useBakeries'
 import { useCurrentLocation } from '../../hooks/useCurrentLocation'
 import { getRegion } from '../../config/regions'
-import { isWithinBbox, formatDistance } from '../../lib/distance'
+import { isWithinBbox, formatDistance, haversineKm } from '../../lib/distance'
 import { getBakeryDistanceInfo } from '../../lib/bakeryDistance'
+import daejeonTour from '../../data/daejeonTour.json'
 import MapView from './MapView'
 import RecommendCard from './RecommendCard'
+
+// 관광지 좌표만 미리 추림(이름·좌표). 빵집별 최근접 1곳 계산에 재사용.
+const TOUR_SPOTS = daejeonTour.filter((t) => Number.isFinite(t.lat) && Number.isFinite(t.lng))
+
+// 빵집 한 곳에서 가장 가까운 관광지 1곳 → { name, km }
+function nearestAttraction(bakery) {
+  if (!Number.isFinite(bakery.lat) || !Number.isFinite(bakery.lng)) return null
+  let best = null
+  for (const t of TOUR_SPOTS) {
+    const km = haversineKm({ lat: bakery.lat, lng: bakery.lng }, { lat: t.lat, lng: t.lng })
+    if (!best || km < best.km) best = { name: t.name, km }
+  }
+  return best
+}
 
 // 취향 일치율 기반 지도 + 추천 리스트. onRetake: 취향 설문 다시 하기.
 export default function MapResult({ onRetake }) {
@@ -27,6 +42,7 @@ export default function MapResult({ onRetake }) {
       bakeries.map((b) => ({
         ...b,
         distInfo: getBakeryDistanceInfo(b, { origin, coords, bbox: region.bbox }),
+        nearSpot: nearestAttraction(b),
       })),
     [bakeries, origin, coords, region],
   )
@@ -88,6 +104,9 @@ export default function MapResult({ onRetake }) {
                 )}
                 {typeof b.score === 'number' && b.score > 0 && (
                   <span className="rl-score">{b.score}</span>
+                )}
+                {b.nearSpot && (
+                  <span className="rl-near">근처: {b.nearSpot.name} · {formatDistance(b.nearSpot.km)}</span>
                 )}
               </li>
             ))}
