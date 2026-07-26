@@ -11,24 +11,24 @@ import RecommendCard from './RecommendCard'
 // 취향 일치율 기반 지도 + 추천 리스트. onRetake: 취향 설문 다시 하기.
 export default function MapResult({ onRetake }) {
   const regionId = useAppStore((s) => s.regionId)
-  const district = useAppStore((s) => s.district)
+  const origin = useAppStore((s) => s.origin)
   const answers = useAppStore((s) => s.answers)
   const selectedBakeryId = useAppStore((s) => s.selectedBakeryId)
   const selectBakery = useAppStore((s) => s.selectBakery)
   const region = getRegion(regionId)
 
-  const { bakeries, loading, error, source } = useBakeries({ regionId, answers, district })
+  const { bakeries, loading, error, source } = useBakeries({ regionId, answers, origin })
   const { status: locStatus, coords, label: locLabel } = useCurrentLocation()
   const inRegion = isWithinBbox(coords, region.bbox)
 
-  // 위치 확정 시에만 빵집별 거리를 계산 (대전 밖이면 역 기준으로 자동 대체됨)
+  // 빵집별 거리: 설문서 고른 origin 우선, 없으면 현재 위치/역 폴백
   const bakeriesWithDist = useMemo(
     () =>
       bakeries.map((b) => ({
         ...b,
-        distInfo: getBakeryDistanceInfo(b, { coords, bbox: region.bbox }),
+        distInfo: getBakeryDistanceInfo(b, { origin, coords, bbox: region.bbox }),
       })),
-    [bakeries, coords, region],
+    [bakeries, origin, coords, region],
   )
   const selected =
     bakeriesWithDist.find((b) => b.id === selectedBakeryId) || bakeriesWithDist[0]
@@ -39,20 +39,24 @@ export default function MapResult({ onRetake }) {
         <button className="ghost-btn" onClick={onRetake}>
           ← 취향 다시 설정
         </button>
-        <h2>
-          대전 {district ? `${district} ` : ''}빵집 추천 ({bakeries.length}곳)
-        </h2>
+        <h2>대전 빵집 추천 ({bakeries.length}곳)</h2>
         {source === 'sample' && (
           <span className="badge warn">샘플 데이터 (API 키 미설정)</span>
         )}
-        {locStatus === 'ready' && (
-          <span className="badge location">
-            📍 현재 위치: {locLabel || `${coords.lat.toFixed(3)}, ${coords.lng.toFixed(3)}`}
-            {!inRegion && ' · 대전 밖 → 역 기준 거리 표시'}
-          </span>
-        )}
-        {locStatus === 'denied' && (
-          <span className="badge warn">위치 접근 거부됨 · 역 기준 거리로 표시</span>
+        {origin ? (
+          <span className="badge location">📍 출발: {origin.label} · 가까운 순</span>
+        ) : (
+          <>
+            {locStatus === 'ready' && (
+              <span className="badge location">
+                📍 현재 위치: {locLabel || `${coords.lat.toFixed(3)}, ${coords.lng.toFixed(3)}`}
+                {!inRegion && ' · 대전 밖 → 역 기준 거리 표시'}
+              </span>
+            )}
+            {locStatus === 'denied' && (
+              <span className="badge warn">위치 접근 거부됨 · 역 기준 거리로 표시</span>
+            )}
+          </>
         )}
       </header>
 

@@ -9,6 +9,7 @@
 // - districtKeywords: "OO {구} {kw}" 형태로 구마다 돌릴 핵심 키워드
 // - specialtyQueries: 명물(성심당 등) 보강용 단발 질의
 // - tourKeywords: 관광공사 searchKeyword2 에 쓰는 키워드들 (빵집은 분류코드가 없어 키워드로 긁는다)
+// - origins: 설문 0단계 "출발 위치" 프리셋(역·터미널·시청·둔산). 좌표는 data/stations.js 와 정합
 
 export const DEFAULT_REGION = 'daejeon'
 
@@ -25,6 +26,15 @@ export const REGIONS = {
     districtKeywords: ['빵집', '베이커리'],
     specialtyQueries: ['대전 성심당', '대전 유명 빵집'],
     tourKeywords: ['대전 빵', '대전 베이커리', '대전 제과', '대전 디저트'],
+    // 출발 위치 프리셋 (설문 0단계). name = origin.label 로 저장, label = 화면 표기(이모지).
+    origins: [
+      { id: 'daejeon-st', label: '🚉 대전역', name: '대전역', lat: 36.33184, lng: 127.43417 },
+      { id: 'seodaejeon-st', label: '🚉 서대전역', name: '서대전역', lat: 36.31984, lng: 127.40287 },
+      { id: 'terminal', label: '🚌 복합터미널', name: '복합터미널', lat: 36.3505, lng: 127.4348 },
+      { id: 'yuseong-terminal', label: '🚌 유성터미널', name: '유성터미널', lat: 36.354, lng: 127.341 },
+      { id: 'cityhall', label: '🏛️ 시청', name: '시청', lat: 36.3504, lng: 127.3845 },
+      { id: 'dunsan', label: '🏙️ 둔산', name: '둔산', lat: 36.3515, lng: 127.3776 },
+    ],
   },
 }
 

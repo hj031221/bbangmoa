@@ -22,10 +22,10 @@ export default function LandingPage() {
   const [showSaved, setShowSaved] = useState(false)
   const [navOpen, setNavOpen] = useState(false)
   const answers = useAppStore((s) => s.answers)
-  const district = useAppStore((s) => s.district)
+  const origin = useAppStore((s) => s.origin)
   const resetAnswers = useAppStore((s) => s.resetAnswers)
 
-  const surveyDone = !!district && SURVEY.every((q) => answers[q.id])
+  const surveyDone = !!origin && SURVEY.every((q) => answers[q.id])
 
   const startTest = () => {
     setFeatureOpen(true)
