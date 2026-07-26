@@ -317,7 +317,7 @@ a{ color:var(--accent-text); }
 .rl-dist{ font-size:.75rem; color:var(--muted); }
 .rl-score{ font-size:.75rem; color:var(--muted); }
 /* 근처 관광지: 이름/거리 줄 아래 전체 폭 한 줄(랭크 뱃지 폭만큼 들여쓰기) */
-.rl-near{ flex-basis:100%; padding-left:32px; font-size:.72rem; color:var(--muted); }
+.rl-near{ flex-basis:100%; margin-left:32px; margin-top:2px; font-size:.76rem; font-weight:600; color:#1c6b48; background:#EAF6EF; border-radius:6px; padding:3px 8px; display:inline-block; }
 
 @media (max-width:760px){
   .result-body{ grid-template-columns:1fr; height:auto; }

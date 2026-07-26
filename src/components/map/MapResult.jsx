@@ -12,13 +12,13 @@ import RecommendCard from './RecommendCard'
 // 관광지 좌표만 미리 추림(이름·좌표). 빵집별 최근접 1곳 계산에 재사용.
 const TOUR_SPOTS = daejeonTour.filter((t) => Number.isFinite(t.lat) && Number.isFinite(t.lng))
 
-// 빵집 한 곳에서 가장 가까운 관광지 1곳 → { name, km }
+// 빵집 한 곳에서 가장 가까운 관광지 1곳 → { name, km, lat, lng }
 function nearestAttraction(bakery) {
   if (!Number.isFinite(bakery.lat) || !Number.isFinite(bakery.lng)) return null
   let best = null
   for (const t of TOUR_SPOTS) {
     const km = haversineKm({ lat: bakery.lat, lng: bakery.lng }, { lat: t.lat, lng: t.lng })
-    if (!best || km < best.km) best = { name: t.name, km }
+    if (!best || km < best.km) best = { name: t.name, km, lat: t.lat, lng: t.lng }
   }
   return best
 }
@@ -48,6 +48,17 @@ export default function MapResult({ onRetake }) {
   )
   const selected =
     bakeriesWithDist.find((b) => b.id === selectedBakeryId) || bakeriesWithDist[0]
+
+  // 리스트에 뜬 빵집들의 최근접 관광지(중복 제거) → 지도에도 초록 마커로 표시
+  const nearbyAttractions = useMemo(() => {
+    const seen = new Set()
+    const out = []
+    for (const b of bakeriesWithDist) {
+      const s = b.nearSpot
+      if (s && !seen.has(s.name)) { seen.add(s.name); out.push(s) }
+    }
+    return out
+  }, [bakeriesWithDist])
 
   return (
     <div className="result">
@@ -85,6 +96,7 @@ export default function MapResult({ onRetake }) {
             bakeries={bakeriesWithDist}
             selectedId={selectedBakeryId}
             onSelect={selectBakery}
+            attractions={nearbyAttractions}
           />
         </section>
 
@@ -106,7 +118,7 @@ export default function MapResult({ onRetake }) {
                   <span className="rl-score">{b.score}</span>
                 )}
                 {b.nearSpot && (
-                  <span className="rl-near">근처: {b.nearSpot.name} · {formatDistance(b.nearSpot.km)}</span>
+                  <span className="rl-near">📸 근처 관광지 · {b.nearSpot.name} · {formatDistance(b.nearSpot.km)}</span>
                 )}
               </li>
             ))}

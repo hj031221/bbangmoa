@@ -4,10 +4,11 @@ import { useAppStore } from '../../store/useAppStore'
 import { getRegion } from '../../config/regions'
 import { DAEJEON_RING } from '../../data/daejeonBoundary'
 import MarkerLayer from './MarkerLayer'
+import AttractionMarkers from './AttractionMarkers'
 import { getEnabledFeatures, createClusterer } from './features'
 
 // 카카오맵 컨테이너 + 대전 마스킹(스포트라이트) + 마커 레이어 + 확장기능 실행기.
-export default function MapView({ bakeries, selectedId, onSelect }) {
+export default function MapView({ bakeries, selectedId, onSelect, attractions = [] }) {
   const { loaded, error } = useKakaoLoader()
   const regionId = useAppStore((s) => s.regionId)
   const region = getRegion(regionId)
@@ -81,13 +82,16 @@ export default function MapView({ bakeries, selectedId, onSelect }) {
       )}
       <div ref={containerRef} className="map-canvas" />
       {map && (
-        <MarkerLayer
-          map={map}
-          bakeries={bakeries}
-          selectedId={selectedId}
-          onSelect={onSelect}
-          clusterer={clusterer}
-        />
+        <>
+          <AttractionMarkers map={map} attractions={attractions} />
+          <MarkerLayer
+            map={map}
+            bakeries={bakeries}
+            selectedId={selectedId}
+            onSelect={onSelect}
+            clusterer={clusterer}
+          />
+        </>
       )}
     </div>
   )
