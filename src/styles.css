@@ -32,16 +32,29 @@ a{ color:var(--accent-text); }
 .page{ padding:24px; max-width:1200px; margin:0 auto; }
 .ghost-btn{ padding:10px 18px; border:1.5px solid var(--line); border-radius:999px; background:var(--card); color:var(--brown); font-weight:600; }
 .ghost-btn:hover{ border-color:var(--accent); }
-.bm-back{ margin-bottom:16px; }
-.page-topbar{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; }
-.page-topbar .bm-back{ margin-bottom:0; }
 
 /* 계정 연동 (구글/카카오 로그인 — Supabase Auth) */
 .auth-menu{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .auth-btn{ display:inline-flex; align-items:center; gap:8px; border:none; border-radius:999px; font-size:.8rem; font-weight:700; padding:8px 14px; white-space:nowrap; }
 .auth-btn svg{ flex:0 0 auto; }
-.auth-btn.login-toggle{ background:var(--accent); color:#fff; }
-.auth-btn.login-toggle:hover{ background:var(--accent-deep); }
+/* 식빵 모양 버튼 — 윗면은 3개의 둥근 봉우리, 아랫면은 둥근 모서리.
+   경로는 MarkerLayer.jsx 의 빵 마커 아이콘(BREAD_D)과 동일한 실루엣을 52×32 박스에 맞게 스케일한 것. */
+.auth-btn.login-toggle{
+  background: var(--accent);
+  color: #fff;
+  width: 52px;
+  height: 32px;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 700;
+  justify-content: center;
+  border-radius: 0;
+  clip-path: path("M42.76,0 C39.07,0 35.88,2.24 34.39,5.46 32.91,2.24 29.73,0 26.04,0 C22.32,0 19.11,2.27 17.64,5.54 16.18,2.27 12.97,0 9.25,0 C4.15,0 0,4.27 0,9.55 L0,26.17 C0,29.39 2.53,32 5.65,32 L46.35,32 C49.47,32 52,29.39 52,26.17 L52,9.55 C52,4.27 47.86,0 42.76,0 Z");
+  transition: background-color .15s ease, transform .1s ease;
+}
+.auth-btn.login-toggle:hover{ background: var(--accent-deep); }
+.auth-btn.login-toggle:focus-visible{ outline: 2px solid var(--accent-deep); outline-offset: 2px; }
+.auth-btn.login-toggle:active{ background: var(--accent-deep); transform: scale(.94); }
 .auth-btn.google{ background:#fff; color:#3c3c3c; border:1.5px solid var(--line); }
 .auth-btn.google:hover{ background:#F6F6F6; }
 .auth-btn.kakao{ background:#FEE500; color:#3C1E1E; }
@@ -221,6 +234,32 @@ a{ color:var(--accent-text); }
 .bm-footer{ max-width:var(--bm-container); margin:var(--bm-sp-6) auto 0; padding-top:var(--bm-sp-3); border-top:1px solid rgba(76,49,13,.12); display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; }
 .bm-footer img{ height:40px; width:auto; display:block; }
 .bm-footer span{ font-family:'HakgyoansimDunggeunmisoTTF-B', sans-serif; font-size:16px; color:var(--bm-ink); }
+/* 메인 미니 히어로 (시안 1p 스타일) */
+.bm-mhero{ padding:var(--bm-sp-8) var(--bm-sp-4) var(--bm-sp-7); text-align:center;
+  background:radial-gradient(circle at 15% 20%, var(--bm-halo1) 0%, rgba(255,219,161,0) 55%),
+             radial-gradient(circle at 90% 10%, var(--bm-halo2) 0%, rgba(255,233,196,0) 50%), var(--bm-bg); }
+.bm-mhero-pin{ font-size:48px; margin-bottom:var(--bm-sp-3); }
+.bm-mhero h1{ margin:0 auto var(--bm-sp-2); font-size:var(--bm-fs-display); color:var(--bm-ink); max-width:760px; }
+.bm-mhero p{ margin:0 auto var(--bm-sp-4); font-size:var(--bm-fs-body); color:var(--bm-muted); max-width:480px; }
+.bm-mhero-actions{ display:flex; gap:var(--bm-sp-2); justify-content:center; flex-wrap:wrap; }
+.bm-btn-ghost{ border:1.5px solid var(--bm-line); background:#fff; color:var(--bm-ink); font-size:var(--bm-fs-body); font-weight:700; padding:14px 26px; border-radius:var(--bm-radius-pill); }
+.bm-btn-ghost:hover{ border-color:var(--bm-accent); color:var(--bm-accent-deep); }
+
+/* 사진 캐러셀(빵집/관광지) — 대전시 관광 사이트 스타일 참고 */
+.bm-showcase{ padding:var(--bm-sp-7) var(--bm-sp-4); background:var(--bm-card); }
+.bm-photorow{ margin:0 auto var(--bm-sp-6); max-width:var(--bm-container); }
+.bm-photorow:last-child{ margin-bottom:0; }
+.bm-photorow-title{ font-size:var(--bm-fs-h3); color:var(--bm-ink); margin:0 0 var(--bm-sp-3); }
+.bm-photorow-empty{ color:var(--bm-muted); font-size:var(--bm-fs-body-sm); }
+.bm-photorow-track{ display:flex; gap:var(--bm-sp-3); overflow-x:auto; scroll-snap-type:x proximity; padding-bottom:8px; -webkit-overflow-scrolling:touch; }
+.bm-photocard{ flex:0 0 auto; width:200px; scroll-snap-align:start; }
+.bm-photocard img{ width:200px; height:150px; object-fit:cover; border-radius:var(--bm-radius-md); box-shadow:var(--bm-shadow-sm); background:var(--bm-card2); display:block; }
+.bm-photocard-name{ margin-top:8px; font-size:var(--bm-fs-body-sm); font-weight:700; color:var(--bm-ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.bm-photocard-sub{ font-size:12.5px; color:var(--bm-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+.bm-nav-links .bm-soon{ opacity:.5; cursor:default; }
+.bm-nav-links .bm-soon:hover{ background:none; }
+.bm-nav-mobile-menu .bm-soon{ opacity:.5; }
 .bm-footer-credit{ font-family:inherit !important; font-size:12.5px !important; color:var(--bm-muted) !important; }
 
 @media (min-width:760px){
@@ -318,6 +357,13 @@ a{ color:var(--accent-text); }
 .rl-score{ font-size:.75rem; color:var(--muted); }
 /* 근처 관광지: 이름/거리 줄 아래 전체 폭 한 줄(랭크 뱃지 폭만큼 들여쓰기) */
 .rl-near{ flex-basis:100%; margin-left:32px; margin-top:2px; font-size:.76rem; font-weight:600; color:#1c6b48; background:#EAF6EF; border-radius:6px; padding:3px 8px; display:inline-block; }
+.rec-list-empty{ padding:10px; color:var(--muted); font-size:.85rem; }
+
+/* 빵 지도: 구 필터 칩 */
+.bm-district-filters{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+.bm-district-chip{ padding:8px 16px; border-radius:999px; border:1.5px solid var(--line); background:var(--card); color:var(--brown); font-weight:600; font-size:.85rem; }
+.bm-district-chip:hover{ border-color:var(--accent); }
+.bm-district-chip.active{ background:var(--accent); border-color:var(--accent); color:#fff; }
 
 @media (max-width:760px){
   .result-body{ grid-template-columns:1fr; height:auto; }

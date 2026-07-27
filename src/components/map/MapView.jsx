@@ -3,18 +3,28 @@ import { useKakaoLoader } from '../../hooks/useKakaoLoader'
 import { useAppStore } from '../../store/useAppStore'
 import { getRegion } from '../../config/regions'
 import { DAEJEON_RING } from '../../data/daejeonBoundary'
+import { DISTRICT_RINGS } from '../../data/daejeonDistricts'
 import MarkerLayer from './MarkerLayer'
 import AttractionMarkers from './AttractionMarkers'
 import { getEnabledFeatures, createClusterer } from './features'
 
 // 카카오맵 컨테이너 + 대전 마스킹(스포트라이트) + 마커 레이어 + 확장기능 실행기.
-export default function MapView({ bakeries, selectedId, onSelect, attractions = [] }) {
+// highlightDistrict: 구 이름을 주면 그 구의 행정경계를 색칠해서 보여준다.
+export default function MapView({
+  bakeries,
+  selectedId,
+  onSelect,
+  attractions = [],
+  highlightDistrict = null,
+}) {
   const { loaded, error } = useKakaoLoader()
   const regionId = useAppStore((s) => s.regionId)
   const region = getRegion(regionId)
   const containerRef = useRef(null)
   const [map, setMap] = useState(null)
   const [clusterer, setClusterer] = useState(null)
+  const highlightRef = useRef(null)
+  const boundsRef = useRef(null)
 
   // 지도 생성 + 대전 외곽 딤 + 시점 고정 (1회)
   useEffect(() => {
@@ -57,11 +67,47 @@ export default function MapView({ bakeries, selectedId, onSelect, attractions = 
     ring.forEach((ll) => bounds.extend(ll))
     m.setBounds(bounds)
     m.setMaxLevel(9)
+    boundsRef.current = bounds
 
     // 마커 클러스터러 생성(기능 enabled 시). MarkerLayer 가 이걸로 마커를 묶는다.
     setClusterer(createClusterer({ map: m, kakao }))
     setMap(m)
   }, [loaded, map, region])
+
+  // 선택된 빵집이 없으면(구 필터를 바꿔서 이전 선택이 사라진 경우 포함) 대전 전체 시점으로 복귀.
+  useEffect(() => {
+    if (!map || !boundsRef.current || selectedId) return
+    map.setBounds(boundsRef.current)
+  }, [map, selectedId, highlightDistrict])
+
+  // 구 필터 색칠: highlightDistrict 가 있으면 그 구의 경계를 채워 그리고, 없으면 지운다.
+  useEffect(() => {
+    if (!map) return
+    const { kakao } = window
+    if (highlightRef.current) {
+      highlightRef.current.setMap(null)
+      highlightRef.current = null
+    }
+    const ring = highlightDistrict && DISTRICT_RINGS[highlightDistrict]
+    if (ring) {
+      const path = ring.map(([lat, lng]) => new kakao.maps.LatLng(lat, lng))
+      highlightRef.current = new kakao.maps.Polygon({
+        map,
+        path,
+        strokeWeight: 2,
+        strokeColor: '#F2814A',
+        strokeOpacity: 0.9,
+        fillColor: '#F2814A',
+        fillOpacity: 0.28,
+      })
+    }
+    return () => {
+      if (highlightRef.current) {
+        highlightRef.current.setMap(null)
+        highlightRef.current = null
+      }
+    }
+  }, [map, highlightDistrict])
 
   // 확장기능 실행 (enabled 인 것만)
   useEffect(() => {
