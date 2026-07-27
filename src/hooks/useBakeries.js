@@ -8,17 +8,18 @@ import {
 } from '../api'
 import { normalizeKakao } from '../api/normalize'
 import { recommend } from '../lib/recommend'
+import { haversineKm } from '../lib/distance'
 import { SAMPLE_BAKERIES } from '../data/sampleBakeries'
 
 // 빵집 데이터 파이프라인 훅.
-//   (관광공사 + 카카오) 병합 → 구(district) 필터 → 추천 점수 적용 → 정렬된 Bakery[] 반환
+//   (관광공사 + 카카오) 병합(전 구 자동 루프) → 추천 점수 부여 → origin 가까운 순 정렬 → Bakery[]
 //
 // 반환:
-//   bakeries  : 추천순 정렬된 Bakery[]
+//   bakeries  : origin 에서 가까운 순 Bakery[] (origin 없으면 추천순)
 //   loading   : 로딩 여부
 //   error     : 에러 객체 | null
 //   source    : 'api' | 'sample'  (키 미설정 시 sample 폴백)
-export function useBakeries({ regionId, answers, district }) {
+export function useBakeries({ regionId, answers, origin }) {
   const [raw, setRaw] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -75,11 +76,21 @@ export function useBakeries({ regionId, answers, district }) {
     }
   }, [regionId])
 
-  // 구 필터 + 설문 응답 기반 추천 정렬 (fetch 없이 재계산)
-  const filtered = district ? raw.filter((b) => (b.address || '').includes(district)) : raw
-  const bakeries = recommend(filtered, answers).slice(0, MAX_RESULTS)
+  // 설문 응답 기반 추천 점수 부여 → origin 에서 가까운 순 정렬 (fetch 없이 재계산)
+  // 구(district) 필터는 제거: 전 구를 다 긁고 위치(origin) 기준으로 가까운 순만 보여준다.
+  const scored = recommend(raw, answers)
+  const sorted = origin
+    ? [...scored].sort((a, b) => distKm(origin, a) - distKm(origin, b))
+    : scored
+  const bakeries = sorted.slice(0, MAX_RESULTS)
 
   return { bakeries, loading, error, source }
+}
+
+// origin → 빵집 직선거리(km). 좌표 없으면 맨 뒤로 밀리도록 Infinity.
+function distKm(origin, b) {
+  if (!Number.isFinite(b.lat) || !Number.isFinite(b.lng)) return Infinity
+  return haversineKm(origin, { lat: b.lat, lng: b.lng })
 }
 
 // 지도/리스트에 노출할 최대 추천 개수 (너무 많으면 오히려 선택이 어려워져 상위 N개만 노출)

@@ -9,14 +9,26 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;')
 }
 
-// 카카오 기본 마커(파란 핀) 대신 쓸 작은 원형 점 마커. 사이트 팔레트 색으로 직접 그린 SVG.
-function buildDotImage(kakao, { size, fill, ringWidth = 2.5 }) {
-  const r = size / 2 - ringWidth
-  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${size}' height='${size}'><circle cx='${size / 2}' cy='${size / 2}' r='${r}' fill='${fill}' stroke='#fff' stroke-width='${ringWidth}'/></svg>`
-  const src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
-  // offset 을 중심으로 잡아 좌표가 원의 중앙에 오게 (기본 핀처럼 아래 뾰족한 끝이 아니라 점 자체가 위치)
-  return new kakao.maps.MarkerImage(src, new kakao.maps.Size(size, size), {
-    offset: new kakao.maps.Point(size / 2, size / 2),
+// 빵모아 로고 마커 — 로고 원본 벡터 path 그대로 (코랄 물방울 핀 + 윗면 3-혹 흰 빵).
+const PIN_D =
+  'M99.78 40.39C97.37 17.71 78.24 0.04 55 0.04 54.54 0.04 54.09 0.04 53.64 0.06 19.84 1.06-.01 38.81 17.47 67.86 26.11 82.23 40.17 105.61 48.41 119.3 51.4 124.28 58.6 124.28 61.59 119.3 70.34 104.75 85.67 79.27 94.08 65.27 98.58 57.8 100.7 49.07 99.78 40.39Z'
+const BREAD_D =
+  'M69.84 30.27C66.68 30.27 63.95 32.13 62.68 34.81 61.41 32.13 58.68 30.27 55.52 30.27 52.34 30.27 49.59 32.16 48.33 34.88 47.08 32.16 44.33 30.27 41.14 30.27 36.77 30.27 33.22 33.82 33.22 38.21L33.22 52.04C33.22 54.72 35.39 56.89 38.06 56.89L72.92 56.89C75.59 56.89 77.76 54.72 77.76 52.04L77.76 38.21C77.76 33.82 74.21 30.27 69.84 30.27Z'
+function svgPin({ w, h, stroke }) {
+  const strokeAttr = stroke ? " stroke='#fff' stroke-width='7' stroke-linejoin='round'" : ''
+  const svg =
+    `<svg xmlns='http://www.w3.org/2000/svg' width='${w}' height='${h}' viewBox='0 0 100.7 124.3'>` +
+    `<path d='${PIN_D}' fill='#F97658'${strokeAttr}/>` +
+    `<path d='${BREAD_D}' fill='#fff'/>` +
+    `</svg>`
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg)
+}
+
+// 로고 핀 MarkerImage 생성. viewBox 100.7×124.3 → 세로/가로 비 1.234, 핀 끝(tip) x≈0.546·w, y=h.
+function buildPinImage(kakao, { w, stroke }) {
+  const h = Math.round(w * 1.234)
+  return new kakao.maps.MarkerImage(svgPin({ w, h, stroke }), new kakao.maps.Size(w, h), {
+    offset: new kakao.maps.Point(Math.round(w * 0.546), h),
   })
 }
 
@@ -46,8 +58,8 @@ export default function MarkerLayer({ map, bakeries, selectedId, onSelect, clust
     }
     if (!imagesRef.current) {
       imagesRef.current = {
-        normal: buildDotImage(kakao, { size: 16, fill: '#F2814A' }),
-        selected: buildDotImage(kakao, { size: 22, fill: '#E06B34', ringWidth: 3 }),
+        normal: buildPinImage(kakao, { w: 30, stroke: false }),
+        selected: buildPinImage(kakao, { w: 44, stroke: true }),
       }
     }
 

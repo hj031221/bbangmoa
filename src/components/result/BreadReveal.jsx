@@ -6,9 +6,9 @@ import { pickBreadType, matchBakeries } from '../../lib/breadMatch'
 // "지도에서 보기" 를 누르면 같은 지역/응답으로 지도(MapResult) 로 넘어간다.
 export default function BreadReveal({ onRetake, onShowMap }) {
   const regionId = useAppStore((s) => s.regionId)
-  const district = useAppStore((s) => s.district)
+  const origin = useAppStore((s) => s.origin)
   const answers = useAppStore((s) => s.answers)
-  const { bakeries, loading } = useBakeries({ regionId, answers, district })
+  const { bakeries, loading } = useBakeries({ regionId, answers, origin })
 
   const { type, percent } = pickBreadType(answers)
   const spotlight = matchBakeries(bakeries, type)

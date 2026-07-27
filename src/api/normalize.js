@@ -67,6 +67,17 @@ function dedupKey(b) {
   return `${nameKey(b.name)}@${b.lat.toFixed(3)},${b.lng.toFixed(3)}`
 }
 
+// 대형 프랜차이즈 블록리스트. "대전 특색·개인 빵집" 큐레이션을 위해 제외한다.
+//  (성심당 등 대전 명물은 유지)
+const FRANCHISES = [
+  '뚜레쥬르', '뚜레주르', '파리바게뜨', '파리바게트', '파리바게', '파바',
+  '던킨', '파리크라상', '크리스피크림', '신라명과',
+]
+function isFranchise(name) {
+  const n = (name || '').replace(/\s+/g, '')
+  return FRANCHISES.some((f) => n.includes(f.replace(/\s+/g, '')))
+}
+
 // 좌표 없는 항목 제거 + 중복 병합.
 //  1) 카카오는 멀티쿼리로 같은 가게가 여러 번 오므로 place id 로 1차 dedup
 //  2) 관광공사 우선(상세/대표이미지 풍부)으로 두고, 이름+좌표 키로 카카오 보강/추가
@@ -81,8 +92,8 @@ export function mergeBakeries(tourItems, kakaoDocs) {
     return true
   })
 
-  const tour = tourItems.map(normalizeTour).filter((b) => b.lat && b.lng)
-  const kakao = kakaoUniqDocs.map(normalizeKakao).filter((b) => b.lat && b.lng)
+  const tour = tourItems.map(normalizeTour).filter((b) => b.lat && b.lng && !isFranchise(b.name))
+  const kakao = kakaoUniqDocs.map(normalizeKakao).filter((b) => b.lat && b.lng && !isFranchise(b.name))
 
   // 2) 이름+좌표 복합 키로 병합
   const byKey = new Map()

@@ -254,6 +254,23 @@ a{ color:var(--accent-text); }
 .survey-option.selected{ border-color:var(--accent); background:var(--card2); box-shadow:0 8px 20px rgba(242,129,74,.18); }
 .survey-nav{ display:flex; justify-content:space-between; margin-top:28px; }
 
+/* 출발 위치 선택 (설문 0단계) */
+.loc-sub{ margin:0 0 18px; color:var(--muted); font-size:.95rem; }
+.loc-gps{ width:100%; padding:16px 20px; border:none; border-radius:20px; background:var(--accent); color:#fff; font-size:1rem; font-weight:700; box-shadow:0 8px 20px rgba(242,129,74,.24); transition:.15s; }
+.loc-gps:hover{ background:var(--accent-deep); transform:translateY(-2px); }
+.loc-msg{ margin:10px 2px 0; font-size:.85rem; color:var(--accent-text); }
+.loc-or{ display:flex; align-items:center; gap:10px; margin:22px 0 14px; color:var(--muted); font-size:.85rem; }
+.loc-or::before, .loc-or::after{ content:""; flex:1; height:1px; background:var(--line); }
+.loc-chips{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+.loc-chip{ padding:14px 16px; border:1.5px solid var(--line); border-radius:16px; background:var(--card); text-align:left; font-size:.95rem; font-weight:600; color:var(--ink); transition:.15s; }
+.loc-chip:hover{ border-color:var(--accent); background:var(--card2); transform:translateY(-2px); }
+.loc-pick-toggle{ width:100%; margin-top:16px; padding:14px 16px; border:1.5px dashed var(--line); border-radius:16px; background:transparent; font-size:.95rem; font-weight:600; color:var(--brown); }
+.loc-pick-toggle:hover{ border-color:var(--accent); color:var(--accent-deep); }
+.loc-pickwrap{ margin-top:12px; }
+.loc-pickmap{ width:100%; height:260px; border-radius:14px; overflow:hidden; border:1px solid var(--line); background:#eef0f2; }
+.loc-confirm{ width:100%; margin-top:10px; padding:14px; border:none; border-radius:16px; background:var(--accent); color:#fff; font-weight:700; }
+.loc-confirm:disabled{ background:var(--line); color:var(--muted); cursor:not-allowed; }
+
 /* 결과 */
 .result-header{ display:flex; align-items:center; gap:12px; margin-bottom:12px; }
 .result-header h2{ font-size:1.25rem; margin:0; color:var(--brown); }
@@ -292,17 +309,15 @@ a{ color:var(--accent-text); }
 .rec-link{ display:inline-block; margin-top:8px; font-size:.85rem; color:var(--accent-text); }
 
 .rec-list{ list-style:none; padding:0; margin:0; }
-.rec-list-item{ display:flex; align-items:center; gap:10px; padding:10px; border-radius:10px; cursor:pointer; }
+.rec-list-item{ display:flex; align-items:center; flex-wrap:wrap; gap:6px 10px; padding:10px; border-radius:10px; cursor:pointer; }
 .rec-list-item:hover{ background:var(--card2); }
 .rec-list-item.active{ background:var(--card2); }
 .rec-list-item .rank{ width:22px; height:22px; border-radius:50%; background:var(--accent); color:#fff; font-size:.75rem; display:flex; align-items:center; justify-content:center; font-weight:700; }
 .rl-name{ flex:1; font-size:.9rem; }
 .rl-dist{ font-size:.75rem; color:var(--muted); }
 .rl-score{ font-size:.75rem; color:var(--muted); }
-
-/* 기획안 링크 (팀 내부용 · 지도 화면 우하단 구석) */
-.plan-link{ position:fixed; bottom:14px; right:16px; z-index:20; font-size:.8rem; color:var(--brown); background:var(--card); border:1px solid var(--line); border-radius:999px; padding:6px 12px; text-decoration:none; box-shadow:0 3px 10px rgba(80,50,20,.12); }
-.plan-link:hover{ border-color:var(--accent); }
+/* 근처 관광지: 이름/거리 줄 아래 전체 폭 한 줄(랭크 뱃지 폭만큼 들여쓰기) */
+.rl-near{ flex-basis:100%; margin-left:32px; margin-top:2px; font-size:.76rem; font-weight:600; color:#1c6b48; background:#EAF6EF; border-radius:6px; padding:3px 8px; display:inline-block; }
 
 @media (max-width:760px){
   .result-body{ grid-template-columns:1fr; height:auto; }
