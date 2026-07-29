@@ -78,6 +78,14 @@ function isFranchise(name) {
   return FRANCHISES.some((f) => n.includes(f.replace(/\s+/g, '')))
 }
 
+// 카카오 키워드 검색("대전 성심당" 등 명물 질의)은 카테고리 무관하게 이름만 매칭되면 다 걸려든다.
+// 실측 결과 주차장·문화원·어린이집·연구소·농원·물류센터·한약방·학원·통신대리점·타 업종 식당까지 섞여 들어온다
+// (예: "성심당제과전문기술학원"은 이름에 "제과"가 있어도 실제론 학원). category_name 으로 진짜
+// 빵집/디저트 카페만 남긴다. 관광공사(tour) 항목은 자체 분류코드(FD030100)로 이미 걸러졌으므로 대상 아님.
+function isBakeryCategory(category) {
+  return category.startsWith('음식점 > 간식') || category.startsWith('음식점 > 카페')
+}
+
 // 좌표 없는 항목 제거 + 중복 병합.
 //  1) 카카오는 멀티쿼리로 같은 가게가 여러 번 오므로 place id 로 1차 dedup
 //  2) 관광공사 우선(상세/대표이미지 풍부)으로 두고, 이름+좌표 키로 카카오 보강/추가
@@ -93,7 +101,9 @@ export function mergeBakeries(tourItems, kakaoDocs) {
   })
 
   const tour = tourItems.map(normalizeTour).filter((b) => b.lat && b.lng && !isFranchise(b.name))
-  const kakao = kakaoUniqDocs.map(normalizeKakao).filter((b) => b.lat && b.lng && !isFranchise(b.name))
+  const kakao = kakaoUniqDocs
+    .map(normalizeKakao)
+    .filter((b) => b.lat && b.lng && !isFranchise(b.name) && isBakeryCategory(b.category))
 
   // 2) 이름+좌표 복합 키로 병합
   const byKey = new Map()

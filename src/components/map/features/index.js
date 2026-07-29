@@ -33,6 +33,7 @@ const clustering = {
       averageCenter: true,
       minLevel: this.minLevel,
       gridSize: this.gridSize,
+      minClusterSize: 1, // 기본값 2 → 1: 주변에 아무도 없어 혼자인 마커(예: 대청호 인근 레이크뷰)도 원본 핀 대신 "1" 원으로 통일해서 보여준다
       disableClickZoom: false, // 클러스터 클릭 시 줌인
       styles: [
         { ...base, width: '38px', height: '38px', borderRadius: '19px', lineHeight: '36px' },

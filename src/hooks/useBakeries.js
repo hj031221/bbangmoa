@@ -19,7 +19,7 @@ import { SAMPLE_BAKERIES } from '../data/sampleBakeries'
 //   loading   : 로딩 여부
 //   error     : 에러 객체 | null
 //   source    : 'api' | 'sample'  (키 미설정 시 sample 폴백)
-export function useBakeries({ regionId, answers, origin }) {
+export function useBakeries({ regionId, answers, origin, limit = MAX_RESULTS }) {
   const [raw, setRaw] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -82,7 +82,7 @@ export function useBakeries({ regionId, answers, origin }) {
   const sorted = origin
     ? [...scored].sort((a, b) => distKm(origin, a) - distKm(origin, b))
     : scored
-  const bakeries = sorted.slice(0, MAX_RESULTS)
+  const bakeries = sorted.slice(0, limit)
 
   return { bakeries, loading, error, source }
 }
