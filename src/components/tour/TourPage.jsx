@@ -190,7 +190,11 @@ function AttractionDetail({ attraction, onBack, onShowBakeryMap }) {
           ) : (
             detailLoading && <p className="tour-detail-desc tour-detail-desc-loading">설명을 불러오는 중…</p>
           )}
-          <button type="button" className="primary-btn tour-nearby-btn" onClick={onShowBakeryMap}>
+          <button
+            type="button"
+            className="primary-btn tour-nearby-btn"
+            onClick={() => onShowBakeryMap({ name, lat, lng })}
+          >
             근처 빵집 보기 →
           </button>
         </div>

@@ -23,6 +23,7 @@ export default function LandingPage() {
   const [showInfo, setShowInfo] = useState(false)
   const [showMap, setShowMap] = useState(false)
   const [showTour, setShowTour] = useState(false)
+  const [nearbyOrigin, setNearbyOrigin] = useState(null) // 관광지 "근처 빵집 보기" 로 진입 시 { name, lat, lng }
   const answers = useAppStore((s) => s.answers)
   const origin = useAppStore((s) => s.origin)
   const resetAnswers = useAppStore((s) => s.resetAnswers)
@@ -51,7 +52,11 @@ export default function LandingPage() {
     setShowMap(false)
     setShowTour(false)
   }
-  const openBakeryMap = () => {
+  // attraction 이 주어지면(관광지 상세의 "근처 빵집 보기") 그 위치 기준 거리순 모드로 진입한다.
+  const openBakeryMap = (attraction) => {
+    setNearbyOrigin(
+      Number.isFinite(attraction?.lat) && Number.isFinite(attraction?.lng) ? attraction : null,
+    )
     setShowMap(true)
     setFeatureOpen(false)
     setShowSaved(false)
@@ -92,7 +97,7 @@ export default function LandingPage() {
 
       {showMap && (
         <div className="page">
-          <BakeryMapPage />
+          <BakeryMapPage origin={nearbyOrigin} onClearOrigin={() => setNearbyOrigin(null)} />
         </div>
       )}
 
