@@ -401,7 +401,7 @@ a{ color:var(--accent-text); }
 .tour-tile{ display:flex; flex-direction:column; align-items:center; gap:10px; background:none; border:none; text-align:center; }
 .tour-tile img{ width:140px; height:140px; border-radius:50%; object-fit:cover; box-shadow:var(--bm-shadow-sm, 0 8px 20px rgba(76,49,13,.06)); transition:.15s; background:var(--card2); }
 .tour-tile:hover img{ transform:translateY(-3px); box-shadow:0 12px 26px rgba(76,49,13,.14); }
-.tour-tile-name{ font-weight:700; font-size:.9rem; color:var(--brown); }
+.tour-tile-name{ font-family:'HakgyoansimDunggeunmisoTTF-B', sans-serif; font-size:.9rem; color:var(--brown); }
 
 .tour-detail{ max-width:1000px; margin:0 auto; }
 .tour-back{ margin-bottom:14px; width:36px; height:36px; border-radius:50%; border:1.5px solid var(--line); background:var(--card); font-size:1.1rem; color:var(--brown); }
