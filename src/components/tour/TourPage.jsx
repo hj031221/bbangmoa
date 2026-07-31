@@ -145,7 +145,9 @@ function AttractionDetail({ attraction, onBack, onShowBakeryMap }) {
     <div className="tour-detail">
       <div className="tour-detail-header">
         <button type="button" className="tour-back" onClick={onBack} aria-label="돌아가기">
-          ←
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 6 9 12 15 18" />
+          </svg>
         </button>
       </div>
       <div className="tour-detail-body">
