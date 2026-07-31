@@ -121,7 +121,12 @@ function AttractionDetail({ attraction, onBack, onShowBakeryMap }) {
   const [detail, setDetail] = useState(null)
   const [detailLoading, setDetailLoading] = useState(false)
   const [preciseAddr, setPreciseAddr] = useState(null)
+  const [descExpanded, setDescExpanded] = useState(false)
   const { id, name, image, addr, lat, lng, hours, rest } = attraction
+
+  useEffect(() => {
+    setDescExpanded(false)
+  }, [id])
 
   useEffect(() => {
     setDetail(null)
@@ -153,8 +158,9 @@ function AttractionDetail({ attraction, onBack, onShowBakeryMap }) {
   const badge = hoursBadgeText(hours)
   const displayAddr = preciseAddr || addr
   const { text: overviewText, source: overviewSource } = splitOverview(detail?.overview)
+  const isDescLong = overviewText.length > DESC_MAX
   const overview =
-    overviewText.length > DESC_MAX ? `${overviewText.slice(0, DESC_MAX)}…` : overviewText
+    isDescLong && !descExpanded ? `${overviewText.slice(0, DESC_MAX)}…` : overviewText
 
   return (
     <div className="tour-detail">
@@ -184,7 +190,18 @@ function AttractionDetail({ attraction, onBack, onShowBakeryMap }) {
           {rest && <p className="tour-detail-rest">📅 휴무: {rest}</p>}
           {overview ? (
             <>
-              <p className="tour-detail-desc">{overview}</p>
+              <p className="tour-detail-desc">
+                {overview}
+                {isDescLong && (
+                  <button
+                    type="button"
+                    className="tour-desc-toggle"
+                    onClick={() => setDescExpanded((v) => !v)}
+                  >
+                    {descExpanded ? '접기' : '더보기'}
+                  </button>
+                )}
+              </p>
               {overviewSource && <p className="tour-detail-source">🔖 출처: {overviewSource}</p>}
             </>
           ) : (

@@ -425,6 +425,8 @@ a{ color:var(--accent-text); }
 .tour-detail-addr,.tour-detail-hours,.tour-detail-tel,.tour-detail-rest{ font-size:.9rem; color:#6b5a44; margin:8px 0 0; }
 .tour-detail-desc{ font-size:.9rem; color:var(--ink); line-height:1.6; margin:14px 0 0; }
 .tour-detail-desc-loading{ color:var(--muted); }
+.tour-desc-toggle{ margin-left:4px; padding:0; border:none; background:none; color:var(--accent-text); font-size:.85rem; font-weight:700; white-space:nowrap; text-decoration:underline; }
+.tour-desc-toggle:hover{ color:var(--accent-deep); }
 .tour-detail-source{ font-size:.78rem; color:var(--muted); margin:6px 0 0; }
 
 .tour-pagination{ display:flex; justify-content:center; align-items:center; gap:6px; flex-wrap:wrap; margin-top:32px; }
