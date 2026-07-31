@@ -24,6 +24,10 @@ export default function TourPage({ onShowBakeryMap }) {
   const [district, setDistrict] = useState(null) // null = 전체
   const [page, setPage] = useState(1)
   const selected = ATTRACTIONS.find((a) => a.id === selectedId) || null
+  const filtered = useMemo(
+    () => (district ? ATTRACTIONS.filter((a) => (a.addr || '').includes(district)) : ATTRACTIONS),
+    [district],
+  )
 
   if (selected) {
     return (
@@ -35,10 +39,6 @@ export default function TourPage({ onShowBakeryMap }) {
     )
   }
 
-  const filtered = useMemo(
-    () => (district ? ATTRACTIONS.filter((a) => (a.addr || '').includes(district)) : ATTRACTIONS),
-    [district],
-  )
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
   const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
