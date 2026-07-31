@@ -426,7 +426,7 @@ a{ color:var(--accent-text); }
 .tour-page-btn.active{ background:var(--accent); border-color:var(--accent); color:#fff; }
 .tour-page-nav:disabled{ opacity:.4; cursor:not-allowed; }
 .tour-empty{ grid-column:1/-1; text-align:center; color:var(--muted); padding:20px 0; }
-.tour-nearby-btn{ margin-top:18px; }
+.tour-nearby-btn{ display:table; margin-left:auto; margin-top:18px; }
 
 @media (max-width:720px){
   .tour-detail-body{ grid-template-columns:1fr; }
