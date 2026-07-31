@@ -10,6 +10,7 @@ import NavBar from '../components/landing/NavBar'
 import MainHero from '../components/landing/MainHero'
 import PhotoShowcase from '../components/landing/PhotoShowcase'
 import BakeryMapPage from '../components/map/BakeryMapPage'
+import TourPage from '../components/tour/TourPage'
 import logo from '../assets/logo-typeA-full.png'
 
 // 랜딩 = 마케팅 사이트. 상단 메뉴바(NavBar)는 어떤 화면에서도 항상 떠 있고,
@@ -21,6 +22,8 @@ export default function LandingPage() {
   const [showSaved, setShowSaved] = useState(false)
   const [showInfo, setShowInfo] = useState(false)
   const [showMap, setShowMap] = useState(false)
+  const [showTour, setShowTour] = useState(false)
+  const [nearbyOrigin, setNearbyOrigin] = useState(null) // 관광지 "근처 빵집 보기" 로 진입 시 { name, lat, lng }
   const answers = useAppStore((s) => s.answers)
   const origin = useAppStore((s) => s.origin)
   const resetAnswers = useAppStore((s) => s.resetAnswers)
@@ -32,6 +35,7 @@ export default function LandingPage() {
     setShowSaved(false)
     setShowInfo(false)
     setShowMap(false)
+    setShowTour(false)
     setStage(surveyDone ? 'reveal' : 'survey')
   }
   const openSaved = () => {
@@ -39,24 +43,39 @@ export default function LandingPage() {
     setFeatureOpen(false)
     setShowInfo(false)
     setShowMap(false)
+    setShowTour(false)
   }
   const openInfo = () => {
     setShowInfo(true)
     setFeatureOpen(false)
     setShowSaved(false)
     setShowMap(false)
+    setShowTour(false)
   }
-  const openBakeryMap = () => {
+  // attraction 이 주어지면(관광지 상세의 "근처 빵집 보기") 그 위치 기준 거리순 모드로 진입한다.
+  const openBakeryMap = (attraction) => {
+    setNearbyOrigin(
+      Number.isFinite(attraction?.lat) && Number.isFinite(attraction?.lng) ? attraction : null,
+    )
     setShowMap(true)
     setFeatureOpen(false)
     setShowSaved(false)
     setShowInfo(false)
+    setShowTour(false)
+  }
+  const openTour = () => {
+    setShowTour(true)
+    setFeatureOpen(false)
+    setShowSaved(false)
+    setShowInfo(false)
+    setShowMap(false)
   }
   const goHome = () => {
     setFeatureOpen(false)
     setShowSaved(false)
     setShowInfo(false)
     setShowMap(false)
+    setShowTour(false)
   }
   const retakeSurvey = () => {
     resetAnswers()
@@ -70,6 +89,7 @@ export default function LandingPage() {
         onOpenInfo={openInfo}
         onStartTest={startTest}
         onOpenMap={openBakeryMap}
+        onOpenTour={openTour}
         onOpenSaved={openSaved}
       />
 
@@ -77,7 +97,13 @@ export default function LandingPage() {
 
       {showMap && (
         <div className="page">
-          <BakeryMapPage />
+          <BakeryMapPage origin={nearbyOrigin} onClearOrigin={() => setNearbyOrigin(null)} />
+        </div>
+      )}
+
+      {showTour && (
+        <div className="page">
+          <TourPage onShowBakeryMap={openBakeryMap} />
         </div>
       )}
 
@@ -97,7 +123,7 @@ export default function LandingPage() {
         </div>
       )}
 
-      {!showInfo && !showMap && !showSaved && !featureOpen && (
+      {!showInfo && !showMap && !showTour && !showSaved && !featureOpen && (
         <>
           <MainHero onStart={startTest} />
           <PhotoShowcase />

@@ -10,6 +10,7 @@ import { getRegion } from '../config/regions'
 const REST_KEY = import.meta.env.VITE_KAKAO_REST_KEY
 const ENDPOINT = 'https://dapi.kakao.com/v2/local/search/keyword.json'
 const REGIONCODE_ENDPOINT = 'https://dapi.kakao.com/v2/local/geo/coord2regioncode.json'
+const COORD2ADDR_ENDPOINT = 'https://dapi.kakao.com/v2/local/geo/coord2address.json'
 
 export const kakaoLocalEnabled = () => hasKey(REST_KEY)
 
@@ -24,6 +25,20 @@ export async function reverseGeocode(lat, lng) {
   const region = data?.documents?.find((d) => d.region_type === 'H') || data?.documents?.[0]
   if (!region) return null
   return [region.region_1depth_name, region.region_2depth_name].filter(Boolean).join(' ')
+}
+
+// 좌표 → 상세 주소(도로명 우선, 없으면 지번). 관광공사 정적 데이터가 "OO동"까지만
+// 제공하는 경우가 많아, 좌표 기반으로 더 정확한 주소를 보강할 때 쓴다.
+export async function reverseGeocodeAddress(lat, lng) {
+  if (!kakaoLocalEnabled()) return null
+  const headers = { Authorization: `KakaoAK ${REST_KEY}` }
+  const data = await getJson(COORD2ADDR_ENDPOINT, {
+    params: { x: lng, y: lat },
+    headers,
+  })
+  const doc = data?.documents?.[0]
+  if (!doc) return null
+  return doc.road_address?.address_name || doc.address?.address_name || null
 }
 
 // 카카오 rect 파라미터: "왼쪽경도,아래위도,오른쪽경도,위위도" (lng,lat 순서)
