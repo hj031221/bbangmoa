@@ -7,7 +7,7 @@ import { getRegion } from '../../config/regions'
 const ATTRACTIONS = daejeonTour.filter((t) => t.image)
 const DISTRICTS = getRegion().districts
 const DESC_MAX = 160
-const PAGE_SIZE = 20
+const PAGE_SIZE = 21
 
 // 관광공사 개요 텍스트 끝에 흔히 붙는 "(출처 : OO)" 를 본문과 분리해 별도 표기한다.
 function splitOverview(raw) {
