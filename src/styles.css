@@ -405,8 +405,8 @@ a{ color:var(--accent-text); }
 
 .tour-detail{ max-width:1000px; margin:0 auto; background:var(--card); border:1px solid var(--line); border-radius:20px; overflow:hidden; }
 .tour-detail-header{ padding:14px 16px; background:var(--card2); }
-.tour-back{ width:36px; height:36px; border-radius:50%; border:none; background:var(--card); color:var(--brown); font-size:1.2rem; display:flex; align-items:center; justify-content:center; }
-.tour-back:hover{ background:var(--accent); color:#fff; }
+.tour-back{ width:40px; height:40px; border:none; border-radius:10px; background:none; color:var(--brown); font-size:2rem; font-weight:600; display:flex; align-items:center; justify-content:center; }
+.tour-back:hover{ background:rgba(138,90,48,.1); }
 .tour-detail-body{ display:grid; grid-template-columns:1fr 1fr; gap:24px; }
 .tour-detail-img{ width:100%; height:100%; min-height:280px; object-fit:cover; display:block; }
 .tour-detail-info{ padding:24px; }
