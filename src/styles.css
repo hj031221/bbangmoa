@@ -9,6 +9,13 @@
   font-style: normal;
   font-display: swap;
 }
+@font-face {
+  font-family: 'HakgyoansimDunggeunmisoTTF-R';
+  src: url('https://fastly.jsdelivr.net/gh/projectnoonnu/2408-5@1.0/HakgyoansimDunggeunmisoTTF-R.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
 
 :root{
   --bg:#FBEACB;          /* 크림 배경 */
@@ -25,7 +32,7 @@
   --green:#3FA877;       /* 영업중 */
 }
 *{ box-sizing:border-box; }
-body{ margin:0; font-family:"Pretendard","Apple SD Gothic Neo",system-ui,sans-serif; color:var(--ink); background:var(--bg); }
+body{ margin:0; font-family:"HakgyoansimDunggeunmisoTTF-R","Pretendard","Apple SD Gothic Neo",system-ui,sans-serif; color:var(--ink); background:var(--bg); }
 button{ cursor:pointer; font:inherit; }
 a{ color:var(--accent-text); }
 
