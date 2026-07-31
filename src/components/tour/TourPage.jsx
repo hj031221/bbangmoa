@@ -1,6 +1,6 @@
 import { useMemo, useEffect, useState } from 'react'
 import daejeonTour from '../../data/daejeonTour.json'
-import { getDetail, tourEnabled } from '../../api'
+import { getDetail, tourEnabled, reverseGeocodeAddress, kakaoLocalEnabled } from '../../api'
 import { hoursBadgeText } from '../../lib/hours'
 import { getRegion } from '../../config/regions'
 
@@ -120,7 +120,8 @@ function TourPagination({ page, totalPages, onChange }) {
 function AttractionDetail({ attraction, onBack, onShowBakeryMap }) {
   const [detail, setDetail] = useState(null)
   const [detailLoading, setDetailLoading] = useState(false)
-  const { id, name, image, addr, hours, rest } = attraction
+  const [preciseAddr, setPreciseAddr] = useState(null)
+  const { id, name, image, addr, lat, lng, hours, rest } = attraction
 
   useEffect(() => {
     setDetail(null)
@@ -136,7 +137,21 @@ function AttractionDetail({ attraction, onBack, onShowBakeryMap }) {
     }
   }, [id])
 
+  // 관광공사 정적 주소가 "OO동"까지만 있는 경우가 많아, 좌표로 도로명 주소를 보강한다.
+  useEffect(() => {
+    setPreciseAddr(null)
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || !kakaoLocalEnabled()) return
+    let alive = true
+    reverseGeocodeAddress(lat, lng)
+      .then((a) => alive && setPreciseAddr(a))
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [lat, lng])
+
   const badge = hoursBadgeText(hours)
+  const displayAddr = preciseAddr || addr
   const { text: overviewText, source: overviewSource } = splitOverview(detail?.overview)
   const overview =
     overviewText.length > DESC_MAX ? `${overviewText.slice(0, DESC_MAX)}…` : overviewText
@@ -161,7 +176,7 @@ function AttractionDetail({ attraction, onBack, onShowBakeryMap }) {
               </span>
             )}
           </div>
-          {addr && <p className="tour-detail-addr">📍 {addr}</p>}
+          {displayAddr && <p className="tour-detail-addr">📍 {displayAddr}</p>}
           {hours?.open && hours?.close && (
             <p className="tour-detail-hours">🕒 {hours.open} ~ {hours.close}</p>
           )}
