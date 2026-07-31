@@ -181,11 +181,11 @@ function AttractionDetail({ attraction, onBack, onShowBakeryMap }) {
             <p className="tour-detail-hours">🕒 {hours.open} ~ {hours.close}</p>
           )}
           {detail?.tel && <p className="tour-detail-tel">📞 {detail.tel}</p>}
-          {rest && <p className="tour-detail-rest">휴무: {rest}</p>}
+          {rest && <p className="tour-detail-rest">📅 휴무: {rest}</p>}
           {overview ? (
             <>
               <p className="tour-detail-desc">{overview}</p>
-              {overviewSource && <p className="tour-detail-source">출처: {overviewSource}</p>}
+              {overviewSource && <p className="tour-detail-source">🔖 출처: {overviewSource}</p>}
             </>
           ) : (
             detailLoading && <p className="tour-detail-desc tour-detail-desc-loading">설명을 불러오는 중…</p>
