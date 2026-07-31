@@ -42,15 +42,18 @@ export default function TourPage({ onShowBakeryMap }) {
 // 관광지 상세 뷰. contentId(=attraction.id)가 있으면 detailCommon2 로 설명(overview)·전화(tel)를 보강한다.
 function AttractionDetail({ attraction, onBack, onShowBakeryMap }) {
   const [detail, setDetail] = useState(null)
+  const [detailLoading, setDetailLoading] = useState(false)
   const { id, name, image, addr, hours, rest } = attraction
 
   useEffect(() => {
     setDetail(null)
     if (!id || !tourEnabled()) return
     let alive = true
+    setDetailLoading(true)
     getDetail(id)
       .then((d) => alive && setDetail(d))
       .catch(() => {})
+      .finally(() => alive && setDetailLoading(false))
     return () => {
       alive = false
     }
@@ -81,7 +84,11 @@ function AttractionDetail({ attraction, onBack, onShowBakeryMap }) {
           )}
           {detail?.tel && <p className="tour-detail-tel">📞 {detail.tel}</p>}
           {rest && <p className="tour-detail-rest">휴무: {rest}</p>}
-          {overview && <p className="tour-detail-desc">{overview}</p>}
+          {overview ? (
+            <p className="tour-detail-desc">{overview}</p>
+          ) : (
+            detailLoading && <p className="tour-detail-desc tour-detail-desc-loading">설명을 불러오는 중…</p>
+          )}
           <button type="button" className="primary-btn tour-nearby-btn" onClick={onShowBakeryMap}>
             근처 빵집 보기 →
           </button>

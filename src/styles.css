@@ -415,6 +415,7 @@ a{ color:var(--accent-text); }
 .badge.closed{ background:var(--card2); color:var(--muted); }
 .tour-detail-addr,.tour-detail-hours,.tour-detail-tel,.tour-detail-rest{ font-size:.9rem; color:#6b5a44; margin:8px 0 0; }
 .tour-detail-desc{ font-size:.9rem; color:var(--ink); line-height:1.6; margin:14px 0 0; }
+.tour-detail-desc-loading{ color:var(--muted); }
 .tour-nearby-btn{ margin-top:18px; }
 
 @media (max-width:720px){
