@@ -143,9 +143,11 @@ function AttractionDetail({ attraction, onBack, onShowBakeryMap }) {
 
   return (
     <div className="tour-detail">
-      <button type="button" className="tour-back" onClick={onBack} aria-label="돌아가기">
-        ←
-      </button>
+      <div className="tour-detail-header">
+        <button type="button" className="tour-back" onClick={onBack} aria-label="돌아가기">
+          ←
+        </button>
+      </div>
       <div className="tour-detail-body">
         {image && <img className="tour-detail-img" src={image} alt={name} />}
         <div className="tour-detail-info">
