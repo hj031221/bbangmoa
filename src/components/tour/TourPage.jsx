@@ -4,6 +4,15 @@ import { getDetail, tourEnabled } from '../../api'
 import { hoursBadgeText } from '../../lib/hours'
 
 const ATTRACTIONS = daejeonTour.filter((t) => t.image)
+const DESC_MAX = 160
+
+// 관광공사 개요 텍스트 끝에 흔히 붙는 "(출처 : OO)" 를 본문과 분리해 별도 표기한다.
+function splitOverview(raw) {
+  const text = raw?.replace(/<[^>]+>/g, '').trim() || ''
+  const match = text.match(/\(출처\s*[:：]\s*([^)]+)\)\s*$/)
+  if (!match) return { text, source: '' }
+  return { text: text.slice(0, match.index).trim(), source: match[1].trim() }
+}
 
 // "관광모아" 메뉴 전용 화면. 명소를 원형 사진 그리드로 둘러보다가(허브),
 // 하나를 고르면 같은 화면 안에서 상세 뷰로 전환된다(빵 지도의 selectedId 패턴과 동일).
@@ -60,7 +69,9 @@ function AttractionDetail({ attraction, onBack, onShowBakeryMap }) {
   }, [id])
 
   const badge = hoursBadgeText(hours)
-  const overview = detail?.overview?.replace(/<[^>]+>/g, '') || ''
+  const { text: overviewText, source: overviewSource } = splitOverview(detail?.overview)
+  const overview =
+    overviewText.length > DESC_MAX ? `${overviewText.slice(0, DESC_MAX)}…` : overviewText
 
   return (
     <div className="tour-detail">
@@ -85,7 +96,10 @@ function AttractionDetail({ attraction, onBack, onShowBakeryMap }) {
           {detail?.tel && <p className="tour-detail-tel">📞 {detail.tel}</p>}
           {rest && <p className="tour-detail-rest">휴무: {rest}</p>}
           {overview ? (
-            <p className="tour-detail-desc">{overview}</p>
+            <>
+              <p className="tour-detail-desc">{overview}</p>
+              {overviewSource && <p className="tour-detail-source">출처: {overviewSource}</p>}
+            </>
           ) : (
             detailLoading && <p className="tour-detail-desc tour-detail-desc-loading">설명을 불러오는 중…</p>
           )}
