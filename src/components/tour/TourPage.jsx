@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useMemo, useEffect, useState } from 'react'
 import daejeonTour from '../../data/daejeonTour.json'
 import { getDetail, tourEnabled } from '../../api'
 import { hoursBadgeText } from '../../lib/hours'
+import { getRegion } from '../../config/regions'
 
 const ATTRACTIONS = daejeonTour.filter((t) => t.image)
+const DISTRICTS = getRegion().districts
 const DESC_MAX = 160
 const PAGE_SIZE = 20
 
@@ -19,6 +21,7 @@ function splitOverview(raw) {
 // 하나를 고르면 같은 화면 안에서 상세 뷰로 전환된다(빵 지도의 selectedId 패턴과 동일).
 export default function TourPage({ onShowBakeryMap }) {
   const [selectedId, setSelectedId] = useState(null)
+  const [district, setDistrict] = useState(null) // null = 전체
   const [page, setPage] = useState(1)
   const selected = ATTRACTIONS.find((a) => a.id === selectedId) || null
 
@@ -32,15 +35,44 @@ export default function TourPage({ onShowBakeryMap }) {
     )
   }
 
-  const totalPages = Math.ceil(ATTRACTIONS.length / PAGE_SIZE)
-  const pageItems = ATTRACTIONS.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const filtered = useMemo(
+    () => (district ? ATTRACTIONS.filter((a) => (a.addr || '').includes(district)) : ATTRACTIONS),
+    [district],
+  )
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
+  const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+  // 구를 바꾸면 목록이 새로 좁혀지므로 페이지도 1로 되돌린다.
+  const selectDistrict = (d) => {
+    setDistrict(d)
+    setPage(1)
+  }
 
   return (
     <div className="tour-hub">
       <header className="tour-hub-header">
         <h2>관광명소도 모아모아</h2>
-        <p>대전의 다양한 관광명소와 그 근처 빵집도 둘러보세요!</p>
+        <p>대전의 다양한 관광명소와 그 근처 빵집도 둘러보세요! ({filtered.length}곳)</p>
       </header>
+      <div className="bm-district-filters">
+        <button
+          type="button"
+          className={'bm-district-chip' + (!district ? ' active' : '')}
+          onClick={() => selectDistrict(null)}
+        >
+          전체
+        </button>
+        {DISTRICTS.map((d) => (
+          <button
+            key={d}
+            type="button"
+            className={'bm-district-chip' + (district === d ? ' active' : '')}
+            onClick={() => selectDistrict(d)}
+          >
+            {d}
+          </button>
+        ))}
+      </div>
       <div className="tour-grid">
         {pageItems.map((a) => (
           <button type="button" key={a.id} className="tour-tile" onClick={() => setSelectedId(a.id)}>
@@ -48,6 +80,7 @@ export default function TourPage({ onShowBakeryMap }) {
             <span className="tour-tile-name">{a.name}</span>
           </button>
         ))}
+        {pageItems.length === 0 && <p className="tour-empty">해당 구에는 표시할 명소가 없어요.</p>}
       </div>
       <TourPagination page={page} totalPages={totalPages} onChange={setPage} />
     </div>
