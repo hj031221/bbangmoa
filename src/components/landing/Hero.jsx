@@ -6,9 +6,9 @@ export default function Hero({ onStart }) {
         <div className="bm-hero-copy">
           <div className="bm-badge">대전 빵지순례, 이제 취향대로</div>
           <h1>
-            대전 849개 빵집,
+            대전 빵집,
             <br />
-            고민은 그만
+            취향대로 골라드려요
           </h1>
           <p>질문 몇 개에 답하면, 내 취향에 맞는 빵집을 골라드려요</p>
           <div className="bm-hero-actions">
