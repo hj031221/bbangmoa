@@ -264,6 +264,18 @@ a{ color:var(--accent-text); }
 .bm-photocard-name{ margin-top:8px; font-size:var(--bm-fs-body-sm); font-weight:700; color:var(--bm-ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .bm-photocard-sub{ font-size:12.5px; color:var(--bm-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
+/* 문화시설 원형 자동 캐러셀 */
+.bm-culture{ display:flex; flex-direction:column; align-items:center; gap:var(--bm-sp-3); }
+.bm-culture-photo-wrap{ position:relative; width:220px; height:220px; border-radius:50%; overflow:hidden; box-shadow:var(--bm-shadow-md); background:var(--bm-card2); }
+.bm-culture-photo{ display:block; width:100%; height:100%; object-fit:cover; animation:bm-culture-fade .6s ease; }
+@keyframes bm-culture-fade{ from{ opacity:0; } to{ opacity:1; } }
+.bm-culture-caption{ text-align:center; min-height:52px; }
+.bm-culture-name{ font-size:var(--bm-fs-h3); font-weight:700; color:var(--bm-ink); }
+.bm-culture-addr{ margin-top:4px; font-size:var(--bm-fs-body-sm); color:var(--bm-muted); }
+.bm-culture-dots{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; max-width:320px; }
+.bm-culture-dot{ width:8px; height:8px; border-radius:50%; border:none; padding:0; background:var(--bm-line); cursor:pointer; transition:background .2s, transform .2s; }
+.bm-culture-dot.active{ background:var(--bm-accent); transform:scale(1.3); }
+
 .bm-nav-links .bm-soon{ opacity:.5; cursor:default; }
 .bm-nav-links .bm-soon:hover{ background:none; }
 .bm-nav-mobile-menu .bm-soon{ opacity:.5; }

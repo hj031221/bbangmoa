@@ -1,14 +1,12 @@
-import { useBakeries } from '../../hooks/useBakeries'
 import daejeonTour from '../../data/daejeonTour.json'
+import CultureCarousel from './CultureCarousel'
 
-const ATTRACTIONS = daejeonTour.filter((t) => t.image).slice(0, 14)
+const ATTRACTIONS = daejeonTour.filter((t) => t.type === '관광지' && t.image).slice(0, 14)
 
-// 메뉴바 아래 사진 브라우징 섹션 — 다른 관광 사이트처럼 빵집/관광지 사진을 가로 스크롤로 둘러본다.
-// 빵집 사진은 관광공사 KorService2 + 카카오로컬(useBakeries), 관광지 사진은 정적 스냅샷(daejeonTour.json)을 쓴다.
+// 메뉴바 아래 사진 브라우징 섹션 — 다른 관광 사이트처럼 대전의 사진을 둘러본다.
+// 빵집은 이미 서비스 핵심 기능(취향 추천/지도)에서 다루므로, 여기서는 문화시설·관광지
+// 정적 스냅샷(daejeonTour.json)으로 "대전 여행" 무드를 보여준다.
 export default function PhotoShowcase() {
-  const { bakeries, loading } = useBakeries({ regionId: undefined, answers: {}, origin: null })
-  const bakeriesWithPhoto = bakeries.filter((b) => b.thumbnail).slice(0, 14)
-
   return (
     <section className="bm-showcase" id="bm-showcase">
       <div className="bm-section-head">
@@ -16,15 +14,10 @@ export default function PhotoShowcase() {
         <h2>사진으로 미리 만나보는 대전</h2>
       </div>
 
-      <PhotoRow
-        title="요즘 뜨는 빵집"
-        items={bakeriesWithPhoto}
-        loading={loading}
-        getKey={(b) => b.id}
-        getImage={(b) => b.thumbnail}
-        getTitle={(b) => b.name}
-        getSub={(b) => b.address}
-      />
+      <div className="bm-photorow">
+        <h3 className="bm-photorow-title">요즘 뜨는 문화시설</h3>
+        <CultureCarousel />
+      </div>
 
       <PhotoRow
         title="함께 즐기는 관광지"
