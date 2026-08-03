@@ -202,13 +202,13 @@ a{ color:var(--accent-text); }
 .bm-stat-block-label{ font-size:var(--bm-fs-body-sm); color:var(--bm-muted); margin-top:6px; }
 .bm-problem-body{ font-size:var(--bm-fs-body); line-height:1.8; color:var(--bm-muted); max-width:640px; margin:0 auto; }
 
-/* 3) 빵모아가 하는 일 (2 카드) */
+/* 3) 빵모아가 하는 일 (3 카드) */
 .bm-features{ padding:var(--bm-sp-7) var(--bm-sp-4); background:var(--bm-card2); }
 .bm-features-grid{ display:grid; grid-template-columns:1fr; gap:var(--bm-sp-4); }
 .bm-feature-card2{ background:var(--bm-card); border-radius:var(--bm-radius-lg); padding:var(--bm-sp-5); box-shadow:var(--bm-shadow-md); text-align:center; }
 .bm-feature-card2-icon{ font-size:40px; margin-bottom:var(--bm-sp-2); }
 .bm-feature-card2-title{ font-size:var(--bm-fs-h3); font-weight:700; color:var(--bm-ink); margin-bottom:var(--bm-sp-2); }
-.bm-feature-card2-desc{ margin:0; font-size:var(--bm-fs-body-sm); color:var(--bm-muted); line-height:1.7; }
+.bm-feature-card2-desc{ margin:0; font-size:var(--bm-fs-body-sm); color:var(--bm-muted); line-height:1.7; white-space:pre-line; }
 
 /* 4) 취향 추천은 이렇게 (STEP 1~4) */
 .bm-how{ padding:var(--bm-sp-7) var(--bm-sp-4); background:var(--bm-card); }
@@ -257,12 +257,25 @@ a{ color:var(--accent-text); }
 .bm-photorow{ margin:0 auto var(--bm-sp-6); max-width:var(--bm-container); }
 .bm-photorow:last-child{ margin-bottom:0; }
 .bm-photorow-title{ font-size:var(--bm-fs-h3); color:var(--bm-ink); margin:0 0 var(--bm-sp-3); }
-.bm-photorow-empty{ color:var(--bm-muted); font-size:var(--bm-fs-body-sm); }
-.bm-photorow-track{ display:flex; gap:var(--bm-sp-3); overflow-x:auto; scroll-snap-type:x proximity; padding-bottom:8px; -webkit-overflow-scrolling:touch; }
-.bm-photocard{ flex:0 0 auto; width:200px; scroll-snap-align:start; }
-.bm-photocard img{ width:200px; height:150px; object-fit:cover; border-radius:var(--bm-radius-md); box-shadow:var(--bm-shadow-sm); background:var(--bm-card2); display:block; }
-.bm-photocard-name{ margin-top:8px; font-size:var(--bm-fs-body-sm); font-weight:700; color:var(--bm-ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.bm-photocard-sub{ font-size:12.5px; color:var(--bm-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+/* 장소 원형 자동 캐러셀 (문화시설/관광지 공용) */
+.bm-culture{ display:flex; flex-direction:column; align-items:center; gap:var(--bm-sp-3); }
+.bm-culture-viewport-wrap{ position:relative; width:100%; max-width:900px; display:flex; align-items:center; }
+.bm-culture-viewport{ flex:1 1 auto; min-width:0; height:190px; overflow:hidden; }
+.bm-culture-arrow{ flex:0 0 auto; z-index:2; width:36px; height:36px; border-radius:50%; border:none; background:#fff; box-shadow:var(--bm-shadow-sm); color:var(--bm-ink); font-size:20px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.bm-culture-arrow:hover{ background:var(--bm-card2); }
+.bm-culture-arrow-prev{ margin-right:-36px; }
+.bm-culture-arrow-next{ margin-left:-36px; }
+.bm-culture-strip{ display:flex; align-items:center; height:100%; transition:transform .6s ease; will-change:transform; }
+.bm-culture-strip-instant{ transition:none; }
+.bm-culture-slot{ flex:0 0 auto; display:flex; align-items:center; justify-content:center; height:100%; }
+.bm-culture-circle{ width:150px; height:150px; border-radius:50%; object-fit:cover; box-shadow:var(--bm-shadow-md); background:var(--bm-card2); transition:transform .5s ease, opacity .5s ease; }
+.bm-culture-caption{ text-align:center; min-height:52px; }
+.bm-culture-name{ font-size:var(--bm-fs-h3); font-weight:700; color:var(--bm-ink); }
+.bm-culture-addr{ margin-top:4px; font-size:var(--bm-fs-body-sm); color:var(--bm-muted); }
+.bm-culture-dots{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; max-width:420px; }
+.bm-culture-dot{ width:8px; height:8px; border-radius:50%; border:none; padding:0; background:var(--bm-line); cursor:pointer; transition:background .2s, transform .2s; }
+.bm-culture-dot.active{ background:var(--bm-accent); transform:scale(1.3); }
 
 .bm-nav-links .bm-soon{ opacity:.5; cursor:default; }
 .bm-nav-links .bm-soon:hover{ background:none; }
@@ -278,7 +291,7 @@ a{ color:var(--accent-text); }
   .bm-hero-grid{ grid-template-columns:1.05fr .95fr; }
   .bm-hero-copy{ align-items:flex-start; text-align:left; }
   .bm-hero-actions{ justify-content:flex-start; }
-  .bm-features-grid{ grid-template-columns:1fr 1fr; }
+  .bm-features-grid{ grid-template-columns:repeat(3, 1fr); }
   .bm-diff-compare{ grid-template-columns:1fr 1fr; }
 
   .bm-how-steps{ flex-direction:row; gap:var(--bm-sp-4); position:relative; }
