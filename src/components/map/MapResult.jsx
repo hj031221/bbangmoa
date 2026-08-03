@@ -5,6 +5,7 @@ import { useCurrentLocation } from '../../hooks/useCurrentLocation'
 import { getRegion } from '../../config/regions'
 import { isWithinBbox, formatDistance, haversineKm } from '../../lib/distance'
 import { getBakeryDistanceInfo } from '../../lib/bakeryDistance'
+import { pickBreadResult, matchBakeries } from '../../lib/breadRecommend'
 import daejeonTour from '../../data/daejeonTour.json'
 import MapView from './MapView'
 import RecommendCard from './RecommendCard'
@@ -32,19 +33,31 @@ export default function MapResult({ onRetake }) {
   const selectBakery = useAppStore((s) => s.selectBakery)
   const region = getRegion(regionId)
 
-  const { bakeries, loading, error, source } = useBakeries({ regionId, answers, origin })
+  // answers 는 넘기지 않는다 — 옛 태그-가중치 정렬(recommend.js)은 새 Q1~Q5 응답과 안 맞아 항상
+  // 무력화된다. limit: Infinity 로 전체 풀을 받아와서 아래에서 breadResult 기준으로 직접 추린다.
+  const { bakeries, loading, error, source } = useBakeries({
+    regionId,
+    answers: {},
+    origin,
+    limit: Infinity,
+  })
   const { status: locStatus, coords, label: locLabel } = useCurrentLocation()
   const inRegion = isWithinBbox(coords, region.bbox)
+
+  // 설문에서 나온 "오늘의 빵" 결과가 있으면 그 빵을 파는 빵집만(BreadReveal 과 동일 기준) 보여준다.
+  // 결과가 없으면(Q1 미응답 등) 대전 전역을 가까운 순으로 보여주는 기존 방식으로 폴백한다.
+  const breadResult = pickBreadResult(answers)
+  const filteredBakeries = breadResult ? matchBakeries(bakeries, breadResult.bread, 10) : bakeries
 
   // 빵집별 거리: 설문서 고른 origin 우선, 없으면 현재 위치/역 폴백
   const bakeriesWithDist = useMemo(
     () =>
-      bakeries.map((b) => ({
+      filteredBakeries.map((b) => ({
         ...b,
         distInfo: getBakeryDistanceInfo(b, { origin, coords, bbox: region.bbox }),
         nearSpot: nearestAttraction(b),
       })),
-    [bakeries, origin, coords, region],
+    [filteredBakeries, origin, coords, region],
   )
   const selected =
     bakeriesWithDist.find((b) => b.id === selectedBakeryId) || bakeriesWithDist[0]
@@ -64,7 +77,10 @@ export default function MapResult({ onRetake }) {
         <button className="ghost-btn" onClick={onRetake}>
           ← 취향 다시 설정
         </button>
-        <h2>대전 빵집 추천 ({bakeries.length}곳)</h2>
+        <h2>
+          {breadResult ? `${breadResult.bread.name} 맛집 추천` : '대전 빵집 추천'} (
+          {bakeriesWithDist.length}곳)
+        </h2>
         {source === 'sample' && (
           <span className="badge warn">샘플 데이터 (API 키 미설정)</span>
         )}
@@ -87,6 +103,9 @@ export default function MapResult({ onRetake }) {
 
       {error && <div className="banner error">데이터 오류: {String(error.message)}</div>}
       {loading && <div className="banner">불러오는 중…</div>}
+      {!loading && breadResult && bakeriesWithDist.length === 0 && (
+        <div className="banner">이 지역엔 아직 추천할 {breadResult.bread.name} 맛집 정보가 없어요.</div>
+      )}
 
       <div className="result-body">
         <section className="result-map">
@@ -111,9 +130,6 @@ export default function MapResult({ onRetake }) {
                 <span className="rl-name">{b.name}</span>
                 {b.distInfo && (
                   <span className="rl-dist">{formatDistance(b.distInfo.km)}</span>
-                )}
-                {typeof b.score === 'number' && b.score > 0 && (
-                  <span className="rl-score">{b.score}</span>
                 )}
                 {b.nearSpot && (
                   <span className="rl-near">📸 근처 관광지 · {b.nearSpot.name} · {formatDistance(b.nearSpot.km)}</span>
