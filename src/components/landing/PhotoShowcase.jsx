@@ -11,7 +11,7 @@ export default function PhotoShowcase() {
   return (
     <section className="bm-showcase" id="bm-showcase">
       <div className="bm-section-head">
-        <div className="bm-eyebrow">TASTE &amp; PLACES</div>
+        <div className="bm-eyebrow">PLACES &amp; CULTURE</div>
         <h2>사진으로 미리 만나보는 대전</h2>
       </div>
 
