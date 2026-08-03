@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import daejeonTour from '../../data/daejeonTour.json'
 
-const SLIDES = daejeonTour.filter((t) => t.type === '문화시설' && t.image).slice(0, 20)
-const INTERVAL_MS = 4500
+const INTERVAL_MS = 3000
 const SLOT_WIDTH = 130 // 슬롯 1개의 가로 폭(px). 원 크기는 이 폭과 무관하게 scale 로 커진다.
 
 function distanceStyle(dist) {
@@ -12,20 +10,21 @@ function distanceStyle(dist) {
   return { scale: 0.38, opacity: 0.2 }
 }
 
-// 문화시설 여러 곳을 한 줄에 늘어놓고, 가운데(현재 소개 중인 곳)만 크게 보여주는 캐러셀.
+// 장소 여러 곳을 한 줄에 늘어놓고, 가운데(현재 소개 중인 곳)만 크게 보여주는 캐러셀.
 // 자동으로 한 칸씩 넘어가며 슬라이드하고(hover 시 정지), 마지막→처음으로 돌아갈 때만
 // 애니메이션 없이 순간 이동해 화면이 거꾸로 훑고 지나가는 걸 막는다.
-export default function CultureCarousel() {
+// items: { id, name, addr, image }[] — 문화시설/관광지 등 daejeonTour.json 계열 데이터.
+export default function CultureCarousel({ items }) {
   const [index, setIndex] = useState(0)
   const [paused, setPaused] = useState(false)
   const [instant, setInstant] = useState(false)
   const timerRef = useRef(null)
 
   useEffect(() => {
-    if (paused || SLIDES.length <= 1) return
+    if (paused || items.length <= 1) return
     timerRef.current = setInterval(() => {
       setIndex((i) => {
-        if (i + 1 >= SLIDES.length) {
+        if (i + 1 >= items.length) {
           setInstant(true)
           return 0
         }
@@ -33,7 +32,7 @@ export default function CultureCarousel() {
       })
     }, INTERVAL_MS)
     return () => clearInterval(timerRef.current)
-  }, [paused])
+  }, [paused, items])
 
   useEffect(() => {
     if (!instant) return
@@ -41,9 +40,9 @@ export default function CultureCarousel() {
     return () => cancelAnimationFrame(id)
   }, [instant])
 
-  if (SLIDES.length === 0) return null
+  if (items.length === 0) return null
 
-  const current = SLIDES[index]
+  const current = items[index]
 
   return (
     <div
@@ -56,7 +55,7 @@ export default function CultureCarousel() {
           className={'bm-culture-strip' + (instant ? ' bm-culture-strip-instant' : '')}
           style={{ transform: `translateX(calc(50% - ${SLOT_WIDTH / 2}px - ${index * SLOT_WIDTH}px))` }}
         >
-          {SLIDES.map((s, i) => {
+          {items.map((s, i) => {
             const { scale, opacity } = distanceStyle(Math.abs(i - index))
             return (
               <div className="bm-culture-slot" key={s.id} style={{ width: SLOT_WIDTH }}>
@@ -78,7 +77,7 @@ export default function CultureCarousel() {
       </div>
 
       <div className="bm-culture-dots">
-        {SLIDES.map((s, i) => (
+        {items.map((s, i) => (
           <button
             key={s.id}
             type="button"

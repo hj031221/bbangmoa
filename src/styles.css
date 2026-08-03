@@ -257,14 +257,8 @@ a{ color:var(--accent-text); }
 .bm-photorow{ margin:0 auto var(--bm-sp-6); max-width:var(--bm-container); }
 .bm-photorow:last-child{ margin-bottom:0; }
 .bm-photorow-title{ font-size:var(--bm-fs-h3); color:var(--bm-ink); margin:0 0 var(--bm-sp-3); }
-.bm-photorow-empty{ color:var(--bm-muted); font-size:var(--bm-fs-body-sm); }
-.bm-photorow-track{ display:flex; gap:var(--bm-sp-3); overflow-x:auto; scroll-snap-type:x proximity; padding-bottom:8px; -webkit-overflow-scrolling:touch; }
-.bm-photocard{ flex:0 0 auto; width:200px; scroll-snap-align:start; }
-.bm-photocard img{ width:200px; height:150px; object-fit:cover; border-radius:var(--bm-radius-md); box-shadow:var(--bm-shadow-sm); background:var(--bm-card2); display:block; }
-.bm-photocard-name{ margin-top:8px; font-size:var(--bm-fs-body-sm); font-weight:700; color:var(--bm-ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.bm-photocard-sub{ font-size:12.5px; color:var(--bm-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
-/* 문화시설 원형 자동 캐러셀 */
+/* 장소 원형 자동 캐러셀 (문화시설/관광지 공용) */
 .bm-culture{ display:flex; flex-direction:column; align-items:center; gap:var(--bm-sp-3); }
 .bm-culture-viewport{ width:100%; max-width:900px; height:190px; overflow:hidden; }
 .bm-culture-strip{ display:flex; align-items:center; height:100%; transition:transform .6s ease; will-change:transform; }
