@@ -42,7 +42,7 @@ export default function NavBar({ onGoHome, onOpenInfo, onStartTest, onOpenMap, o
           </button>
         </div>
         <div className="bm-nav-auth">
-          <AuthMenu />
+          <AuthMenu onSignOut={onGoHome} />
         </div>
         <button
           type="button"
@@ -105,7 +105,13 @@ export default function NavBar({ onGoHome, onOpenInfo, onStartTest, onOpenMap, o
             >
               나만의 리스트
             </button>
-            <AuthMenu compact />
+            <AuthMenu
+              compact
+              onSignOut={() => {
+                onGoHome()
+                setNavOpen(false)
+              }}
+            />
           </div>
         )}
       </div>

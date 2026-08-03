@@ -27,10 +27,12 @@ export function useAuth() {
     return () => sub.subscription.unsubscribe()
   }, [])
 
+  // queryParams.prompt: 로그아웃 후 재로그인 시 이전 계정으로 자동 로그인되는 것을 막기 위해
+  // 매번 계정 선택/재인증 화면을 강제로 띄운다.
   const signInWithGoogle = () =>
     supabase?.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.origin },
+      options: { redirectTo: window.location.origin, queryParams: { prompt: 'select_account' } },
     })
 
   // 주의: Supabase 가 Kakao OAuth 요청에 account_email 스코프를 서버 단에서 강제 포함한다
@@ -39,7 +41,7 @@ export function useAuth() {
   const signInWithKakao = () =>
     supabase?.auth.signInWithOAuth({
       provider: 'kakao',
-      options: { redirectTo: window.location.origin },
+      options: { redirectTo: window.location.origin, queryParams: { prompt: 'login' } },
     })
 
   const signOut = () => supabase?.auth.signOut()

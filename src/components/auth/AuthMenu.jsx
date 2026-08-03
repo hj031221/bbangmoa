@@ -78,7 +78,7 @@ function LoginModal({ onClose, onGoogle, onKakao }) {
 // 로그인 상태: 이름 + 로그아웃.
 // compact: 뒤로가기 버튼 옆처럼 좁은 자리에 쓰는 축약 스타일.
 // Supabase 키 미설정 시엔 아예 렌더링하지 않는다(로컬 개발 초기 등).
-export default function AuthMenu({ compact = false }) {
+export default function AuthMenu({ compact = false, onSignOut }) {
   const { user, loading, signInWithGoogle, signInWithKakao, signOut } = useAuth()
   const [open, setOpen] = useState(false)
 
@@ -94,7 +94,14 @@ export default function AuthMenu({ compact = false }) {
         <span className="auth-user" title={name}>
           {name}
         </span>
-        <button type="button" className="auth-btn signout" onClick={signOut}>
+        <button
+          type="button"
+          className="auth-btn signout"
+          onClick={() => {
+            onSignOut?.()
+            signOut()
+          }}
+        >
           로그아웃
         </button>
       </div>
