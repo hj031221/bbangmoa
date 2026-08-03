@@ -274,7 +274,7 @@ a{ color:var(--accent-text); }
 .bm-culture-caption{ text-align:center; min-height:52px; }
 .bm-culture-name{ font-size:var(--bm-fs-h3); font-weight:700; color:var(--bm-ink); }
 .bm-culture-addr{ margin-top:4px; font-size:var(--bm-fs-body-sm); color:var(--bm-muted); }
-.bm-culture-dots{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; max-width:320px; }
+.bm-culture-dots{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; max-width:420px; }
 .bm-culture-dot{ width:8px; height:8px; border-radius:50%; border:none; padding:0; background:var(--bm-line); cursor:pointer; transition:background .2s, transform .2s; }
 .bm-culture-dot.active{ background:var(--bm-accent); transform:scale(1.3); }
 

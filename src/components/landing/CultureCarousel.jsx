@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import daejeonTour from '../../data/daejeonTour.json'
 
-const SLIDES = daejeonTour.filter((t) => t.type === '문화시설' && t.image).slice(0, 8)
+const SLIDES = daejeonTour.filter((t) => t.type === '문화시설' && t.image).slice(0, 20)
 const INTERVAL_MS = 4500
 const SLOT_WIDTH = 130 // 슬롯 1개의 가로 폭(px). 원 크기는 이 폭과 무관하게 scale 로 커진다.
 

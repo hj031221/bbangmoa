@@ -15,7 +15,7 @@ export default function PhotoShowcase() {
       </div>
 
       <div className="bm-photorow">
-        <h3 className="bm-photorow-title">요즘 뜨는 문화시설</h3>
+        <h3 className="bm-photorow-title">대전 문화시설 둘러보기</h3>
         <CultureCarousel />
       </div>
 
