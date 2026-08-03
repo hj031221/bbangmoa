@@ -266,9 +266,11 @@ a{ color:var(--accent-text); }
 
 /* 문화시설 원형 자동 캐러셀 */
 .bm-culture{ display:flex; flex-direction:column; align-items:center; gap:var(--bm-sp-3); }
-.bm-culture-photo-wrap{ position:relative; width:220px; height:220px; border-radius:50%; overflow:hidden; box-shadow:var(--bm-shadow-md); background:var(--bm-card2); }
-.bm-culture-photo{ display:block; width:100%; height:100%; object-fit:cover; animation:bm-culture-fade .6s ease; }
-@keyframes bm-culture-fade{ from{ opacity:0; } to{ opacity:1; } }
+.bm-culture-viewport{ width:100%; max-width:560px; height:170px; overflow:hidden; }
+.bm-culture-strip{ display:flex; align-items:center; height:100%; transition:transform .6s ease; will-change:transform; }
+.bm-culture-strip-instant{ transition:none; }
+.bm-culture-slot{ flex:0 0 auto; display:flex; align-items:center; justify-content:center; height:100%; }
+.bm-culture-circle{ width:150px; height:150px; border-radius:50%; object-fit:cover; box-shadow:var(--bm-shadow-md); background:var(--bm-card2); transition:transform .5s ease, opacity .5s ease; }
 .bm-culture-caption{ text-align:center; min-height:52px; }
 .bm-culture-name{ font-size:var(--bm-fs-h3); font-weight:700; color:var(--bm-ink); }
 .bm-culture-addr{ margin-top:4px; font-size:var(--bm-fs-body-sm); color:var(--bm-muted); }
