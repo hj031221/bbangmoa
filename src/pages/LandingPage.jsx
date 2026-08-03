@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
-import { SURVEY } from '../data/surveyConfig'
+import { isSurveyComplete } from '../lib/breadRecommend'
 import SurveyFlow from '../components/survey/SurveyFlow'
 import BreadReveal from '../components/result/BreadReveal'
 import MapResult from '../components/map/MapResult'
@@ -28,7 +28,7 @@ export default function LandingPage() {
   const origin = useAppStore((s) => s.origin)
   const resetAnswers = useAppStore((s) => s.resetAnswers)
 
-  const surveyDone = !!origin && SURVEY.every((q) => answers[q.id])
+  const surveyDone = !!origin && isSurveyComplete(answers)
 
   const startTest = () => {
     setFeatureOpen(true)
