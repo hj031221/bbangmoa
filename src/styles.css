@@ -260,7 +260,12 @@ a{ color:var(--accent-text); }
 
 /* 장소 원형 자동 캐러셀 (문화시설/관광지 공용) */
 .bm-culture{ display:flex; flex-direction:column; align-items:center; gap:var(--bm-sp-3); }
-.bm-culture-viewport{ width:100%; max-width:900px; height:190px; overflow:hidden; }
+.bm-culture-viewport-wrap{ position:relative; width:100%; max-width:900px; display:flex; align-items:center; }
+.bm-culture-viewport{ flex:1 1 auto; min-width:0; height:190px; overflow:hidden; }
+.bm-culture-arrow{ flex:0 0 auto; z-index:2; width:36px; height:36px; border-radius:50%; border:none; background:#fff; box-shadow:var(--bm-shadow-sm); color:var(--bm-ink); font-size:20px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.bm-culture-arrow:hover{ background:var(--bm-card2); }
+.bm-culture-arrow-prev{ margin-right:-36px; }
+.bm-culture-arrow-next{ margin-left:-36px; }
 .bm-culture-strip{ display:flex; align-items:center; height:100%; transition:transform .6s ease; will-change:transform; }
 .bm-culture-strip-instant{ transition:none; }
 .bm-culture-slot{ flex:0 0 auto; display:flex; align-items:center; justify-content:center; height:100%; }

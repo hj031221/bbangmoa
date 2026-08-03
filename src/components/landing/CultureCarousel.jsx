@@ -20,17 +20,24 @@ export default function CultureCarousel({ items }) {
   const [instant, setInstant] = useState(false)
   const timerRef = useRef(null)
 
+  const step = (delta) => {
+    setIndex((i) => {
+      const next = i + delta
+      if (next < 0) {
+        setInstant(true)
+        return items.length - 1
+      }
+      if (next >= items.length) {
+        setInstant(true)
+        return 0
+      }
+      return next
+    })
+  }
+
   useEffect(() => {
     if (paused || items.length <= 1) return
-    timerRef.current = setInterval(() => {
-      setIndex((i) => {
-        if (i + 1 >= items.length) {
-          setInstant(true)
-          return 0
-        }
-        return i + 1
-      })
-    }, INTERVAL_MS)
+    timerRef.current = setInterval(() => step(1), INTERVAL_MS)
     return () => clearInterval(timerRef.current)
   }, [paused, items])
 
@@ -50,25 +57,35 @@ export default function CultureCarousel({ items }) {
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
-      <div className="bm-culture-viewport">
-        <div
-          className={'bm-culture-strip' + (instant ? ' bm-culture-strip-instant' : '')}
-          style={{ transform: `translateX(calc(50% - ${SLOT_WIDTH / 2}px - ${index * SLOT_WIDTH}px))` }}
-        >
-          {items.map((s, i) => {
-            const { scale, opacity } = distanceStyle(Math.abs(i - index))
-            return (
-              <div className="bm-culture-slot" key={s.id} style={{ width: SLOT_WIDTH }}>
-                <img
-                  src={s.image}
-                  alt={s.name}
-                  className="bm-culture-circle"
-                  style={{ transform: `scale(${scale})`, opacity }}
-                />
-              </div>
-            )
-          })}
+      <div className="bm-culture-viewport-wrap">
+        <button type="button" className="bm-culture-arrow bm-culture-arrow-prev" aria-label="이전 장소" onClick={() => step(-1)}>
+          ‹
+        </button>
+
+        <div className="bm-culture-viewport">
+          <div
+            className={'bm-culture-strip' + (instant ? ' bm-culture-strip-instant' : '')}
+            style={{ transform: `translateX(calc(50% - ${SLOT_WIDTH / 2}px - ${index * SLOT_WIDTH}px))` }}
+          >
+            {items.map((s, i) => {
+              const { scale, opacity } = distanceStyle(Math.abs(i - index))
+              return (
+                <div className="bm-culture-slot" key={s.id} style={{ width: SLOT_WIDTH }}>
+                  <img
+                    src={s.image}
+                    alt={s.name}
+                    className="bm-culture-circle"
+                    style={{ transform: `scale(${scale})`, opacity }}
+                  />
+                </div>
+              )
+            })}
+          </div>
         </div>
+
+        <button type="button" className="bm-culture-arrow bm-culture-arrow-next" aria-label="다음 장소" onClick={() => step(1)}>
+          ›
+        </button>
       </div>
 
       <div className="bm-culture-caption">
