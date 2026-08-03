@@ -58,7 +58,6 @@ export default function RecommendCard({ bakery }) {
       {overview && <p className="rec-desc">{overview.slice(0, 200)}…</p>}
       <div className="rec-meta">
         <span>출처: {bakery.source === 'tour' ? '관광공사' : bakery.source === 'kakao' ? '카카오' : '샘플'}</span>
-        {typeof bakery.score === 'number' && <span>추천점수: {bakery.score}</span>}
       </div>
       {bakery.url && (
         <a className="rec-link" href={bakery.url} target="_blank" rel="noreferrer">

@@ -1,17 +1,18 @@
-// 추천 로직 (데모용 단순 가중합).
+// 범용 태그-가중치 빵집 정렬기 (데모용 단순 가중합).
 //   설문 응답 → 취향 태그별 점수 → 각 빵집의 태그와 매칭해 점수화 → 내림차순 정렬
-//   + "오늘의 빵"(BreadReveal) 에서 뽑힌 타입을 대표메뉴로 다루는 곳은 최상단으로 끌어올려
-//     리빌 화면에서 본 빵집이 지도 1순위와 어긋나지 않게 한다.
+//
+// "빵집 찾기" 설문(surveyConfig.js)이 Branch 기반 fitness 스코어링(src/lib/breadRecommend.js)으로
+// 교체되면서 이 파일의 태그-가중치 매칭은 더 이상 그 설문에서 쓰이지 않는다. 다만 "빵 지도"/
+// "관광모아 근처 빵집"처럼 answers 없이(={}) 부르는 다른 화면들이 여전히 이 정렬기를 쓰고 있어
+// 파일 자체는 유지한다. survey 기본값을 빈 배열로 둬 자연스럽게 no-op(점수 0) 이 되게 한다.
 //
 // 입력:
 //   bakeries: 정규화된 Bakery[]  (각자 tags[] 보유)
 //   answers:  { [questionId]: optionId }
-//   survey:   설문 config (옵션별 tags 가중치 보유)
-import { SURVEY } from '../data/surveyConfig'
-import { BREAD_TYPES } from '../data/breadTypes'
+//   survey:   옵션별 tags 가중치를 가진 설문 config (기본값 없음 — 태그 기반 설문이 있을 때만 전달)
 
 // 설문 응답 → { tagKey: 가중치합 }
-export function answersToWeights(answers, survey = SURVEY) {
+export function answersToWeights(answers, survey = []) {
   const weights = {}
   for (const q of survey) {
     const chosenId = answers?.[q.id]
@@ -25,44 +26,13 @@ export function answersToWeights(answers, survey = SURVEY) {
   return weights
 }
 
-// 응답 가중치 → 가장 잘 맞는 빵 타입. BreadReveal 과 지도 랭킹이 같은 기준을 쓰도록 공용으로 둔다.
-export function pickTypeForWeights(weights) {
-  let best = BREAD_TYPES[0]
-  let bestScore = -1
-  for (const type of BREAD_TYPES) {
-    const score = type.matchTags.reduce((sum, tag) => sum + (weights[tag] || 0), 0)
-    if (score > bestScore) {
-      best = type
-      bestScore = score
-    }
-  }
-  return best
-}
-
-function bakeryMatchesType(bakery, type) {
-  const hay = `${bakery.name || ''} ${bakery.category || ''}`
-  return type.keywords.some((kw) => hay.includes(kw))
-}
-
 // 빵집 1곳의 점수 = (보유 태그들의 가중치 합). 화면에 노출되는 "추천점수"는 이 값 그대로.
 function scoreBakery(bakery, weights) {
   return (bakery.tags || []).reduce((sum, tag) => sum + (weights[tag] || 0), 0)
 }
 
-// 빵집 배열에 score 를 붙이고 정렬해서 반환.
-// 설문 응답이 없으면 원본 순서 유지(score 0).
-// 응답이 있으면: 오늘의 빵 타입을 대표메뉴로 다루는 곳들을 먼저, 그 안에서는 태그 점수순.
-export function recommend(bakeries, answers, survey = SURVEY) {
+// 빵집 배열에 score 를 붙여 반환. 응답/survey 가 없으면 원본 순서 유지(score 0).
+export function recommend(bakeries, answers, survey = []) {
   const weights = answersToWeights(answers, survey)
-  const hasAnswers = Object.keys(weights).length > 0
-  const scored = bakeries.map((b) => ({ ...b, score: scoreBakery(b, weights) }))
-  if (!hasAnswers) return scored
-
-  const type = pickTypeForWeights(weights)
-  return scored.sort((a, b) => {
-    const aMatch = bakeryMatchesType(a, type) ? 1 : 0
-    const bMatch = bakeryMatchesType(b, type) ? 1 : 0
-    if (aMatch !== bMatch) return bMatch - aMatch
-    return b.score - a.score
-  })
+  return bakeries.map((b) => ({ ...b, score: scoreBakery(b, weights) }))
 }

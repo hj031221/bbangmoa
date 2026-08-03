@@ -51,8 +51,9 @@ export function normalizeKakao(doc) {
   return b
 }
 
-// 이름 정규화 (공백/괄호/지점표기 제거) — 중복 판정용
-function nameKey(name) {
+// 이름 정규화 (공백/괄호/지점표기 제거) — 중복 판정용. 큐레이션 데이터(bakeryBreadMenu.js)와
+// 실제 API 빵집 이름을 매칭할 때도 동일 기준으로 재사용한다.
+export function nameKey(name) {
   return (name || '')
     .replace(/\s+/g, '')
     .replace(/\(.*?\)/g, '')

@@ -361,7 +361,6 @@ a{ color:var(--accent-text); }
 .rec-list-item .rank{ width:22px; height:22px; border-radius:50%; background:var(--accent); color:#fff; font-size:.75rem; display:flex; align-items:center; justify-content:center; font-weight:700; }
 .rl-name{ flex:1; font-size:.9rem; }
 .rl-dist{ font-size:.75rem; color:var(--muted); }
-.rl-score{ font-size:.75rem; color:var(--muted); }
 /* 근처 관광지: 이름/거리 줄 아래 전체 폭 한 줄(랭크 뱃지 폭만큼 들여쓰기) */
 .rl-near{ flex-basis:100%; margin-left:32px; margin-top:2px; font-size:.76rem; font-weight:600; color:#1c6b48; background:#EAF6EF; border-radius:6px; padding:3px 8px; display:inline-block; }
 .rec-list-empty{ padding:10px; color:var(--muted); font-size:.85rem; }
@@ -384,12 +383,13 @@ a{ color:var(--accent-text); }
 .bread-reveal-title{ font-family:'HakgyoansimDunggeunmisoTTF-B', sans-serif; font-size:1.8rem; color:var(--brown); margin:0 0 10px; }
 .bread-reveal-desc{ color:var(--ink); font-size:1rem; line-height:1.6; max-width:480px; margin:0 auto 12px; }
 .bread-reveal-score{ color:var(--green); font-weight:700; margin-bottom:14px; }
+.bread-reveal-reason{ color:var(--muted); font-size:.9rem; line-height:1.5; max-width:480px; margin:0 auto 16px; }
 .bread-reveal-tags{ display:flex; flex-wrap:wrap; justify-content:center; gap:8px; margin-bottom:28px; }
 .bread-reveal-tag{ font-size:.8rem; color:var(--accent-text); background:var(--card2); padding:5px 12px; border-radius:999px; }
 .bread-reveal-list{ display:grid; gap:12px; text-align:left; margin-bottom:24px; }
 .bakery-mini-card{ border:1px solid var(--line); border-radius:14px; padding:14px 16px; background:var(--card); }
 .bakery-mini-name{ font-weight:700; color:var(--brown); margin-bottom:4px; }
-.bakery-mini-addr, .bakery-mini-tel{ font-size:.85rem; color:var(--muted); margin-top:2px; }
+.bakery-mini-addr, .bakery-mini-tel, .bakery-mini-dist, .bakery-mini-hours{ font-size:.85rem; color:var(--muted); margin-top:2px; }
 .bread-reveal-actions{ display:flex; justify-content:center; gap:12px; }
 
 /* 나만의 리스트 */
@@ -406,7 +406,7 @@ a{ color:var(--accent-text); }
 .tour-hub-header p{ margin:0; color:var(--muted); }
 .tour-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:24px; }
 .tour-tile{ display:flex; flex-direction:column; align-items:center; gap:10px; background:none; border:none; text-align:center; }
-.tour-tile img{ width:140px; height:140px; border-radius:50%; object-fit:contain; box-shadow:var(--bm-shadow-sm, 0 8px 20px rgba(76,49,13,.06)); transition:.15s; background:var(--card2); }
+.tour-tile img{ width:140px; height:140px; border-radius:50%; object-fit:cover; box-shadow:var(--bm-shadow-sm, 0 8px 20px rgba(76,49,13,.06)); transition:.15s; background:var(--card2); }
 .tour-tile:hover img{ transform:translateY(-3px); box-shadow:0 12px 26px rgba(76,49,13,.14); }
 .tour-tile-name{ font-family:'HakgyoansimDunggeunmisoTTF-B', sans-serif; font-size:.9rem; color:var(--brown); }
 
