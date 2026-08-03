@@ -384,12 +384,13 @@ a{ color:var(--accent-text); }
 .bread-reveal-title{ font-family:'HakgyoansimDunggeunmisoTTF-B', sans-serif; font-size:1.8rem; color:var(--brown); margin:0 0 10px; }
 .bread-reveal-desc{ color:var(--ink); font-size:1rem; line-height:1.6; max-width:480px; margin:0 auto 12px; }
 .bread-reveal-score{ color:var(--green); font-weight:700; margin-bottom:14px; }
+.bread-reveal-reason{ color:var(--muted); font-size:.9rem; line-height:1.5; max-width:480px; margin:0 auto 16px; }
 .bread-reveal-tags{ display:flex; flex-wrap:wrap; justify-content:center; gap:8px; margin-bottom:28px; }
 .bread-reveal-tag{ font-size:.8rem; color:var(--accent-text); background:var(--card2); padding:5px 12px; border-radius:999px; }
 .bread-reveal-list{ display:grid; gap:12px; text-align:left; margin-bottom:24px; }
 .bakery-mini-card{ border:1px solid var(--line); border-radius:14px; padding:14px 16px; background:var(--card); }
 .bakery-mini-name{ font-weight:700; color:var(--brown); margin-bottom:4px; }
-.bakery-mini-addr, .bakery-mini-tel{ font-size:.85rem; color:var(--muted); margin-top:2px; }
+.bakery-mini-addr, .bakery-mini-tel, .bakery-mini-dist, .bakery-mini-hours{ font-size:.85rem; color:var(--muted); margin-top:2px; }
 .bread-reveal-actions{ display:flex; justify-content:center; gap:12px; }
 
 /* 나만의 리스트 */
