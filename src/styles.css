@@ -18,7 +18,8 @@
 }
 
 :root{
-  --bg:#FBEACB;          /* 크림 배경 */
+  --bg-top:#FFFFFF;      /* 배경 그라데이션 상단 */
+  --bg-bottom:#FFF2C9;   /* 배경 그라데이션 하단 */
   --card:#FFFFFF;
   --card2:#F6DBA8;       /* 따뜻한 연한 면(태그/칩) */
   --ink:#4A3520;         /* 본문 다크브라운 */
@@ -32,7 +33,12 @@
   --green:#3FA877;       /* 영업중 */
 }
 *{ box-sizing:border-box; }
-body{ margin:0; font-family:"HakgyoansimDunggeunmisoTTF-R","Pretendard","Apple SD Gothic Neo",system-ui,sans-serif; color:var(--ink); background:var(--bg); }
+body{ margin:0; font-family:"HakgyoansimDunggeunmisoTTF-R","Pretendard","Apple SD Gothic Neo",system-ui,sans-serif; color:var(--ink);
+  background-color:var(--bg-bottom);
+  background-image:linear-gradient(180deg, var(--bg-top) 0%, var(--bg-top) 38%, var(--bg-bottom) 100%);
+  background-repeat:no-repeat;
+  background-size:100% 100vh;
+}
 button{ cursor:pointer; font:inherit; }
 a{ color:var(--accent-text); }
 
@@ -112,9 +118,9 @@ a{ color:var(--accent-text); }
    섹션 컴포넌트는 이 토큰만 참조한다. 값을 컴포넌트 CSS에 직접 흩뿌리지 말 것.
    모바일 우선(base = 모바일) + min-width 미디어쿼리로 데스크톱 확장. ─── */
 .bm-landing{
-  --bm-bg:#FBEACB; --bm-card:#FFFFFF; --bm-card2:#F6DBA8; --bm-ink:#4A3520; --bm-muted:#BB9B74;
+  --bm-bg:transparent; --bm-card:#FFFFFF; --bm-card2:#F6DBA8; --bm-ink:#4A3520; --bm-muted:#BB9B74;
   --bm-line:#EDD2A0; --bm-accent:#F2814A; --bm-accent-deep:#E06B34;
-  --bm-gold:#F0B23D; --bm-halo1:#FBD48A; --bm-halo2:#FCE4B8;
+  --bm-gold:#F0B23D; --bm-halo1:rgba(251,212,138,.4); --bm-halo2:rgba(252,228,184,.4);
 
   --bm-sp-1:8px; --bm-sp-2:12px; --bm-sp-3:16px; --bm-sp-4:24px;
   --bm-sp-5:32px; --bm-sp-6:48px; --bm-sp-7:64px; --bm-sp-8:96px;
@@ -166,8 +172,8 @@ a{ color:var(--accent-text); }
 
 /* 1) Hero */
 .bm-hero{ position:relative; overflow:hidden; padding:var(--bm-sp-7) var(--bm-sp-4) var(--bm-sp-6);
-  background:radial-gradient(circle at 15% 20%, var(--bm-halo1) 0%, rgba(255,219,161,0) 55%),
-             radial-gradient(circle at 90% 10%, var(--bm-halo2) 0%, rgba(255,233,196,0) 50%), var(--bm-bg); }
+  background:radial-gradient(circle at 15% 20%, var(--bm-halo1) 0%, rgba(255,219,161,0) 42%),
+             radial-gradient(circle at 90% 10%, var(--bm-halo2) 0%, rgba(255,233,196,0) 38%), var(--bm-bg); }
 .bm-hero-grid{ display:grid; gap:var(--bm-sp-6); align-items:center; }
 .bm-hero-copy{ display:flex; flex-direction:column; align-items:center; text-align:center; gap:var(--bm-sp-3); }
 .bm-badge{ display:inline-flex; align-items:center; gap:8px; background:#fff; border:1px solid var(--bm-halo1); color:var(--bm-accent-deep); font-size:var(--bm-fs-small); font-weight:700; padding:8px 16px; border-radius:var(--bm-radius-pill); }
@@ -194,7 +200,7 @@ a{ color:var(--accent-text); }
 @keyframes bm-float-slow{ 0%,100%{ transform:translateY(0) rotate(-45deg);} 50%{ transform:translateY(-10px) rotate(-41deg);} }
 
 /* 2) 문제 제기 */
-.bm-problem{ padding:var(--bm-sp-7) var(--bm-sp-4); background:var(--bm-card); text-align:center; }
+.bm-problem{ padding:var(--bm-sp-7) var(--bm-sp-4); text-align:center; }
 .bm-problem h2{ margin:0 auto var(--bm-sp-5); font-size:var(--bm-fs-h2); color:var(--bm-ink); }
 .bm-problem-stats{ display:flex; flex-wrap:wrap; justify-content:center; gap:var(--bm-sp-5); margin-bottom:var(--bm-sp-5); }
 .bm-stat-block{ min-width:140px; }
@@ -203,7 +209,7 @@ a{ color:var(--accent-text); }
 .bm-problem-body{ font-size:var(--bm-fs-body); line-height:1.8; color:var(--bm-muted); max-width:640px; margin:0 auto; }
 
 /* 3) 빵모아가 하는 일 (3 카드) */
-.bm-features{ padding:var(--bm-sp-7) var(--bm-sp-4); background:var(--bm-card2); }
+.bm-features{ padding:var(--bm-sp-7) var(--bm-sp-4); }
 .bm-features-grid{ display:grid; grid-template-columns:1fr; gap:var(--bm-sp-4); }
 .bm-feature-card2{ background:var(--bm-card); border-radius:var(--bm-radius-lg); padding:var(--bm-sp-5); box-shadow:var(--bm-shadow-md); text-align:center; }
 .bm-feature-card2-icon{ font-size:40px; margin-bottom:var(--bm-sp-2); }
@@ -211,7 +217,7 @@ a{ color:var(--accent-text); }
 .bm-feature-card2-desc{ margin:0; font-size:var(--bm-fs-body-sm); color:var(--bm-muted); line-height:1.7; white-space:pre-line; }
 
 /* 4) 취향 추천은 이렇게 (STEP 1~4) */
-.bm-how{ padding:var(--bm-sp-7) var(--bm-sp-4); background:var(--bm-card); }
+.bm-how{ padding:var(--bm-sp-7) var(--bm-sp-4); }
 .bm-how-steps{ display:flex; flex-direction:column; }
 .bm-how-step{ display:flex; gap:var(--bm-sp-3); position:relative; padding-bottom:var(--bm-sp-5); }
 .bm-how-step:last-child{ padding-bottom:0; }
@@ -224,7 +230,7 @@ a{ color:var(--accent-text); }
 .bm-how-step-desc{ margin:0; font-size:var(--bm-fs-body-sm); color:var(--bm-muted); line-height:1.6; }
 
 /* 5) 무엇이 다른가 */
-.bm-diff{ padding:var(--bm-sp-7) var(--bm-sp-4); background:var(--bm-card2); }
+.bm-diff{ padding:var(--bm-sp-7) var(--bm-sp-4); }
 .bm-diff-compare{ display:grid; grid-template-columns:1fr; gap:var(--bm-sp-3); }
 .bm-diff-col{ background:var(--bm-card); border-radius:var(--bm-radius-md); padding:var(--bm-sp-4); border:1px solid var(--bm-line); font-size:var(--bm-fs-body-sm); }
 .bm-diff-col.highlight{ border:2px solid var(--bm-accent); }
@@ -235,7 +241,7 @@ a{ color:var(--accent-text); }
 .bm-diff-trust{ text-align:center; margin:var(--bm-sp-4) auto 0; font-size:var(--bm-fs-body-sm); color:var(--bm-muted); max-width:560px; }
 
 /* 6) 지금 시작하기 */
-.bm-final{ padding:var(--bm-sp-7) var(--bm-sp-4) var(--bm-sp-5); background:linear-gradient(var(--bm-card2) 0%, var(--bm-halo1) 100%); text-align:center; }
+.bm-final{ padding:var(--bm-sp-7) var(--bm-sp-4) var(--bm-sp-5); text-align:center; }
 .bm-final h2{ margin:0 auto var(--bm-sp-4); font-size:var(--bm-fs-h2); color:var(--bm-ink); }
 
 .bm-footer{ max-width:var(--bm-container); margin:var(--bm-sp-6) auto 0; padding-top:var(--bm-sp-3); border-top:1px solid rgba(76,49,13,.12); display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; }
@@ -243,8 +249,8 @@ a{ color:var(--accent-text); }
 .bm-footer span{ font-family:'HakgyoansimDunggeunmisoTTF-B', sans-serif; font-size:16px; color:var(--bm-ink); }
 /* 메인 미니 히어로 (시안 1p 스타일) */
 .bm-mhero{ padding:var(--bm-sp-8) var(--bm-sp-4) var(--bm-sp-7); text-align:center;
-  background:radial-gradient(circle at 15% 20%, var(--bm-halo1) 0%, rgba(255,219,161,0) 55%),
-             radial-gradient(circle at 90% 10%, var(--bm-halo2) 0%, rgba(255,233,196,0) 50%), var(--bm-bg); }
+  background:radial-gradient(circle at 15% 20%, var(--bm-halo1) 0%, rgba(255,219,161,0) 42%),
+             radial-gradient(circle at 90% 10%, var(--bm-halo2) 0%, rgba(255,233,196,0) 38%), var(--bm-bg); }
 .bm-mhero-pin{ font-size:48px; margin-bottom:var(--bm-sp-3); }
 .bm-mhero h1{ margin:0 auto var(--bm-sp-2); font-size:var(--bm-fs-display); color:var(--bm-ink); max-width:760px; }
 .bm-mhero p{ margin:0 auto var(--bm-sp-4); font-size:var(--bm-fs-body); color:var(--bm-muted); max-width:480px; }
@@ -253,7 +259,7 @@ a{ color:var(--accent-text); }
 .bm-btn-ghost:hover{ border-color:var(--bm-accent); color:var(--bm-accent-deep); }
 
 /* 사진 캐러셀(빵집/관광지) — 대전시 관광 사이트 스타일 참고 */
-.bm-showcase{ padding:var(--bm-sp-7) var(--bm-sp-4); background:var(--bm-card); }
+.bm-showcase{ padding:var(--bm-sp-7) var(--bm-sp-4); }
 .bm-photorow{ margin:0 auto var(--bm-sp-6); max-width:var(--bm-container); }
 .bm-photorow:last-child{ margin-bottom:0; }
 .bm-photorow-title{ font-size:var(--bm-fs-h3); color:var(--bm-ink); margin:0 0 var(--bm-sp-3); }
