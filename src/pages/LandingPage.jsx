@@ -11,6 +11,7 @@ import MainHero from '../components/landing/MainHero'
 import PhotoShowcase from '../components/landing/PhotoShowcase'
 import BakeryMapPage from '../components/map/BakeryMapPage'
 import TourPage from '../components/tour/TourPage'
+import TourSurveyFlow from '../components/tour/TourSurveyFlow'
 import logo from '../assets/logo-typeA-full.png'
 
 // 랜딩 = 마케팅 사이트. 상단 메뉴바(NavBar)는 어떤 화면에서도 항상 떠 있고,
@@ -23,6 +24,7 @@ export default function LandingPage() {
   const [showInfo, setShowInfo] = useState(false)
   const [showMap, setShowMap] = useState(false)
   const [showTour, setShowTour] = useState(false)
+  const [tourStage, setTourStage] = useState('survey') // 'survey' | 'hub'
   const [nearbyOrigin, setNearbyOrigin] = useState(null) // 관광지 "근처 빵집 보기" 로 진입 시 { name, lat, lng }
   const answers = useAppStore((s) => s.answers)
   const origin = useAppStore((s) => s.origin)
@@ -65,6 +67,7 @@ export default function LandingPage() {
   }
   const openTour = () => {
     setShowTour(true)
+    setTourStage('survey')
     setFeatureOpen(false)
     setShowSaved(false)
     setShowInfo(false)
@@ -103,7 +106,11 @@ export default function LandingPage() {
 
       {showTour && (
         <div className="page">
-          <TourPage onShowBakeryMap={openBakeryMap} />
+          {tourStage === 'survey' ? (
+            <TourSurveyFlow onComplete={() => setTourStage('hub')} />
+          ) : (
+            <TourPage onShowBakeryMap={openBakeryMap} />
+          )}
         </div>
       )}
 
