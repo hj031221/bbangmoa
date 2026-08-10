@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { TAGGED_ATTRACTIONS } from '../data/tourAttractionTags.js'
 import { Q0, Q1, BRANCHES, THEMES } from '../data/tourSurveyConfig.js'
-import { getTourRecommendation } from './tourRecommend.js'
+import { getTourRecommendation, scoreAttractions } from './tourRecommend.js'
 
 function districtOptionId(district) {
   return Q0.options.find((o) => o.district === district).id
@@ -64,9 +64,19 @@ test('PDF 17절-4: 행정구 필터 이후 다른 구 관광지가 결과에 포
 test('PDF 17절-5: 복수 테마를 가진 관광지는 각 테마 후보군 모두에 나타날 수 있다', () => {
   const multiTheme = TAGGED_ATTRACTIONS.find((a) => a.themes.length > 1)
   assert.ok(multiTheme, '복수 테마 관광지가 없음')
+  const answers = sampleAnswers('A', [0, 0, 0, 0], multiTheme.district)
   for (const theme of multiTheme.themes) {
-    const pool = TAGGED_ATTRACTIONS.filter((a) => a.district === multiTheme.district && a.themes.includes(theme))
-    assert.ok(pool.some((a) => a.id === multiTheme.id))
+    const { results } = scoreAttractions({
+      district: multiTheme.district,
+      theme,
+      branchId: 'A',
+      answers,
+      attractions: [multiTheme],
+    })
+    assert.ok(
+      results.some((r) => r.attraction.id === multiTheme.id),
+      `theme=${theme}: multiTheme이 scoreAttractions 후보군에서 빠짐`,
+    )
   }
 })
 
