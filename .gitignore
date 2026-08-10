@@ -155,3 +155,6 @@ _probe/
 
 # 로컬 전용 지시서/보고서(#2 이후)
 docs/local/
+
+# superpowers SDD scratch workspace
+.superpowers/
