@@ -461,3 +461,20 @@ a{ color:var(--accent-text); }
   .tour-detail-img{ height:220px; }
   .tour-detail-info{ padding:20px; }
 }
+
+/* 오늘의 관광지는... (설문 → 허브 사이 리빌 화면) */
+.tour-reveal{ max-width:640px; margin:0 auto; text-align:center; }
+.tour-reveal-eyebrow{ font-size:.9rem; color:var(--muted); margin-bottom:6px; }
+.tour-reveal-title{ font-family:'HakgyoansimDunggeunmisoTTF-B', sans-serif; font-size:1.8rem; color:var(--brown); margin:0 0 10px; }
+.tour-reveal-desc{ color:var(--ink); font-size:1rem; line-height:1.6; max-width:480px; margin:0 auto 12px; }
+.tour-reveal-reason{ color:var(--muted); font-size:.9rem; line-height:1.5; max-width:480px; margin:0 auto 20px; }
+.tour-reveal-list{ display:grid; gap:12px; margin-bottom:24px; }
+.tour-reveal-card{ display:flex; align-items:center; gap:14px; text-align:left; border:1px solid var(--line); border-radius:14px; padding:12px 16px; background:var(--card); cursor:pointer; }
+.tour-reveal-card:hover{ border-color:var(--accent); }
+.tour-reveal-card img{ width:64px; height:64px; border-radius:12px; object-fit:cover; flex-shrink:0; background:var(--card2); }
+.tour-reveal-rank{ font-family:'HakgyoansimDunggeunmisoTTF-B', sans-serif; font-size:1.1rem; color:var(--accent-text); width:22px; flex-shrink:0; text-align:center; }
+.tour-reveal-card-info{ min-width:0; }
+.tour-reveal-card-name{ font-weight:700; color:var(--brown); }
+.tour-reveal-card-score{ font-size:.85rem; color:var(--green); font-weight:600; margin-top:2px; }
+.tour-reveal-card-reason{ font-size:.8rem; color:var(--muted); margin-top:4px; }
+.tour-reveal-actions{ display:flex; justify-content:center; gap:12px; }
