@@ -69,6 +69,46 @@ test('한밭수목원(cat 없음)은 이름 키워드로 자연 테마를 받는
   assert.ok(site.themes.includes('nature'))
 })
 
+test('둔산선사유적지(cat 없음)는 이름에 "산"이 있어도 유적 키워드로 역사 테마를 받는다', () => {
+  const site = TAGGED_ATTRACTIONS.find((a) => a.name === '둔산선사유적지')
+  assert.ok(site, '둔산선사유적지를 찾을 수 없음')
+  assert.ok(site.themes.includes('history'))
+  assert.ok(!site.themes.includes('nature'))
+})
+
+test('대전무형유산전수교육관(cat 없음)은 이름에 "산"이 있어도 교육 키워드로 교육 테마를 받는다', () => {
+  const site = TAGGED_ATTRACTIONS.find((a) => a.name === '대전무형유산전수교육관')
+  assert.ok(site, '대전무형유산전수교육관을 찾을 수 없음')
+  assert.ok(site.themes.includes('education'))
+  assert.ok(!site.themes.includes('nature'))
+})
+
+test('대전예술의전당(cat 없음, type=문화시설)은 이름 키워드로 문화 테마를 받는다', () => {
+  const site = TAGGED_ATTRACTIONS.find((a) => a.name === '대전예술의전당')
+  assert.ok(site, '대전예술의전당을 찾을 수 없음')
+  assert.ok(site.themes.includes('culture'))
+})
+
+test('헤레디움(cat 없음, 이름 키워드 없음, type=문화시설)은 기타가 아니라 문화 테마로 기본 배정된다', () => {
+  const site = TAGGED_ATTRACTIONS.find((a) => a.name === '헤레디움')
+  assert.ok(site, '헤레디움을 찾을 수 없음')
+  assert.ok(site.themes.includes('culture'))
+  assert.ok(!site.themes.includes('etc'))
+})
+
+test('대전한밭도서관(cat 없음, type=문화시설)은 도서관 키워드로 교육 테마를 받는다', () => {
+  const site = TAGGED_ATTRACTIONS.find((a) => a.name === '대전한밭도서관')
+  assert.ok(site, '대전한밭도서관을 찾을 수 없음')
+  assert.ok(site.themes.includes('education'))
+})
+
+test('같은 (구, 테마) 풀 안에서도 trait 벡터가 다양화된다: 동구 nature 17곳이 1개 벡터로 수렴하지 않는다', () => {
+  const pool = TAGGED_ATTRACTIONS.filter((a) => a.district === '동구' && a.themes[0] === 'nature')
+  assert.ok(pool.length >= 5, `동구 nature 풀 크기가 예상보다 작음: ${pool.length}`)
+  const distinct = new Set(pool.map((a) => JSON.stringify(a.traits)))
+  assert.ok(distinct.size > 1, `동구 nature ${pool.length}곳이 여전히 ${distinct.size}개 벡터로 수렴함`)
+})
+
 test('getAttractionById는 존재하는 id를 반환하고 없으면 null', () => {
   const first = TAGGED_ATTRACTIONS[0]
   assert.equal(getAttractionById(first.id).id, first.id)
