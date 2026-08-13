@@ -13,6 +13,7 @@ import BakeryMapPage from '../components/map/BakeryMapPage'
 import TourPage from '../components/tour/TourPage'
 import TourSurveyFlow from '../components/tour/TourSurveyFlow'
 import TourReveal from '../components/tour/TourReveal'
+import PilgrimagePage from '../components/tour/PilgrimagePage'
 import { resolveDistrict, isTourSurveyComplete } from '../lib/tourRecommend'
 import logo from '../assets/logo-typeA-full.png'
 
@@ -26,6 +27,7 @@ export default function LandingPage() {
   const [showInfo, setShowInfo] = useState(false)
   const [showMap, setShowMap] = useState(false)
   const [showTour, setShowTour] = useState(false)
+  const [showPilgrimage, setShowPilgrimage] = useState(false)
   const [tourStage, setTourStage] = useState('survey') // 'survey' | 'reveal' | 'hub'
   const [tourSelectedId, setTourSelectedId] = useState(null) // hub 진입 시 바로 선택할 관광지
   const [nearbyOrigin, setNearbyOrigin] = useState(null) // 관광지 "근처 빵집 보기" 로 진입 시 { name, lat, lng }
@@ -44,6 +46,7 @@ export default function LandingPage() {
     setShowInfo(false)
     setShowMap(false)
     setShowTour(false)
+    setShowPilgrimage(false)
     setStage(surveyDone ? 'reveal' : 'survey')
   }
   const openSaved = () => {
@@ -52,6 +55,7 @@ export default function LandingPage() {
     setShowInfo(false)
     setShowMap(false)
     setShowTour(false)
+    setShowPilgrimage(false)
   }
   const openInfo = () => {
     setShowInfo(true)
@@ -59,6 +63,7 @@ export default function LandingPage() {
     setShowSaved(false)
     setShowMap(false)
     setShowTour(false)
+    setShowPilgrimage(false)
   }
   // attraction 이 주어지면(관광지 상세의 "근처 빵집 보기") 그 위치 기준 거리순 모드로 진입한다.
   const openBakeryMap = (attraction) => {
@@ -70,6 +75,7 @@ export default function LandingPage() {
     setShowSaved(false)
     setShowInfo(false)
     setShowTour(false)
+    setShowPilgrimage(false)
   }
   const openTour = () => {
     setShowTour(true)
@@ -79,10 +85,19 @@ export default function LandingPage() {
     setShowSaved(false)
     setShowInfo(false)
     setShowMap(false)
+    setShowPilgrimage(false)
   }
   const openTourHub = (selectedId = null) => {
     setTourSelectedId(selectedId)
     setTourStage('hub')
+  }
+  const openPilgrimage = () => {
+    setShowPilgrimage(true)
+    setFeatureOpen(false)
+    setShowSaved(false)
+    setShowInfo(false)
+    setShowMap(false)
+    setShowTour(false)
   }
   const goHome = () => {
     setFeatureOpen(false)
@@ -90,6 +105,7 @@ export default function LandingPage() {
     setShowInfo(false)
     setShowMap(false)
     setShowTour(false)
+    setShowPilgrimage(false)
   }
   const retakeSurvey = () => {
     resetAnswers()
@@ -104,6 +120,7 @@ export default function LandingPage() {
         onStartTest={startTest}
         onOpenMap={openBakeryMap}
         onOpenTour={openTour}
+        onOpenPilgrimage={openPilgrimage}
         onOpenSaved={openSaved}
       />
 
@@ -143,6 +160,12 @@ export default function LandingPage() {
         </div>
       )}
 
+      {showPilgrimage && (
+        <div className="page">
+          <PilgrimagePage onStartBreadSurvey={startTest} onStartTourSurvey={openTour} />
+        </div>
+      )}
+
       {showSaved && (
         <div className="page">
           <SavedListPage />
@@ -159,7 +182,7 @@ export default function LandingPage() {
         </div>
       )}
 
-      {!showInfo && !showMap && !showTour && !showSaved && !featureOpen && (
+      {!showInfo && !showMap && !showTour && !showPilgrimage && !showSaved && !featureOpen && (
         <>
           <MainHero onStart={startTest} />
           <PhotoShowcase />

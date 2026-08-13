@@ -4,7 +4,15 @@ import logo from '../../assets/logo-typeA-full.png'
 
 // 상단 메뉴바 — 어떤 화면(홈/설문/지도/찜/정보)에 있든 항상 동일하게 떠 있는다.
 // 별도의 "처음으로" 버튼은 두지 않는다: 로고를 누르면 항상 홈으로 돌아간다.
-export default function NavBar({ onGoHome, onOpenInfo, onStartTest, onOpenMap, onOpenTour, onOpenSaved }) {
+export default function NavBar({
+  onGoHome,
+  onOpenInfo,
+  onStartTest,
+  onOpenMap,
+  onOpenTour,
+  onOpenPilgrimage,
+  onOpenSaved,
+}) {
   const [navOpen, setNavOpen] = useState(false)
 
   return (
@@ -34,8 +42,8 @@ export default function NavBar({ onGoHome, onOpenInfo, onStartTest, onOpenMap, o
           <button type="button" onClick={onOpenTour}>
             관광모아
           </button>
-          <button type="button" className="bm-soon" title="준비 중이에요">
-            빵지순례
+          <button type="button" onClick={onOpenPilgrimage}>
+            대전한바퀴
           </button>
           <button type="button" onClick={onOpenSaved}>
             나만의 리스트
@@ -93,8 +101,14 @@ export default function NavBar({ onGoHome, onOpenInfo, onStartTest, onOpenMap, o
             >
               관광모아
             </button>
-            <button type="button" className="bm-soon" title="준비 중이에요">
-              빵지순례
+            <button
+              type="button"
+              onClick={() => {
+                onOpenPilgrimage()
+                setNavOpen(false)
+              }}
+            >
+              대전한바퀴
             </button>
             <button
               type="button"

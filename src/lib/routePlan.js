@@ -44,6 +44,15 @@ function summarize(origin, orderedStops, travelMode) {
   return { totalDistanceKm: Math.round(totalDistanceKm * 10) / 10, totalMinutes }
 }
 
+// origin + 후보 stops(타입 무관, 순서 없는 배열) → 그리디로 순서를 매기고 합계를 낸 routeResult.
+// CP6-3의 추가/제거 후 재계산에도 그대로 쓴다(§07).
+export function recalcRoute(origin, candidateStops, travelMode = 'car') {
+  if (!origin || !candidateStops || candidateStops.length === 0) return null
+  const stops = buildGreedyOrder(origin, candidateStops)
+  const { totalDistanceKm, totalMinutes } = summarize(origin, stops, travelMode)
+  return { stops, totalDistanceKm, totalMinutes, travelMode }
+}
+
 // breadResult + tourResult + origin → 기본 코스(관광지 2 + 빵집 3, 후보가 모자라면 있는 만큼만).
 export function buildRoute({ breadResult, tourResult, origin, travelMode = 'car' }) {
   if (!breadResult || !tourResult || !origin) return null
@@ -51,10 +60,5 @@ export function buildRoute({ breadResult, tourResult, origin, travelMode = 'car'
   const attractionStops = (tourResult.results || []).slice(0, ATTRACTION_COUNT).map(toAttractionStop)
   const bakeryStops = (breadResult.bakeries || []).slice(0, BAKERY_COUNT).map(toBakeryStop)
   const candidates = [...attractionStops, ...bakeryStops]
-  if (candidates.length === 0) return null
-
-  const stops = buildGreedyOrder(origin, candidates)
-  const { totalDistanceKm, totalMinutes } = summarize(origin, stops, travelMode)
-
-  return { stops, totalDistanceKm, totalMinutes, travelMode }
+  return recalcRoute(origin, candidates, travelMode)
 }
