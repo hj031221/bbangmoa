@@ -1,0 +1,60 @@
+// CP6-2 — 관광모아 결과 + 빵모아 결과를 하나의 기본 코스로 합친다.
+//   routeInput = { breadResult, tourResult, origin, travelMode }
+//     breadResult: pickBreadResult(answers) 결과에 matchBakeries() 결과를 bakeries 로 얹은 것
+//     tourResult:  getTourRecommendation(tourAnswers, attractions) 결과
+//   routeResult = { stops, totalDistanceKm, totalMinutes, travelMode }
+import { haversineKm } from './distance.js'
+import { travelMin } from './travelTime.js'
+
+const ATTRACTION_COUNT = 2
+const BAKERY_COUNT = 3
+
+function toAttractionStop({ attraction }) {
+  return { type: 'attraction', id: attraction.id, name: attraction.name, lat: attraction.lat, lng: attraction.lng }
+}
+
+function toBakeryStop(bakery) {
+  return { type: 'bakery', id: bakery.id, name: bakery.name, lat: bakery.lat, lng: bakery.lng }
+}
+
+// origin에서 시작해 미방문 노드 중 최근접을 반복 선택(그리디). 관광지/빵집 타입 구분 없이 섞는다.
+export function buildGreedyOrder(origin, stops) {
+  const remaining = [...stops]
+  const ordered = []
+  let cur = origin
+  while (remaining.length > 0) {
+    remaining.sort((a, b) => haversineKm(cur, a) - haversineKm(cur, b))
+    const next = remaining.shift()
+    ordered.push(next)
+    cur = next
+  }
+  return ordered.map((stop, i) => ({ ...stop, order: i + 1 }))
+}
+
+// origin → 순서대로 stops를 지날 때의 총 이동거리(km)/총 이동시간(분).
+function summarize(origin, orderedStops, travelMode) {
+  let totalDistanceKm = 0
+  let totalMinutes = 0
+  let prev = origin
+  for (const stop of orderedStops) {
+    totalDistanceKm += haversineKm(prev, stop)
+    totalMinutes += travelMin(prev, stop, travelMode)
+    prev = stop
+  }
+  return { totalDistanceKm: Math.round(totalDistanceKm * 10) / 10, totalMinutes }
+}
+
+// breadResult + tourResult + origin → 기본 코스(관광지 2 + 빵집 3, 후보가 모자라면 있는 만큼만).
+export function buildRoute({ breadResult, tourResult, origin, travelMode = 'car' }) {
+  if (!breadResult || !tourResult || !origin) return null
+
+  const attractionStops = (tourResult.results || []).slice(0, ATTRACTION_COUNT).map(toAttractionStop)
+  const bakeryStops = (breadResult.bakeries || []).slice(0, BAKERY_COUNT).map(toBakeryStop)
+  const candidates = [...attractionStops, ...bakeryStops]
+  if (candidates.length === 0) return null
+
+  const stops = buildGreedyOrder(origin, candidates)
+  const { totalDistanceKm, totalMinutes } = summarize(origin, stops, travelMode)
+
+  return { stops, totalDistanceKm, totalMinutes, travelMode }
+}

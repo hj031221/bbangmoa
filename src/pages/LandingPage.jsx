@@ -13,7 +13,7 @@ import BakeryMapPage from '../components/map/BakeryMapPage'
 import TourPage from '../components/tour/TourPage'
 import TourSurveyFlow from '../components/tour/TourSurveyFlow'
 import TourReveal from '../components/tour/TourReveal'
-import { resolveDistrict } from '../lib/tourRecommend'
+import { resolveDistrict, isTourSurveyComplete } from '../lib/tourRecommend'
 import logo from '../assets/logo-typeA-full.png'
 
 // 랜딩 = 마케팅 사이트. 상단 메뉴바(NavBar)는 어떤 화면에서도 항상 떠 있고,
@@ -27,14 +27,16 @@ export default function LandingPage() {
   const [showMap, setShowMap] = useState(false)
   const [showTour, setShowTour] = useState(false)
   const [tourStage, setTourStage] = useState('survey') // 'survey' | 'reveal' | 'hub'
-  const [tourAnswers, setTourAnswers] = useState(null) // 설문 완료 시 결과화면에 넘길 답변
   const [tourSelectedId, setTourSelectedId] = useState(null) // hub 진입 시 바로 선택할 관광지
   const [nearbyOrigin, setNearbyOrigin] = useState(null) // 관광지 "근처 빵집 보기" 로 진입 시 { name, lat, lng }
   const answers = useAppStore((s) => s.answers)
   const origin = useAppStore((s) => s.origin)
   const resetAnswers = useAppStore((s) => s.resetAnswers)
+  const tourAnswers = useAppStore((s) => s.tourAnswers)
+  const resetTourAnswers = useAppStore((s) => s.resetTourAnswers)
 
   const surveyDone = !!origin && isSurveyComplete(answers)
+  const tourSurveyDone = isTourSurveyComplete(tourAnswers)
 
   const startTest = () => {
     setFeatureOpen(true)
@@ -71,8 +73,7 @@ export default function LandingPage() {
   }
   const openTour = () => {
     setShowTour(true)
-    setTourStage('survey')
-    setTourAnswers(null)
+    setTourStage(tourSurveyDone ? 'reveal' : 'survey')
     setTourSelectedId(null)
     setFeatureOpen(false)
     setShowSaved(false)
@@ -118,10 +119,7 @@ export default function LandingPage() {
         <div className="page">
           {tourStage === 'survey' && (
             <TourSurveyFlow
-              onComplete={(answers) => {
-                setTourAnswers(answers)
-                setTourStage('reveal')
-              }}
+              onComplete={() => setTourStage('reveal')}
               onSkip={() => openTourHub(null)}
             />
           )}
@@ -129,7 +127,7 @@ export default function LandingPage() {
             <TourReveal
               answers={tourAnswers}
               onRetake={() => {
-                setTourAnswers(null)
+                resetTourAnswers()
                 setTourStage('survey')
               }}
               onOpenHub={openTourHub}
