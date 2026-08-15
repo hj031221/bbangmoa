@@ -44,6 +44,15 @@ function summarize(origin, orderedStops, travelMode) {
   return { totalDistanceKm: Math.round(totalDistanceKm * 10) / 10, totalMinutes }
 }
 
+// 이미 순서가 정해진 stops(사용자가 손으로 드래그해서 바꾼 순서 등)로 합계만 다시 낸다 —
+// 그리디로 재정렬하지 않고 주어진 순서를 그대로 존중한다.
+export function summarizeOrder(origin, orderedStops, travelMode = 'car') {
+  if (!origin || !orderedStops || orderedStops.length === 0) return null
+  const stops = orderedStops.map((stop, i) => ({ ...stop, order: i + 1 }))
+  const { totalDistanceKm, totalMinutes } = summarize(origin, stops, travelMode)
+  return { stops, totalDistanceKm, totalMinutes, travelMode }
+}
+
 // origin + 후보 stops(타입 무관, 순서 없는 배열) → 그리디로 순서를 매기고 합계를 낸 routeResult.
 // CP6-3의 추가/제거 후 재계산에도 그대로 쓴다(§07).
 export function recalcRoute(origin, candidateStops, travelMode = 'car') {

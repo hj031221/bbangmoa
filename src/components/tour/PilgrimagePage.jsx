@@ -5,7 +5,7 @@ import { useBakeries } from '../../hooks/useBakeries'
 import { useKakaoLoader } from '../../hooks/useKakaoLoader'
 import { pickBreadResult, matchBakeries } from '../../lib/breadRecommend'
 import { getTourRecommendation, isTourSurveyComplete } from '../../lib/tourRecommend'
-import { buildRoute, recalcRoute } from '../../lib/routePlan'
+import { buildRoute, recalcRoute, summarizeOrder } from '../../lib/routePlan'
 import { estimateActualMinutes } from '../../lib/travelTime'
 import { formatDistance } from '../../lib/distance'
 import { supabase } from '../../lib/supabase'
@@ -58,8 +58,13 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
 
   const [travelMode, setTravelMode] = useState('car')
   const [customStops, setCustomStops] = useState(null) // null = 아직 기본 코스로 초기화 전
+  // null = 아직 손대기 전(그리디 자동 정렬 사용). 한 번이라도 드래그하면 순서 id 배열이 들어가고,
+  // 그 뒤로는 add/remove를 해도 이 순서를 존중한다(그리디로 되돌아가지 않는다).
+  const [manualOrderIds, setManualOrderIds] = useState(null)
   const [addOpen, setAddOpen] = useState(false)
   const [saveState, setSaveState] = useState('idle') // 'idle' | 'saving' | 'saved' | 'error'
+  const dragIndexRef = useRef(null)
+  const [dragOverIndex, setDragOverIndex] = useState(null)
 
   const baseRoute = useMemo(() => {
     if (!breadDone || !tourDone) return null
@@ -74,8 +79,13 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
 
   const route = useMemo(() => {
     if (!customStops || !origin) return null
+    if (manualOrderIds) {
+      const byId = new Map(customStops.map((s) => [s.id, s]))
+      const ordered = manualOrderIds.map((id) => byId.get(id)).filter(Boolean)
+      if (ordered.length > 0) return summarizeOrder(origin, ordered, travelMode)
+    }
     return recalcRoute(origin, customStops, travelMode)
-  }, [customStops, travelMode, origin])
+  }, [customStops, manualOrderIds, travelMode, origin])
 
   const excludeIds = useMemo(() => new Set((customStops || []).map((s) => s.id)), [customStops])
 
@@ -94,10 +104,53 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
     }
   }, [route, travelMode, origin])
 
-  const removeStop = (id) => setCustomStops((prev) => (prev || []).filter((s) => s.id !== id))
+  const removeStop = (id) => {
+    setCustomStops((prev) => (prev || []).filter((s) => s.id !== id))
+    setManualOrderIds((prev) => (prev ? prev.filter((i) => i !== id) : prev))
+  }
   const addStop = (stop) => {
     setCustomStops((prev) => [...(prev || []), stop])
+    setManualOrderIds((prev) => (prev ? [...prev, stop.id] : prev))
     setAddOpen(false)
+  }
+
+  // 햄버거 핸들을 눌러 드래그 → 리스트 순서를 손으로 바꾼다. 이후엔 그리디 재정렬 대신
+  // 이 순서를 그대로 쓴다(route useMemo의 manualOrderIds 분기).
+  // 네이티브 HTML5 드래그(draggable)는 모바일 터치에서 대부분 동작하지 않아서(마우스 전용) 안 쓴다 —
+  // Pointer Events(마우스·터치·펜 공통)로 직접 구현해 데스크톱/모바일 둘 다 되게 한다.
+  // dragOverIndexRef: pointerup이 React state(dragOverIndex)의 클로저를 읽으면, 리렌더가 아직
+  // 안 반영된 값을 볼 수 있어(빠른 제스처에서 실제로 재현됨) ref로 항상 최신값을 동기적으로 읽는다.
+  // dragOverIndex(state)는 드래그 중인 줄에 하이라이트를 주는 시각 효과에만 쓴다.
+  const dragOverIndexRef = useRef(null)
+  const handlePointerDown = (index) => (e) => {
+    e.preventDefault()
+    dragIndexRef.current = index
+    dragOverIndexRef.current = index
+    setDragOverIndex(index)
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+  const handlePointerMove = (e) => {
+    if (dragIndexRef.current == null) return
+    const el = document.elementFromPoint(e.clientX, e.clientY)
+    const li = el?.closest('.pil-stop')
+    if (!li) return
+    const index = Number(li.dataset.index)
+    if (Number.isFinite(index)) {
+      dragOverIndexRef.current = index
+      setDragOverIndex(index)
+    }
+  }
+  const handlePointerUp = () => {
+    const from = dragIndexRef.current
+    const to = dragOverIndexRef.current
+    dragIndexRef.current = null
+    dragOverIndexRef.current = null
+    setDragOverIndex(null)
+    if (from == null || to == null || from === to || !route) return
+    const ids = route.stops.map((s) => s.id)
+    const [moved] = ids.splice(from, 1)
+    ids.splice(to, 0, moved)
+    setManualOrderIds(ids)
   }
 
   const handleSave = async () => {
@@ -174,8 +227,23 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
         )}
 
         <ol className="pil-stops">
-          {(route?.stops || []).map((stop) => (
-            <li key={stop.id} className={`pil-stop ${stop.type}`}>
+          {(route?.stops || []).map((stop, index) => (
+            <li
+              key={stop.id}
+              data-index={index}
+              className={`pil-stop ${stop.type}${dragOverIndex === index ? ' drag-over' : ''}`}
+            >
+              <span
+                className="pil-stop-handle"
+                onPointerDown={handlePointerDown(index)}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerUp}
+                onPointerCancel={handlePointerUp}
+                aria-label={`${stop.name} 순서 바꾸기(드래그)`}
+                title="드래그해서 순서 바꾸기"
+              >
+                ☰
+              </span>
               <span className="pil-stop-num">{stop.order}</span>
               <span className="pil-stop-info">
                 <span className="pil-stop-name">{stop.name}</span>
@@ -253,19 +321,20 @@ function RouteMap({ origin, stops }) {
   const overlaysRef = useRef([])
   const polylineRef = useRef(null)
 
+  // 지도 생성과 핀/경로선 그리기를 하나의 effect로 묶는다 — 따로 두면 "핀을 그릴 stops는
+  // 이미 준비됐는데 지도(SDK 로딩)가 아직 안 끝난" 순서로 실행될 때 핀 effect가 조용히
+  // 아무것도 안 그리고 끝나버리고, 그 뒤로 stops/origin이 안 바뀌면 다시 안 그려지는 문제가 있었다.
   useEffect(() => {
-    if (!loaded || !containerRef.current || mapRef.current || !origin) return
+    if (!loaded || !containerRef.current || !origin) return
     const { kakao } = window
-    mapRef.current = new kakao.maps.Map(containerRef.current, {
-      center: new kakao.maps.LatLng(origin.lat, origin.lng),
-      level: 7,
-    })
-  }, [loaded, origin])
 
-  useEffect(() => {
+    if (!mapRef.current) {
+      mapRef.current = new kakao.maps.Map(containerRef.current, {
+        center: new kakao.maps.LatLng(origin.lat, origin.lng),
+        level: 7,
+      })
+    }
     const map = mapRef.current
-    if (!map || !window.kakao || !origin) return
-    const { kakao } = window
 
     overlaysRef.current.forEach((o) => o.setMap(null))
     overlaysRef.current = []
@@ -308,7 +377,7 @@ function RouteMap({ origin, stops }) {
       path.forEach((ll) => bounds.extend(ll))
       map.setBounds(bounds)
     }
-  }, [stops, origin])
+  }, [loaded, origin, stops])
 
   return (
     <div className="map-wrap">
