@@ -6,6 +6,7 @@ import { useKakaoLoader } from '../../hooks/useKakaoLoader'
 import { pickBreadResult, matchBakeries } from '../../lib/breadRecommend'
 import { getTourRecommendation, isTourSurveyComplete } from '../../lib/tourRecommend'
 import { buildRoute, recalcRoute } from '../../lib/routePlan'
+import { estimateActualMinutes } from '../../lib/travelTime'
 import { formatDistance } from '../../lib/distance'
 import { supabase } from '../../lib/supabase'
 import { TAGGED_ATTRACTIONS } from '../../data/tourAttractionTags'
@@ -78,6 +79,21 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
 
   const excludeIds = useMemo(() => new Set((customStops || []).map((s) => s.id)), [customStops])
 
+  // CP6-4: route가 정해지면 실API로 정밀 이동시간을 한 번 더 구한다. 실패/도보 모드면 null
+  // 유지 — 그럴 땐 route.totalMinutes(근사치)를 그대로 보여준다.
+  const [preciseMinutes, setPreciseMinutes] = useState(null)
+  useEffect(() => {
+    setPreciseMinutes(null)
+    if (!route || route.stops.length === 0) return
+    let alive = true
+    estimateActualMinutes(origin, route.stops, travelMode).then((min) => {
+      if (alive) setPreciseMinutes(min)
+    })
+    return () => {
+      alive = false
+    }
+  }, [route, travelMode, origin])
+
   const removeStop = (id) => setCustomStops((prev) => (prev || []).filter((s) => s.id !== id))
   const addStop = (stop) => {
     setCustomStops((prev) => [...(prev || []), stop])
@@ -143,8 +159,8 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
         {route && (
           <div className="pil-summary">
             <div>
-              <b>{formatMinutes(route.totalMinutes)}</b>
-              <span>예상 소요</span>
+              <b>{formatMinutes(preciseMinutes ?? route.totalMinutes)}</b>
+              <span>{preciseMinutes != null ? '예상 소요 (실시간)' : '예상 소요'}</span>
             </div>
             <div>
               <b>{formatDistance(route.totalDistanceKm)}</b>
