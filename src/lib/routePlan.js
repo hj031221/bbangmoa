@@ -66,7 +66,15 @@ export function recalcRoute(origin, candidateStops, travelMode = 'car') {
 export function buildRoute({ breadResult, tourResult, origin, travelMode = 'car' }) {
   if (!breadResult || !tourResult || !origin) return null
 
-  const attractionStops = (tourResult.results || []).slice(0, ATTRACTION_COUNT).map(toAttractionStop)
+  // 관광모아는 "고른 구(행정구) 안에서"만 테마 적합도로 TOP3(1~3개)를 뽑는다 — origin과의
+  // 거리는 안 본다. 구는 도심부터 외곽까지 넓어서(예: 같은 구에 대전역도, 대청호도 있음) 같은
+  // 구 안이라는 이유만으로 출발지에서 아주 먼 후보가 섞여 나올 수 있다. 여기 경로 결합 단계에서만
+  // origin에 더 가까운 순으로 다시 골라 "적당히" 먼 후보를 제외한다 — 관광모아 자체 로직(테마
+  // 점수·동점처리 등)은 안 건드린다.
+  const attractionCandidates = [...(tourResult.results || [])].sort(
+    (a, b) => haversineKm(origin, a.attraction) - haversineKm(origin, b.attraction),
+  )
+  const attractionStops = attractionCandidates.slice(0, ATTRACTION_COUNT).map(toAttractionStop)
   const bakeryStops = (breadResult.bakeries || []).slice(0, BAKERY_COUNT).map(toBakeryStop)
   const candidates = [...attractionStops, ...bakeryStops]
   return recalcRoute(origin, candidates, travelMode)
