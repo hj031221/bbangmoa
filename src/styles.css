@@ -591,3 +591,16 @@ a{ color:var(--accent-text); }
 .mypage-course-stops{ margin:0 0 16px; padding-left:20px; color:var(--ink); }
 .mypage-course-stops li{ margin-bottom:4px; }
 .mypage-course-item-btn{ display:block; width:100%; text-align:left; background:none; border:none; font-weight:700; color:var(--brown); cursor:pointer; padding:0; font-size:1rem; }
+
+.rec-actions{ margin-top:6px; }
+.diary-modal-form{ display:flex; flex-direction:column; gap:12px; width:100%; }
+.diary-modal-textarea{ width:100%; padding:12px; border:1.5px solid var(--line); border-radius:12px; font-family:inherit; font-size:.9rem; resize:vertical; }
+.diary-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; }
+.diary-card{ display:flex; flex-direction:column; gap:6px; align-items:flex-start; border:1px solid var(--line); border-radius:14px; padding:14px; background:var(--card); text-align:left; cursor:pointer; }
+.diary-card:hover{ border-color:var(--accent); }
+.diary-card-date{ font-size:.75rem; color:var(--muted); }
+.diary-card-bakery{ font-weight:700; color:var(--brown); }
+.diary-card-text{ margin:0; font-size:.85rem; color:var(--ink); overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; }
+.diary-detail-meta{ display:flex; justify-content:space-between; margin-bottom:12px; color:var(--muted); font-size:.85rem; }
+.diary-detail-bakery{ font-weight:700; color:var(--brown); }
+.diary-detail-text{ white-space:pre-wrap; line-height:1.6; color:var(--ink); }
