@@ -22,3 +22,25 @@ create policy "saved_bakeries_insert_own" on saved_bakeries
 
 create policy "saved_bakeries_delete_own" on saved_bakeries
   for delete using (auth.uid() = user_id);
+
+-- CP6-3: "대전한바퀴" 코스 저장용 테이블 (관광모아+빵모아 결합 코스).
+create table if not exists saved_courses (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  title text not null default '대전한바퀴',
+  travel_mode text not null default 'car',
+  stops jsonb not null, -- [{ type:'attraction'|'bakery', id, name, lat, lng, order }]
+  origin jsonb,         -- 저장 시점 출발지 스냅샷 { lat, lng, label, source }
+  created_at timestamptz not null default now()
+);
+
+alter table saved_courses enable row level security;
+
+create policy "saved_courses_select_own" on saved_courses
+  for select using (auth.uid() = user_id);
+
+create policy "saved_courses_insert_own" on saved_courses
+  for insert with check (auth.uid() = user_id);
+
+create policy "saved_courses_delete_own" on saved_courses
+  for delete using (auth.uid() = user_id);

@@ -13,7 +13,8 @@ import BakeryMapPage from '../components/map/BakeryMapPage'
 import TourPage from '../components/tour/TourPage'
 import TourSurveyFlow from '../components/tour/TourSurveyFlow'
 import TourReveal from '../components/tour/TourReveal'
-import { resolveDistrict } from '../lib/tourRecommend'
+import PilgrimagePage from '../components/tour/PilgrimagePage'
+import { resolveDistrict, isTourSurveyComplete } from '../lib/tourRecommend'
 import logo from '../assets/logo-typeA-full.png'
 
 // 랜딩 = 마케팅 사이트. 상단 메뉴바(NavBar)는 어떤 화면에서도 항상 떠 있고,
@@ -26,15 +27,18 @@ export default function LandingPage() {
   const [showInfo, setShowInfo] = useState(false)
   const [showMap, setShowMap] = useState(false)
   const [showTour, setShowTour] = useState(false)
+  const [showPilgrimage, setShowPilgrimage] = useState(false)
   const [tourStage, setTourStage] = useState('survey') // 'survey' | 'reveal' | 'hub'
-  const [tourAnswers, setTourAnswers] = useState(null) // 설문 완료 시 결과화면에 넘길 답변
   const [tourSelectedId, setTourSelectedId] = useState(null) // hub 진입 시 바로 선택할 관광지
   const [nearbyOrigin, setNearbyOrigin] = useState(null) // 관광지 "근처 빵집 보기" 로 진입 시 { name, lat, lng }
   const answers = useAppStore((s) => s.answers)
   const origin = useAppStore((s) => s.origin)
   const resetAnswers = useAppStore((s) => s.resetAnswers)
+  const tourAnswers = useAppStore((s) => s.tourAnswers)
+  const resetTourAnswers = useAppStore((s) => s.resetTourAnswers)
 
   const surveyDone = !!origin && isSurveyComplete(answers)
+  const tourSurveyDone = isTourSurveyComplete(tourAnswers)
 
   const startTest = () => {
     setFeatureOpen(true)
@@ -42,6 +46,7 @@ export default function LandingPage() {
     setShowInfo(false)
     setShowMap(false)
     setShowTour(false)
+    setShowPilgrimage(false)
     setStage(surveyDone ? 'reveal' : 'survey')
   }
   const openSaved = () => {
@@ -50,6 +55,7 @@ export default function LandingPage() {
     setShowInfo(false)
     setShowMap(false)
     setShowTour(false)
+    setShowPilgrimage(false)
   }
   const openInfo = () => {
     setShowInfo(true)
@@ -57,6 +63,7 @@ export default function LandingPage() {
     setShowSaved(false)
     setShowMap(false)
     setShowTour(false)
+    setShowPilgrimage(false)
   }
   // attraction 이 주어지면(관광지 상세의 "근처 빵집 보기") 그 위치 기준 거리순 모드로 진입한다.
   const openBakeryMap = (attraction) => {
@@ -68,20 +75,29 @@ export default function LandingPage() {
     setShowSaved(false)
     setShowInfo(false)
     setShowTour(false)
+    setShowPilgrimage(false)
   }
   const openTour = () => {
     setShowTour(true)
-    setTourStage('survey')
-    setTourAnswers(null)
+    setTourStage(tourSurveyDone ? 'reveal' : 'survey')
     setTourSelectedId(null)
     setFeatureOpen(false)
     setShowSaved(false)
     setShowInfo(false)
     setShowMap(false)
+    setShowPilgrimage(false)
   }
   const openTourHub = (selectedId = null) => {
     setTourSelectedId(selectedId)
     setTourStage('hub')
+  }
+  const openPilgrimage = () => {
+    setShowPilgrimage(true)
+    setFeatureOpen(false)
+    setShowSaved(false)
+    setShowInfo(false)
+    setShowMap(false)
+    setShowTour(false)
   }
   const goHome = () => {
     setFeatureOpen(false)
@@ -89,6 +105,7 @@ export default function LandingPage() {
     setShowInfo(false)
     setShowMap(false)
     setShowTour(false)
+    setShowPilgrimage(false)
   }
   const retakeSurvey = () => {
     resetAnswers()
@@ -103,6 +120,7 @@ export default function LandingPage() {
         onStartTest={startTest}
         onOpenMap={openBakeryMap}
         onOpenTour={openTour}
+        onOpenPilgrimage={openPilgrimage}
         onOpenSaved={openSaved}
       />
 
@@ -118,10 +136,7 @@ export default function LandingPage() {
         <div className="page">
           {tourStage === 'survey' && (
             <TourSurveyFlow
-              onComplete={(answers) => {
-                setTourAnswers(answers)
-                setTourStage('reveal')
-              }}
+              onComplete={() => setTourStage('reveal')}
               onSkip={() => openTourHub(null)}
             />
           )}
@@ -129,7 +144,7 @@ export default function LandingPage() {
             <TourReveal
               answers={tourAnswers}
               onRetake={() => {
-                setTourAnswers(null)
+                resetTourAnswers()
                 setTourStage('survey')
               }}
               onOpenHub={openTourHub}
@@ -142,6 +157,12 @@ export default function LandingPage() {
               initialSelectedId={tourSelectedId}
             />
           )}
+        </div>
+      )}
+
+      {showPilgrimage && (
+        <div className="page">
+          <PilgrimagePage onStartBreadSurvey={startTest} onStartTourSurvey={openTour} />
         </div>
       )}
 
@@ -161,7 +182,7 @@ export default function LandingPage() {
         </div>
       )}
 
-      {!showInfo && !showMap && !showTour && !showSaved && !featureOpen && (
+      {!showInfo && !showMap && !showTour && !showPilgrimage && !showSaved && !featureOpen && (
         <>
           <MainHero onStart={startTest} />
           <PhotoShowcase />

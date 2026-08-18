@@ -24,6 +24,16 @@ export function resolveBranch(answers) {
   return Q1.options.find((o) => o.id === chosenId)?.branch ?? null
 }
 
+// origin(위치 설문)과 별개로, 관광모아 Q0~Q5를 전부 답했는지.
+// breadRecommend.js 의 isSurveyComplete() 와 대응하는 함수.
+export function isTourSurveyComplete(answers) {
+  const district = resolveDistrict(answers)
+  const branchId = resolveBranch(answers)
+  if (!district || !branchId) return false
+  const branch = BRANCHES[branchId]
+  return branch.questions.every((q) => !!answers?.[q.id])
+}
+
 export function computeThemeScores(branchId, answers) {
   const scores = { nature: 0, history: 0, culture: 0, education: 0, etc: 0 }
   const branch = BRANCHES[branchId]
