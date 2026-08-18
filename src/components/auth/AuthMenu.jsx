@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { supabaseEnabled } from '../../lib/supabase'
+import { getDisplayName } from '../../lib/displayName'
 
 // 카카오 "비즈 앱 전환 + 이메일 동의항목" 심사 통과 전까지 임시 비활성화.
 // Supabase 가 Kakao OAuth 요청에 account_email 스코프를 강제 포함해서 심사 전엔 KOE205 로 막힌다.
@@ -87,8 +88,7 @@ export default function AuthMenu({ compact = false, onSignOut }) {
   const className = 'auth-menu' + (compact ? ' compact' : '')
 
   if (user) {
-    const name =
-      user.user_metadata?.full_name || user.user_metadata?.name || user.email || '내 계정'
+    const name = getDisplayName(user)
     return (
       <div className={className}>
         <span className="auth-user" title={name}>
