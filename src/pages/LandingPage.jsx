@@ -31,7 +31,6 @@ export default function LandingPage() {
   const [tourStage, setTourStage] = useState('survey') // 'survey' | 'reveal' | 'hub'
   const [tourSelectedId, setTourSelectedId] = useState(null) // hub 진입 시 바로 선택할 관광지
   const [nearbyOrigin, setNearbyOrigin] = useState(null) // 관광지 "근처 빵집 보기" 로 진입 시 { name, lat, lng }
-  const [mapSearch, setMapSearch] = useState('') // 랜딩 히어로 검색창에서 넘어온 빵집 이름 검색어
   const answers = useAppStore((s) => s.answers)
   const origin = useAppStore((s) => s.origin)
   const resetAnswers = useAppStore((s) => s.resetAnswers)
@@ -71,18 +70,6 @@ export default function LandingPage() {
     setNearbyOrigin(
       Number.isFinite(attraction?.lat) && Number.isFinite(attraction?.lng) ? attraction : null,
     )
-    setMapSearch('')
-    setShowMap(true)
-    setFeatureOpen(false)
-    setShowSaved(false)
-    setShowInfo(false)
-    setShowTour(false)
-    setShowPilgrimage(false)
-  }
-  // 랜딩 히어로 검색창: 이름 검색어를 들고 빵 지도로 이동.
-  const searchBakeryMap = (query) => {
-    setNearbyOrigin(null)
-    setMapSearch(query)
     setShowMap(true)
     setFeatureOpen(false)
     setShowSaved(false)
@@ -141,11 +128,7 @@ export default function LandingPage() {
 
       {showMap && (
         <div className="page">
-          <BakeryMapPage
-            origin={nearbyOrigin}
-            onClearOrigin={() => setNearbyOrigin(null)}
-            initialSearch={mapSearch}
-          />
+          <BakeryMapPage origin={nearbyOrigin} onClearOrigin={() => setNearbyOrigin(null)} />
         </div>
       )}
 
@@ -201,7 +184,7 @@ export default function LandingPage() {
 
       {!showInfo && !showMap && !showTour && !showPilgrimage && !showSaved && !featureOpen && (
         <>
-          <MainHero onStart={startTest} onSearch={searchBakeryMap} />
+          <MainHero onStart={startTest} />
           <PhotoShowcase />
 
           <div className="bm-footer">
