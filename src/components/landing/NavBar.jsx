@@ -11,7 +11,7 @@ export default function NavBar({
   onOpenMap,
   onOpenTour,
   onOpenPilgrimage,
-  onOpenSaved,
+  onOpenMyPage,
 }) {
   const [navOpen, setNavOpen] = useState(false)
 
@@ -45,8 +45,8 @@ export default function NavBar({
           <button type="button" onClick={onOpenPilgrimage}>
             대전한바퀴
           </button>
-          <button type="button" onClick={onOpenSaved}>
-            나만의 리스트
+          <button type="button" onClick={onOpenMyPage}>
+            마이페이지
           </button>
         </div>
         <div className="bm-nav-auth">
@@ -113,11 +113,11 @@ export default function NavBar({
             <button
               type="button"
               onClick={() => {
-                onOpenSaved()
+                onOpenMyPage()
                 setNavOpen(false)
               }}
             >
-              나만의 리스트
+              마이페이지
             </button>
             <AuthMenu
               compact

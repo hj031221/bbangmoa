@@ -4,7 +4,7 @@ import { isSurveyComplete } from '../lib/breadRecommend'
 import SurveyFlow from '../components/survey/SurveyFlow'
 import BreadReveal from '../components/result/BreadReveal'
 import MapResult from '../components/map/MapResult'
-import SavedListPage from './SavedListPage'
+import MyPage from './MyPage'
 import InfoPage from './InfoPage'
 import NavBar from '../components/landing/NavBar'
 import MainHero from '../components/landing/MainHero'
@@ -23,7 +23,7 @@ import logo from '../assets/logo-typeA-full.png'
 export default function LandingPage() {
   const [featureOpen, setFeatureOpen] = useState(false)
   const [stage, setStage] = useState('survey') // 'survey' | 'reveal' | 'map'
-  const [showSaved, setShowSaved] = useState(false)
+  const [showMyPage, setShowMyPage] = useState(false)
   const [showInfo, setShowInfo] = useState(false)
   const [showMap, setShowMap] = useState(false)
   const [showTour, setShowTour] = useState(false)
@@ -42,15 +42,15 @@ export default function LandingPage() {
 
   const startTest = () => {
     setFeatureOpen(true)
-    setShowSaved(false)
+    setShowMyPage(false)
     setShowInfo(false)
     setShowMap(false)
     setShowTour(false)
     setShowPilgrimage(false)
     setStage(surveyDone ? 'reveal' : 'survey')
   }
-  const openSaved = () => {
-    setShowSaved(true)
+  const openMyPage = () => {
+    setShowMyPage(true)
     setFeatureOpen(false)
     setShowInfo(false)
     setShowMap(false)
@@ -60,7 +60,7 @@ export default function LandingPage() {
   const openInfo = () => {
     setShowInfo(true)
     setFeatureOpen(false)
-    setShowSaved(false)
+    setShowMyPage(false)
     setShowMap(false)
     setShowTour(false)
     setShowPilgrimage(false)
@@ -72,7 +72,7 @@ export default function LandingPage() {
     )
     setShowMap(true)
     setFeatureOpen(false)
-    setShowSaved(false)
+    setShowMyPage(false)
     setShowInfo(false)
     setShowTour(false)
     setShowPilgrimage(false)
@@ -82,7 +82,7 @@ export default function LandingPage() {
     setTourStage(tourSurveyDone ? 'reveal' : 'survey')
     setTourSelectedId(null)
     setFeatureOpen(false)
-    setShowSaved(false)
+    setShowMyPage(false)
     setShowInfo(false)
     setShowMap(false)
     setShowPilgrimage(false)
@@ -94,14 +94,14 @@ export default function LandingPage() {
   const openPilgrimage = () => {
     setShowPilgrimage(true)
     setFeatureOpen(false)
-    setShowSaved(false)
+    setShowMyPage(false)
     setShowInfo(false)
     setShowMap(false)
     setShowTour(false)
   }
   const goHome = () => {
     setFeatureOpen(false)
-    setShowSaved(false)
+    setShowMyPage(false)
     setShowInfo(false)
     setShowMap(false)
     setShowTour(false)
@@ -121,7 +121,7 @@ export default function LandingPage() {
         onOpenMap={openBakeryMap}
         onOpenTour={openTour}
         onOpenPilgrimage={openPilgrimage}
-        onOpenSaved={openSaved}
+        onOpenMyPage={openMyPage}
       />
 
       {showInfo && <InfoPage onStart={startTest} />}
@@ -166,9 +166,9 @@ export default function LandingPage() {
         </div>
       )}
 
-      {showSaved && (
+      {showMyPage && (
         <div className="page">
-          <SavedListPage />
+          <MyPage />
         </div>
       )}
 
@@ -182,7 +182,7 @@ export default function LandingPage() {
         </div>
       )}
 
-      {!showInfo && !showMap && !showTour && !showPilgrimage && !showSaved && !featureOpen && (
+      {!showInfo && !showMap && !showTour && !showPilgrimage && !showMyPage && !featureOpen && (
         <>
           <MainHero onStart={startTest} />
           <PhotoShowcase />
