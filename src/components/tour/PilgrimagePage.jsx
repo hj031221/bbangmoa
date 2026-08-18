@@ -6,7 +6,7 @@ import { useKakaoLoader } from '../../hooks/useKakaoLoader'
 import { pickBreadResult, matchBakeries } from '../../lib/breadRecommend'
 import { getTourRecommendation, isTourSurveyComplete } from '../../lib/tourRecommend'
 import { buildRoute, recalcRoute, summarizeOrder } from '../../lib/routePlan'
-import { estimateActualMinutes } from '../../lib/travelTime'
+import { estimateActualRoute } from '../../lib/travelTime'
 import { formatDistance } from '../../lib/distance'
 import { supabase } from '../../lib/supabase'
 import { TAGGED_ATTRACTIONS } from '../../data/tourAttractionTags'
@@ -89,15 +89,19 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
 
   const excludeIds = useMemo(() => new Set((customStops || []).map((s) => s.id)), [customStops])
 
-  // CP6-4: route가 정해지면 실API로 정밀 이동시간을 한 번 더 구한다. 실패/도보 모드면 null
-  // 유지 — 그럴 땐 route.totalMinutes(근사치)를 그대로 보여준다.
+  // CP6-4: route가 정해지면 실API로 정밀 이동시간 + 구간별 실제 경로 좌표를 한 번 더 구한다.
+  // 실패/도보 모드면 null 유지 — 그럴 땐 route.totalMinutes(근사치) + 직선 경로를 그대로 쓴다.
   const [preciseMinutes, setPreciseMinutes] = useState(null)
+  const [legPaths, setLegPaths] = useState(null)
   useEffect(() => {
     setPreciseMinutes(null)
+    setLegPaths(null)
     if (!route || route.stops.length === 0) return
     let alive = true
-    estimateActualMinutes(origin, route.stops, travelMode).then((min) => {
-      if (alive) setPreciseMinutes(min)
+    estimateActualRoute(origin, route.stops, travelMode).then((result) => {
+      if (!alive) return
+      setPreciseMinutes(result?.totalMinutes ?? null)
+      setLegPaths(result?.legPaths ?? null)
     })
     return () => {
       alive = false
@@ -297,7 +301,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
       </div>
 
       <div className="pil-map">
-        <RouteMap origin={origin} stops={route?.stops || []} />
+        <RouteMap origin={origin} stops={route?.stops || []} legPaths={legPaths} />
       </div>
 
       {addOpen && (
@@ -314,12 +318,14 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
 }
 
 // origin + 순번 매겨진 stops → 카카오맵에 번호 핀 + 경로선. PilgrimagePage 전용이라 여기에 둔다.
-function RouteMap({ origin, stops }) {
+// legPaths가 있으면(CP6-4 실API 응답) 구간마다 실제 도로/경유지 좌표로 그리고, 없으면(도보이거나
+// 실API 실패) 직선으로 그린다 — 실선/점선으로 구분해서 "이건 추정치"라는 걸 시각적으로도 알려준다.
+function RouteMap({ origin, stops, legPaths }) {
   const { loaded, error } = useKakaoLoader()
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const overlaysRef = useRef([])
-  const polylineRef = useRef(null)
+  const polylinesRef = useRef([])
 
   // 지도 생성과 핀/경로선 그리기를 하나의 effect로 묶는다 — 따로 두면 "핀을 그릴 stops는
   // 이미 준비됐는데 지도(SDK 로딩)가 아직 안 끝난" 순서로 실행될 때 핀 effect가 조용히
@@ -338,29 +344,37 @@ function RouteMap({ origin, stops }) {
 
     overlaysRef.current.forEach((o) => o.setMap(null))
     overlaysRef.current = []
-    if (polylineRef.current) polylineRef.current.setMap(null)
+    polylinesRef.current.forEach((p) => p.setMap(null))
+    polylinesRef.current = []
 
     const points = [origin, ...stops]
-    const path = points.map((p) => new kakao.maps.LatLng(p.lat, p.lng))
+    const bounds = new kakao.maps.LatLngBounds()
 
-    if (path.length > 1) {
-      polylineRef.current = new kakao.maps.Polyline({
-        map,
-        path,
-        strokeWeight: 4,
-        strokeColor: '#F2814A',
-        strokeOpacity: 0.85,
-        strokeStyle: 'shortdash',
-      })
+    for (let i = 0; i < points.length - 1; i++) {
+      const legPoints = legPaths?.[i]?.length > 0 ? legPaths[i] : [points[i], points[i + 1]]
+      const path = legPoints.map((p) => new kakao.maps.LatLng(p.lat, p.lng))
+      path.forEach((ll) => bounds.extend(ll))
+      polylinesRef.current.push(
+        new kakao.maps.Polyline({
+          map,
+          path,
+          strokeWeight: 4,
+          strokeColor: '#F2814A',
+          strokeOpacity: 0.85,
+          // 실제 경로가 있으면 실선(정확한 경로), 없으면 점선(직선 추정)으로 구분.
+          strokeStyle: legPaths?.[i]?.length > 0 ? 'solid' : 'shortdash',
+        }),
+      )
     }
 
     const originOverlay = new kakao.maps.CustomOverlay({
       map,
-      position: path[0],
+      position: new kakao.maps.LatLng(origin.lat, origin.lng),
       content: '<div class="pil-pin pil-pin-origin">S</div>',
       yAnchor: 0.5,
     })
     overlaysRef.current.push(originOverlay)
+    bounds.extend(new kakao.maps.LatLng(origin.lat, origin.lng))
 
     stops.forEach((stop, i) => {
       const overlay = new kakao.maps.CustomOverlay({
@@ -370,14 +384,11 @@ function RouteMap({ origin, stops }) {
         yAnchor: 0.5,
       })
       overlaysRef.current.push(overlay)
+      bounds.extend(new kakao.maps.LatLng(stop.lat, stop.lng))
     })
 
-    if (path.length > 0) {
-      const bounds = new kakao.maps.LatLngBounds()
-      path.forEach((ll) => bounds.extend(ll))
-      map.setBounds(bounds)
-    }
-  }, [loaded, origin, stops])
+    if (points.length > 0) map.setBounds(bounds)
+  }, [loaded, origin, stops, legPaths])
 
   return (
     <div className="map-wrap">
