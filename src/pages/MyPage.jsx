@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import ProfileCard from '../components/mypage/ProfileCard'
+import SavedBakeriesPanel from '../components/mypage/SavedBakeriesPanel'
 
 // 마이페이지 — 프로필 카드 + 찜한 빵/찜한 코스/기록장/친구목록(준비중) 4개 패널.
 // 로그인 필수: 비로그인 상태면 안내만 보여준다(로그인은 상단 AuthMenu 에서).
@@ -33,6 +34,8 @@ export default function MyPage() {
       </div>
     )
   }
+
+  if (panel === 'bakeries') return <SavedBakeriesPanel onBack={() => setPanel('home')} />
 
   if (panel !== 'home') {
     // Task 5/6/7 에서 'bakeries'/'courses'/'diary' 분기가 여기 추가된다.

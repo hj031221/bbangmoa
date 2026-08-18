@@ -583,3 +583,7 @@ a{ color:var(--accent-text); }
   .mypage-home{ grid-template-columns:1fr; }
   .mypage-panel-grid{ grid-template-columns:1fr; }
 }
+.mypage-card-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px; }
+.mypage-item-card{ display:flex; flex-direction:column; gap:6px; border:1px solid var(--line); border-radius:14px; padding:14px; background:var(--card); }
+.mypage-item-name{ font-weight:700; color:var(--brown); }
+.mypage-item-sub{ font-size:.8rem; color:var(--muted); }
