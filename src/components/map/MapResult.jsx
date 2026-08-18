@@ -72,7 +72,7 @@ export default function MapResult({ onRetake }) {
   )
 
   return (
-    <div className="result">
+    <div className="result result-quiz">
       <header className="result-header">
         <button className="ghost-btn" onClick={onRetake}>
           ← 취향 다시 설정
