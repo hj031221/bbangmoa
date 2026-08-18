@@ -401,7 +401,10 @@ a{ color:var(--accent-text); }
 .result-quiz .result-map{ order:2; }
 .result-quiz .result-side{ order:1; }
 
+/* .result-quiz .result-body(클래스 2개)가 위 760px 미디어쿼리의 .result-body(클래스 1개)보다
+   우선순위가 높아 모바일에서도 이겨버리므로, 여기서 다시 한 번 명시적으로 되돌린다. */
 @media (max-width:760px){
+  .result-quiz .result-body{ grid-template-columns:1fr; }
   .result-quiz .result-map{ order:1; }
   .result-quiz .result-side{ order:2; }
 }
