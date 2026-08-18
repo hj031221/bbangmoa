@@ -202,7 +202,9 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
     )
   }
 
-  if (!route) {
+  // customStops === null 인 동안만 "로딩 중" — 사용자가 다 지워서 []가 된 것과는 구분해야 한다.
+  // 이 구분이 없으면 전부 지웠을 때도 계속 "준비하는 중…"이 떠서 화면이 통째로 날아간 것처럼 보였다.
+  if (customStops === null) {
     return <div className="banner">코스를 준비하는 중…</div>
   }
 
@@ -213,7 +215,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
           <span className="pil-title">대전한바퀴</span>
         </div>
 
-        {route && (
+        {route ? (
           <div className="pil-summary">
             <div>
               <b>{formatMinutes(preciseMinutes ?? route.totalMinutes)}</b>
@@ -228,6 +230,8 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
               <span>방문 예정</span>
             </div>
           </div>
+        ) : (
+          <p className="pil-empty-msg">코스가 비었어요 — 아래 "추가하기"로 빵집·관광지를 넣어보세요.</p>
         )}
 
         <ol className="pil-stops">
