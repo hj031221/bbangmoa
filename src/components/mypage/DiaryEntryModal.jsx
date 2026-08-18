@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 export default function DiaryEntryModal({ bakery, onClose, onSubmit }) {
   const [text, setText] = useState('')
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(false)
 
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose()
@@ -21,8 +22,13 @@ export default function DiaryEntryModal({ bakery, onClose, onSubmit }) {
     const trimmed = text.trim()
     if (!trimmed) return
     setSaving(true)
-    await onSubmit(trimmed)
+    setError(false)
+    const result = await onSubmit(trimmed)
     setSaving(false)
+    if (result?.error) {
+      setError(true)
+      return
+    }
     onClose()
   }
 
@@ -45,6 +51,7 @@ export default function DiaryEntryModal({ bakery, onClose, onSubmit }) {
             rows={5}
             autoFocus
           />
+          {error && <p className="diary-modal-error">저장에 실패했어요. 다시 시도해주세요.</p>}
           <button type="submit" className="primary-btn" disabled={saving || !text.trim()}>
             {saving ? '저장 중…' : '기록하기'}
           </button>

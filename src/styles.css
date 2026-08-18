@@ -426,7 +426,6 @@ a{ color:var(--accent-text); }
 .bread-reveal-actions{ display:flex; justify-content:center; gap:12px; }
 
 /* 나만의 리스트 */
-.saved-page h2{ color:var(--brown); margin-bottom:16px; }
 .saved-empty{ color:var(--muted); text-align:center; padding:60px 0; }
 .saved-list{ list-style:none; padding:0; margin:0; display:grid; gap:12px; }
 .saved-item{ display:flex; align-items:center; justify-content:space-between; gap:12px; border:1px solid var(--line); border-radius:14px; padding:14px; background:var(--card); }
@@ -595,6 +594,7 @@ a{ color:var(--accent-text); }
 .rec-actions{ margin-top:6px; }
 .diary-modal-form{ display:flex; flex-direction:column; gap:12px; width:100%; }
 .diary-modal-textarea{ width:100%; padding:12px; border:1.5px solid var(--line); border-radius:12px; font-family:inherit; font-size:.9rem; resize:vertical; }
+.diary-modal-error{ margin:0; font-size:.85rem; color:var(--accent-deep); }
 .diary-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; }
 .diary-card{ display:flex; flex-direction:column; gap:6px; align-items:flex-start; border:1px solid var(--line); border-radius:14px; padding:14px; background:var(--card); text-align:left; cursor:pointer; }
 .diary-card:hover{ border-color:var(--accent); }

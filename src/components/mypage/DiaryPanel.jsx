@@ -66,7 +66,14 @@ export default function DiaryPanel({ onBack }) {
             <>
               <p className="diary-detail-text">{selected.text}</p>
               <div className="mypage-nickname-actions">
-                <button type="button" className="ghost-btn" onClick={() => setEditing(true)}>
+                <button
+                  type="button"
+                  className="ghost-btn"
+                  onClick={() => {
+                    setDraft(selected.text)
+                    setEditing(true)
+                  }}
+                >
                   수정하기
                 </button>
                 <button

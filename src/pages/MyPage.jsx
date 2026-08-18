@@ -43,10 +43,6 @@ export default function MyPage() {
 
   if (panel === 'diary') return <DiaryPanel onBack={() => setPanel('home')} />
 
-  if (panel !== 'home') {
-    return null
-  }
-
   return (
     <div className="mypage-home">
       <ProfileCard />
@@ -67,6 +63,7 @@ export default function MyPage() {
           type="button"
           className="mypage-panel-card mypage-panel-card-disabled"
           onClick={() => setPanel('friends')}
+          aria-disabled="true"
         >
           <span className="mypage-panel-icon" aria-hidden="true">👥</span>
           친구목록
