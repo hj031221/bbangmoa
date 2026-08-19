@@ -247,41 +247,27 @@ a{ color:var(--accent-text); }
 .bm-footer{ max-width:var(--bm-container); margin:var(--bm-sp-6) auto 0; padding-top:var(--bm-sp-3); border-top:1px solid rgba(76,49,13,.12); display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; }
 .bm-footer img{ height:40px; width:auto; display:block; }
 .bm-footer span{ font-family:'HakgyoansimDunggeunmisoTTF-B', sans-serif; font-size:16px; color:var(--bm-ink); }
-/* 메인 미니 히어로 (시안 1p 스타일) */
-.bm-mhero{ padding:var(--bm-sp-8) var(--bm-sp-4) var(--bm-sp-7); text-align:center;
+/* 메인 미니 히어로 (시안 1p 스타일) — 좌측 정렬 카피+검색+CTA, 그 아래 시안 일러스트를
+   화면 전체 폭으로 깐다(시안처럼 그림이 화면 전체에 걸치도록). */
+.bm-mhero{ padding:var(--bm-sp-8) var(--bm-sp-4) 0; overflow:hidden;
   background:radial-gradient(circle at 15% 20%, var(--bm-halo1) 0%, rgba(255,219,161,0) 42%),
              radial-gradient(circle at 90% 10%, var(--bm-halo2) 0%, rgba(255,233,196,0) 38%), var(--bm-bg); }
-.bm-mhero-pin{ font-size:48px; margin-bottom:var(--bm-sp-3); }
-.bm-mhero h1{ margin:0 auto var(--bm-sp-2); font-size:var(--bm-fs-display); color:var(--bm-ink); max-width:760px; }
-.bm-mhero p{ margin:0 auto var(--bm-sp-4); font-size:var(--bm-fs-body); color:var(--bm-muted); max-width:480px; }
-.bm-mhero-actions{ display:flex; gap:var(--bm-sp-2); justify-content:center; flex-wrap:wrap; }
+.bm-mhero-copy{ max-width:var(--bm-container); margin:0 auto; display:flex; flex-direction:column;
+  align-items:center; text-align:center; gap:var(--bm-sp-3); }
+.bm-mhero h1{ margin:0; font-weight:700; font-size:var(--bm-fs-display); line-height:1.32; color:var(--bm-ink); max-width:520px; }
+.bm-mhero p{ margin:0; font-size:var(--bm-fs-body); color:var(--bm-muted); max-width:480px; }
+.bm-mhero-search{ display:flex; align-items:center; gap:8px; width:100%; max-width:420px;
+  background:var(--bm-card); border:1.5px solid var(--bm-line); border-radius:var(--bm-radius-pill);
+  padding:6px 8px 6px 20px; box-shadow:var(--bm-shadow-sm); }
+.bm-mhero-search input{ flex:1; min-width:0; border:none; outline:none; background:none; font:inherit; font-size:var(--bm-fs-body-sm); color:var(--bm-ink); }
+.bm-mhero-search input::placeholder{ color:var(--bm-muted); }
+.bm-mhero-search button{ flex:0 0 auto; width:38px; height:38px; border:none; border-radius:50%; background:var(--bm-accent); color:#fff; font-size:15px; display:flex; align-items:center; justify-content:center; }
+.bm-mhero-search button:hover{ background:var(--bm-accent-deep); }
+.bm-mhero-actions{ display:flex; gap:var(--bm-sp-2); flex-wrap:wrap; justify-content:center; }
+.bm-mhero .bm-mhero-illustration{ display:block; width:calc(100% + var(--bm-sp-4) * 2); max-width:none; height:auto;
+  margin:-160px calc(-1 * var(--bm-sp-4)) 0; }
 .bm-btn-ghost{ border:1.5px solid var(--bm-line); background:#fff; color:var(--bm-ink); font-size:var(--bm-fs-body); font-weight:700; padding:14px 26px; border-radius:var(--bm-radius-pill); }
 .bm-btn-ghost:hover{ border-color:var(--bm-accent); color:var(--bm-accent-deep); }
-
-/* 사진 캐러셀(빵집/관광지) — 대전시 관광 사이트 스타일 참고 */
-.bm-showcase{ padding:var(--bm-sp-7) var(--bm-sp-4); }
-.bm-photorow{ margin:0 auto var(--bm-sp-6); max-width:var(--bm-container); }
-.bm-photorow:last-child{ margin-bottom:0; }
-.bm-photorow-title{ font-size:var(--bm-fs-h3); color:var(--bm-ink); margin:0 0 var(--bm-sp-3); }
-
-/* 장소 원형 자동 캐러셀 (문화시설/관광지 공용) */
-.bm-culture{ display:flex; flex-direction:column; align-items:center; gap:var(--bm-sp-3); }
-.bm-culture-viewport-wrap{ position:relative; width:100%; max-width:900px; display:flex; align-items:center; }
-.bm-culture-viewport{ flex:1 1 auto; min-width:0; height:190px; overflow:hidden; }
-.bm-culture-arrow{ flex:0 0 auto; z-index:2; width:36px; height:36px; border-radius:50%; border:none; background:#fff; box-shadow:var(--bm-shadow-sm); color:var(--bm-ink); font-size:20px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; }
-.bm-culture-arrow:hover{ background:var(--bm-card2); }
-.bm-culture-arrow-prev{ margin-right:-36px; }
-.bm-culture-arrow-next{ margin-left:-36px; }
-.bm-culture-strip{ display:flex; align-items:center; height:100%; transition:transform .6s ease; will-change:transform; }
-.bm-culture-strip-instant{ transition:none; }
-.bm-culture-slot{ flex:0 0 auto; display:flex; align-items:center; justify-content:center; height:100%; }
-.bm-culture-circle{ width:150px; height:150px; border-radius:50%; object-fit:cover; box-shadow:var(--bm-shadow-md); background:var(--bm-card2); transition:transform .5s ease, opacity .5s ease; }
-.bm-culture-caption{ text-align:center; min-height:52px; }
-.bm-culture-name{ font-size:var(--bm-fs-h3); font-weight:700; color:var(--bm-ink); }
-.bm-culture-addr{ margin-top:4px; font-size:var(--bm-fs-body-sm); color:var(--bm-muted); }
-.bm-culture-dots{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; max-width:420px; }
-.bm-culture-dot{ width:8px; height:8px; border-radius:50%; border:none; padding:0; background:var(--bm-line); cursor:pointer; transition:background .2s, transform .2s; }
-.bm-culture-dot.active{ background:var(--bm-accent); transform:scale(1.3); }
 
 .bm-nav-links .bm-soon{ opacity:.5; cursor:default; }
 .bm-nav-links .bm-soon:hover{ background:none; }
@@ -296,7 +282,8 @@ a{ color:var(--accent-text); }
   .bm-nav-mobile-menu{ display:none; }
   .bm-hero-grid{ grid-template-columns:1.05fr .95fr; }
   .bm-hero-copy{ align-items:flex-start; text-align:left; }
-  .bm-hero-actions{ justify-content:flex-start; }
+  .bm-hero-actions, .bm-mhero-actions{ justify-content:flex-start; }
+  .bm-mhero-copy{ align-items:flex-start; text-align:left; }
   .bm-features-grid{ grid-template-columns:repeat(3, 1fr); }
   .bm-diff-compare{ grid-template-columns:1fr 1fr; }
 
