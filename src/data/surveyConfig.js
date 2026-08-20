@@ -33,7 +33,7 @@ export const BRANCHES = {
   A: {
     id: 'A',
     label: '든든한 한 끼',
-    candidateIds: ['breadLoaf', 'baguette', 'ciabatta', 'bagel', 'campagne', 'friedBread', 'focaccia', 'saltBread'],
+    candidateIds: ['breadLoaf', 'baguette', 'ciabatta', 'bagel', 'campagne', 'friedBread', 'saltBread'],
     questions: [
       {
         id: 'A_q2',
@@ -89,7 +89,7 @@ export const BRANCHES = {
   B: {
     id: 'B',
     label: '커피나 음료와 함께',
-    candidateIds: ['croissant', 'danish', 'kouignAmann', 'eggTart', 'cake', 'donut', 'madeleine', 'scone'],
+    candidateIds: ['croissant', 'eggTart', 'cake', 'donut', 'madeleine', 'scone'],
     questions: [
       {
         id: 'B_q2',
@@ -145,7 +145,7 @@ export const BRANCHES = {
   C: {
     id: 'C',
     label: '작은 디저트',
-    candidateIds: ['cake', 'donut', 'creamBread', 'redBeanBread', 'anBread', 'eggTart', 'kouignAmann', 'danish', 'madeleine'],
+    candidateIds: ['cake', 'donut', 'creamBread', 'redBeanBread', 'eggTart', 'madeleine'],
     questions: [
       {
         id: 'C_q2',
@@ -201,7 +201,7 @@ export const BRANCHES = {
   D: {
     id: 'D',
     label: '함께 먹거나 선물',
-    candidateIds: ['cake', 'eggTart', 'donut', 'anBread', 'redBeanBread', 'creamBread', 'danish', 'kouignAmann', 'madeleine'],
+    candidateIds: ['cake', 'eggTart', 'donut', 'redBeanBread', 'creamBread', 'madeleine'],
     questions: [
       {
         id: 'D_q2',
@@ -257,7 +257,7 @@ export const BRANCHES = {
   E: {
     id: 'E',
     label: '새로운 빵 발견',
-    candidateIds: ['kouignAmann', 'campagne', 'ciabatta', 'pretzel', 'focaccia', 'danish', 'eggTart', 'scone', 'madeleine'],
+    candidateIds: ['campagne', 'ciabatta', 'eggTart', 'scone', 'madeleine'],
     questions: [
       {
         id: 'E_q2',
