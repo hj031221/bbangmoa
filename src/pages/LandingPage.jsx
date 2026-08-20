@@ -14,7 +14,6 @@ import TourSurveyFlow from '../components/tour/TourSurveyFlow'
 import TourReveal from '../components/tour/TourReveal'
 import PilgrimagePage from '../components/tour/PilgrimagePage'
 import { resolveDistrict, isTourSurveyComplete } from '../lib/tourRecommend'
-import logo from '../assets/logo-typeA-full.png'
 
 // 랜딩 = 마케팅 사이트. 상단 메뉴바(NavBar)는 어떤 화면에서도 항상 떠 있고,
 // 메뉴 클릭에 따라 그 아래 본문만 바뀐다. "취향 테스트 시작" 계열 버튼을 누르면
@@ -163,6 +162,7 @@ export default function LandingPage() {
             origin={nearbyOrigin}
             onClearOrigin={() => setNearbyOrigin(null)}
             initialSearch={mapSearch}
+            onBack={goHome}
           />
         </div>
       )}
@@ -220,12 +220,6 @@ export default function LandingPage() {
       {isHome && (
         <div className="bm-home">
           <MainHero onStart={startTest} onOpenMap={() => openBakeryMap()} onSearch={searchBakeryMap} />
-
-          <div className="bm-footer">
-            <img src={logo} alt="빵모아 로고" />
-            <span>빵모아</span>
-            <span className="bm-footer-credit">· 『2026 관광데이터 활용 공모전』 출품작</span>
-          </div>
         </div>
       )}
     </div>
