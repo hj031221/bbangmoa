@@ -24,11 +24,12 @@ export function useFriends() {
     }
     setLoading(true)
 
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('friend_code')
       .eq('user_id', user.id)
       .maybeSingle()
+    if (profileError) console.error('[친구] 내 코드 조회 실패', profileError)
     setFriendCode(profile?.friend_code ?? null)
 
     const { data: requests, error } = await supabase
@@ -72,7 +73,7 @@ export function useFriends() {
 
   useEffect(() => {
     reload()
-  }, [user])
+  }, [user?.id])
 
   const sendRequestByCode = async (rawCode) => {
     if (!user) return { error: '로그인이 필요해요.' }
@@ -89,13 +90,15 @@ export function useFriends() {
     if (!target) return { error: '존재하지 않는 친구코드예요.' }
     if (target.user_id === user.id) return { error: '내 코드는 입력할 수 없어요.' }
 
-    const { data: existing } = await supabase
+    const { data: existing, error: existingError } = await supabase
       .from('friend_requests')
       .select('id, requester_id, status')
       .or(
         `and(requester_id.eq.${user.id},addressee_id.eq.${target.user_id}),and(requester_id.eq.${target.user_id},addressee_id.eq.${user.id})`,
       )
       .maybeSingle()
+
+    if (existingError) console.error('[친구] 기존 관계 조회 실패', existingError)
 
     if (existing) {
       if (existing.status === 'accepted') return { error: '이미 친구예요.' }
@@ -119,14 +122,22 @@ export function useFriends() {
       .from('friend_requests')
       .update({ status: 'accepted' })
       .eq('id', id)
-    if (error) console.error('[친구] 수락 실패', error)
+    if (error) {
+      console.error('[친구] 수락 실패', error)
+      return { error: '잠시 후 다시 시도해주세요.' }
+    }
     await reload()
+    return { error: null }
   }
 
   const removeRequest = async (id) => {
     const { error } = await supabase.from('friend_requests').delete().eq('id', id)
-    if (error) console.error('[친구] 삭제 실패', error)
+    if (error) {
+      console.error('[친구] 삭제 실패', error)
+      return { error: '잠시 후 다시 시도해주세요.' }
+    }
     await reload()
+    return { error: null }
   }
 
   return {
