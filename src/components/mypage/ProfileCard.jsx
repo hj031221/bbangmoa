@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useFriends } from '../../hooks/useFriends'
 import { getDisplayName } from '../../lib/displayName'
@@ -14,8 +14,15 @@ export default function ProfileCard() {
   const [draft, setDraft] = useState('')
   const [saving, setSaving] = useState(false)
   const [copied, setCopied] = useState('') // 'code' | 'link' | ''
+  const copiedTimeoutRef = useRef(null)
 
   const name = getDisplayName(user)
+
+  const showCopied = (which) => {
+    setCopied(which)
+    if (copiedTimeoutRef.current) clearTimeout(copiedTimeoutRef.current)
+    copiedTimeoutRef.current = setTimeout(() => setCopied(''), 1500)
+  }
   const initial = name?.[0] || '?'
 
   const startEdit = () => {
@@ -39,16 +46,24 @@ export default function ProfileCard() {
 
   const copyCode = async () => {
     if (!friendCode) return
-    await navigator.clipboard.writeText(friendCode)
-    setCopied('code')
-    setTimeout(() => setCopied(''), 1500)
+    try {
+      await navigator.clipboard.writeText(friendCode)
+    } catch (err) {
+      console.error('[프로필] 코드 복사 실패', err)
+      return
+    }
+    showCopied('code')
   }
 
   const copyLink = async () => {
     if (!friendCode) return
-    await navigator.clipboard.writeText(buildInviteLink(window.location.origin, friendCode))
-    setCopied('link')
-    setTimeout(() => setCopied(''), 1500)
+    try {
+      await navigator.clipboard.writeText(buildInviteLink(window.location.origin, friendCode))
+    } catch (err) {
+      console.error('[프로필] 초대 링크 복사 실패', err)
+      return
+    }
+    showCopied('link')
   }
 
   return (
