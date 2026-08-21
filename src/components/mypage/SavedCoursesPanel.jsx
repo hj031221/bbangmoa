@@ -4,8 +4,8 @@ import { useSavedCourses } from '../../hooks/useSavedCourses'
 import { formatCourseLabel } from '../../lib/courseLabel'
 import SavedCourseMap from './SavedCourseMap'
 
-export default function SavedCoursesPanel({ onBack }) {
-  const { courses, loading, removeCourse } = useSavedCourses()
+export default function SavedCoursesPanel({ onBack, targetUserId, readOnly = false }) {
+  const { courses, loading, removeCourse } = useSavedCourses(targetUserId)
   const [selectedId, setSelectedId] = useState(null)
 
   const selected = courses.find((c) => c.id === selectedId)
@@ -27,16 +27,18 @@ export default function SavedCoursesPanel({ onBack }) {
             </li>
           ))}
         </ol>
-        <button
-          type="button"
-          className="ghost-btn"
-          onClick={() => {
-            removeCourse(selectedId)
-            setSelectedId(null)
-          }}
-        >
-          코스 삭제
-        </button>
+        {!readOnly && (
+          <button
+            type="button"
+            className="ghost-btn"
+            onClick={() => {
+              removeCourse(selectedId)
+              setSelectedId(null)
+            }}
+          >
+            코스 삭제
+          </button>
+        )}
       </div>
     )
   }
