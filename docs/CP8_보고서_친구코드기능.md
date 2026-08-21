@@ -52,6 +52,10 @@
 - 태스크 11개 각각 개별 코드리뷰(3건은 1회 수정 루프 거쳐 클린), 전체 브랜치 최종 리뷰(opus) 1회 + fix wave 1회 + 재검토 1회로 마무리.
 - **미완료**: DB RLS/트리거/RPC의 실동작과 친구 요청→수락→읽기 전용 열람 전체 플로우, 초대 링크 로그인/비로그인 분기는 두 계정(브라우저 창 2개)으로 사람이 직접 확인해야 하는 영역 — 자동화 불가(이 프로젝트는 애초에 DB 레벨 자동테스트가 없음).
 
+### 실사용 검증 중 발견한 버그 (schema.sql 적용 직후)
+
+SQL을 실제 Supabase 프로젝트에 적용하고 신규 구글 계정으로 가입을 시도하자 `Database error saving new user`로 가입이 전부 막히는 문제가 발생했다. Postgres 로그 확인 결과 `42P01: relation "profiles" does not exist` — `auth.users` insert 트리거(`handle_new_user_profile`)가 GoTrue 쪽 연결에서 실행될 때 `search_path`에 `public`이 없어 트리거 안의 `profiles`/`generate_friend_code()` 참조가 해석되지 않는 문제였다. 최종 리뷰에서는 이 항목(4개 함수의 `search_path` 미고정)을 Supabase 린터 수준의 **Minor**로 분류하고 후속 이슈로 미뤘었는데, 실제로는 **신규 가입 자체를 막는 Critical 버그**였다. `alter function ... set search_path = public, pg_temp;`로 4개 함수 전부 고정해 해결, `schema.sql`에도 반영해뒀다.
+
 ## 머지 전 필수 작업
 
 1. **`supabase/schema.sql`을 Supabase SQL Editor에 다시 전체 붙여넣어 실행** — 이번에 추가된 보안 강화 섹션(파일 끝부분)이 실제 DB에 반영되지 않으면 위에서 설명한 친구관계 위조 취약점이 그대로 열려있는 상태다. 파일 전체가 멱등(idempotent)하게 작성돼 있어 처음부터 다시 실행해도 안전하다.

@@ -232,3 +232,12 @@ grant update (nickname) on profiles to authenticated;
 -- 남의 닉네임을 조회할 수 있었음 — 로그인 사용자에게만 실행 권한을 준다.
 revoke execute on function find_user_by_friend_code(text) from public, anon;
 grant execute on function find_user_by_friend_code(text) to authenticated;
+
+-- 실사용 중 발견: auth.users insert 트리거(handle_new_user_profile)가 GoTrue 쪽 연결의
+-- search_path 에 public 이 없는 상태로 실행돼 "relation profiles does not exist" 로
+-- 신규 가입 자체가 막히는 버그가 실제로 발생함(최종 리뷰에서는 lint 수준 Minor로만 분류했었음).
+-- 트리거 체인에 관련된 함수 전부에 search_path 를 명시적으로 고정.
+alter function generate_friend_code() set search_path = public, pg_temp;
+alter function handle_new_user_profile() set search_path = public, pg_temp;
+alter function is_friends_with(uuid) set search_path = public, pg_temp;
+alter function find_user_by_friend_code(text) set search_path = public, pg_temp;
