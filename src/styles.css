@@ -682,3 +682,10 @@ a{ color:var(--accent-text); }
 .friend-detail-menu{ display:grid; gap:12px; max-width:360px; }
 .friend-detail-menu-btn{ padding:16px; border:1px solid var(--line); border-radius:14px; background:var(--card); color:var(--brown); font-weight:700; text-align:left; }
 .friend-detail-menu-btn:hover{ border-color:var(--accent); }
+
+/* 초대 링크 모달/배너 */
+.invite-modal-backdrop{ position:fixed; inset:0; background:rgba(76,49,13,.45); display:flex; align-items:center; justify-content:center; z-index:50; }
+.invite-modal{ background:var(--card); border-radius:20px; padding:28px 24px; max-width:340px; width:90%; text-align:center; box-shadow:0 20px 40px rgba(76,49,13,.25); }
+.invite-modal-text{ margin:0 0 20px; color:var(--brown); font-weight:700; font-size:1.05rem; }
+.invite-notice-banner{ position:fixed; top:80px; left:50%; transform:translateX(-50%); background:var(--brown); color:#fff; padding:12px 20px; border-radius:999px; display:flex; align-items:center; gap:10px; font-size:.85rem; z-index:50; box-shadow:0 10px 24px rgba(76,49,13,.3); }
+.invite-notice-close{ border:none; background:none; color:#fff; font-size:1rem; cursor:pointer; line-height:1; padding:0; }
