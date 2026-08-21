@@ -205,3 +205,30 @@ stable
 as $$
   select user_id, nickname from profiles where friend_code = upper(code);
 $$;
+
+-- ===== 최종 리뷰 반영: RLS 보안 강화 =====
+
+-- 수락 정책의 WITH CHECK 가 status 만 검증해서, addressee 가 자신의 pending 행의
+-- requester_id/addressee_id 를 바꿔치기해 동의 없이 친구 관계를 위조할 수 있었음.
+-- WITH CHECK 에 auth.uid()=addressee_id 를 추가하고, update 권한을 status 컬럼만으로 제한.
+drop policy if exists "friend_requests_update_addressee_accept" on friend_requests;
+create policy "friend_requests_update_addressee_accept" on friend_requests
+  for update using (auth.uid() = addressee_id)
+  with check (auth.uid() = addressee_id and status = 'accepted');
+
+revoke update on friend_requests from authenticated;
+grant update (status) on friend_requests to authenticated;
+
+-- profiles_update_own 에 WITH CHECK 가 없어 본인 행의 아무 컬럼이나(friend_code 포함) 바꿀 수 있었음.
+-- 자가 편집된 코드는 RPC 의 upper(code) 조회 규칙과 충돌하므로 update 권한을 nickname 만으로 제한.
+drop policy if exists "profiles_update_own" on profiles;
+create policy "profiles_update_own" on profiles
+  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+revoke update on profiles from authenticated;
+grant update (nickname) on profiles to authenticated;
+
+-- 함수 생성 시 기본으로 EXECUTE 가 PUBLIC 에 부여돼 비로그인(anon) 요청도 코드를 스캔해
+-- 남의 닉네임을 조회할 수 있었음 — 로그인 사용자에게만 실행 권한을 준다.
+revoke execute on function find_user_by_friend_code(text) from public, anon;
+grant execute on function find_user_by_friend_code(text) to authenticated;

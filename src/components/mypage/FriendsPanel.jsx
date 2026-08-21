@@ -14,6 +14,7 @@ export default function FriendsPanel({ onBack, onSelectFriend }) {
     rejectRequest,
     cancelRequest,
     removeFriend,
+    error: loadError,
   } = useFriends()
   const [code, setCode] = useState('')
   const [message, setMessage] = useState('')
@@ -53,6 +54,7 @@ export default function FriendsPanel({ onBack, onSelectFriend }) {
           {sending ? '보내는 중…' : '친구 추가'}
         </button>
       </form>
+      {loadError && <p className="friend-form-message">{loadError}</p>}
       {message && <p className="friend-form-message">{message}</p>}
       {friendCode && <p className="friend-my-code">내 친구코드: {friendCode}</p>}
 

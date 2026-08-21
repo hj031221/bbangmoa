@@ -5,6 +5,28 @@ import { parseInviteCodeFromSearch, removeInviteCodeFromSearch } from '../lib/in
 
 const PENDING_KEY = 'bbangmoa_pending_friend_code'
 
+// sessionStorage 는 쿠키 차단/임베디드 웹뷰 등에서 접근 자체가 throw 할 수 있다.
+// 앱에 ErrorBoundary 가 없어 여기서 던지면 화면 전체가 하얗게 되므로,
+// useSavedBakeries 의 readLocal() 과 같은 방식으로 try/catch 후 안전하게 폴백한다.
+function stashPendingCode(code) {
+  try {
+    sessionStorage.setItem(PENDING_KEY, code)
+  } catch (err) {
+    console.error('[초대] 코드 임시 저장 실패', err)
+  }
+}
+
+function takePendingCode() {
+  try {
+    const code = sessionStorage.getItem(PENDING_KEY)
+    if (code) sessionStorage.removeItem(PENDING_KEY)
+    return code
+  } catch (err) {
+    console.error('[초대] 임시 저장 코드 조회 실패', err)
+    return null
+  }
+}
+
 // 초대 링크(?friend=코드)로 들어왔을 때 처리. 라우터가 없는 SPA 라 쿼리 파라미터를 직접 읽는다.
 // 로그인 상태면 바로 확인 모달을, 비로그인 상태면 코드를 sessionStorage 에 저장해뒀다가
 // 로그인 후(user 값이 바뀌는 시점) 이어서 처리한다.
@@ -30,6 +52,8 @@ export function useInviteLink(sendRequestByCode) {
   useEffect(() => {
     const codeFromUrl = parseInviteCodeFromSearch(window.location.search)
     if (codeFromUrl) {
+      // 비로그인 진입은 쿼리를 지우기 전에 먼저 저장한다 — 저장이 실패해도 그 시점엔 URL 이 아직 복구 수단으로 남아 있다.
+      if (!user) stashPendingCode(codeFromUrl)
       window.history.replaceState(
         null,
         '',
@@ -39,15 +63,14 @@ export function useInviteLink(sendRequestByCode) {
 
     if (!user) {
       if (codeFromUrl) {
-        sessionStorage.setItem(PENDING_KEY, codeFromUrl)
         setNotice('로그인하면 친구 요청을 보낼 수 있어요.')
       }
       return
     }
 
-    const pending = codeFromUrl || sessionStorage.getItem(PENDING_KEY)
+    const stashed = takePendingCode()
+    const pending = codeFromUrl || stashed
     if (pending) {
-      sessionStorage.removeItem(PENDING_KEY)
       lookupAndPrompt(pending)
     }
   }, [user])

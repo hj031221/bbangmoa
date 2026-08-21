@@ -51,7 +51,14 @@ export function useAuth() {
   const updateNickname = async (nickname) => {
     const result = await supabase?.auth.updateUser({ data: { nickname } })
     if (!result || result.error) return result ?? { error: new Error('로그인이 필요해요.') }
-    await supabase.from('profiles').update({ nickname }).eq('user_id', result.data.user.id)
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({ nickname })
+      .eq('user_id', result.data.user.id)
+    if (profileError) {
+      console.error('[프로필] 친구용 닉네임 동기화 실패', profileError)
+      return { ...result, error: profileError }
+    }
     return result
   }
 

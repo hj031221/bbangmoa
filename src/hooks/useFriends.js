@@ -13,6 +13,7 @@ export function useFriends() {
   const [incomingRequests, setIncomingRequests] = useState([])
   const [outgoingRequests, setOutgoingRequests] = useState([])
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
 
   const reload = async () => {
     if (!user) {
@@ -20,9 +21,11 @@ export function useFriends() {
       setFriends([])
       setIncomingRequests([])
       setOutgoingRequests([])
+      setError(null)
       return
     }
     setLoading(true)
+    setError(null)
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
@@ -32,13 +35,14 @@ export function useFriends() {
     if (profileError) console.error('[친구] 내 코드 조회 실패', profileError)
     setFriendCode(profile?.friend_code ?? null)
 
-    const { data: requests, error } = await supabase
+    const { data: requests, error: requestsError } = await supabase
       .from('friend_requests')
       .select('id, requester_id, addressee_id, status')
       .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`)
 
-    if (error) {
-      console.error('[친구] 목록 조회 실패', error)
+    if (requestsError) {
+      console.error('[친구] 목록 조회 실패', requestsError)
+      setError('친구 목록을 불러오지 못했어요. 잠시 후 다시 시도해주세요.')
       setLoading(false)
       return
     }
@@ -52,10 +56,15 @@ export function useFriends() {
 
     let nicknameById = {}
     if (otherIds.length > 0) {
-      const { data: profiles } = await supabase
+      const { data: profiles, error: nicknamesError } = await supabase
         .from('profiles')
         .select('user_id, nickname')
         .in('user_id', otherIds)
+      // 닉네임 조회 실패는 치명적이지 않다 — '이름 없음' 으로 폴백하고 목록 자체는 계속 그린다.
+      if (nicknamesError) {
+        console.error('[친구] 닉네임 조회 실패', nicknamesError)
+        setError('일부 친구 정보를 불러오지 못했어요.')
+      }
       nicknameById = Object.fromEntries((profiles ?? []).map((p) => [p.user_id, p.nickname]))
     }
 
@@ -146,6 +155,7 @@ export function useFriends() {
     incomingRequests,
     outgoingRequests,
     loading,
+    error,
     sendRequestByCode,
     acceptRequest,
     rejectRequest: removeRequest,

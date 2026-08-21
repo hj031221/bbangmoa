@@ -14,14 +14,24 @@ export default function ProfileCard() {
   const [draft, setDraft] = useState('')
   const [saving, setSaving] = useState(false)
   const [copied, setCopied] = useState('') // 'code' | 'link' | ''
+  const [copyError, setCopyError] = useState('')
   const copiedTimeoutRef = useRef(null)
 
   const name = getDisplayName(user)
 
+  // 복사 결과(성공 라벨/실패 메시지)는 같은 타이머 하나로만 정리한다 — 추적 안 되는 setTimeout 을 늘리지 않기 위해.
   const showCopied = (which) => {
     setCopied(which)
+    setCopyError('')
     if (copiedTimeoutRef.current) clearTimeout(copiedTimeoutRef.current)
     copiedTimeoutRef.current = setTimeout(() => setCopied(''), 1500)
+  }
+
+  const showCopyError = () => {
+    setCopied('')
+    setCopyError('복사에 실패했어요.')
+    if (copiedTimeoutRef.current) clearTimeout(copiedTimeoutRef.current)
+    copiedTimeoutRef.current = setTimeout(() => setCopyError(''), 1500)
   }
   const initial = name?.[0] || '?'
 
@@ -50,6 +60,7 @@ export default function ProfileCard() {
       await navigator.clipboard.writeText(friendCode)
     } catch (err) {
       console.error('[프로필] 코드 복사 실패', err)
+      showCopyError()
       return
     }
     showCopied('code')
@@ -61,6 +72,7 @@ export default function ProfileCard() {
       await navigator.clipboard.writeText(buildInviteLink(window.location.origin, friendCode))
     } catch (err) {
       console.error('[프로필] 초대 링크 복사 실패', err)
+      showCopyError()
       return
     }
     showCopied('link')
@@ -106,6 +118,7 @@ export default function ProfileCard() {
               {copied === 'link' ? '복사됨!' : '초대 링크 복사'}
             </button>
           </div>
+          {copyError && <p className="friend-form-message">{copyError}</p>}
         </div>
       )}
     </div>
