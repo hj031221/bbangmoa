@@ -616,6 +616,9 @@ a{ color:var(--accent-text); }
 .mypage-preview-chevron{ width:8px; height:14px; flex:0 0 auto; opacity:.9; color:#fff; }
 .mypage-preview-body{ padding:16px; flex:1; }
 .mypage-preview-empty{ margin:0; color:var(--muted); text-align:center; padding:24px 0; font-size:.85rem; }
+.mypage-preview-badge{ background:var(--accent); color:#fff; font-size:.7rem; font-weight:800; min-width:18px; height:18px; border-radius:999px; display:flex; align-items:center; justify-content:center; padding:0 5px; }
+.mypage-preview-friend-chips{ display:flex; flex-wrap:wrap; gap:8px; }
+.mypage-preview-friend-chip{ background:var(--card2); color:var(--brown); font-size:.8rem; font-weight:600; padding:6px 12px; border-radius:999px; }
 .mypage-preview-bakery-grid{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
 .mypage-preview-bakery-card{ display:flex; flex-direction:column; align-items:center; gap:4px; min-width:0; border:1px solid var(--line); border-radius:12px; padding:10px; text-align:center; }
 .mypage-preview-bakery-icon{ font-size:1.4rem; }
