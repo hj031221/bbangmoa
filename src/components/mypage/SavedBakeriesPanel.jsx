@@ -19,7 +19,14 @@ export default function SavedBakeriesPanel({ onBack }) {
         <div className="mypage-card-grid">
           {saved.map((b) => (
             <div key={b.id} className="mypage-item-card">
-              <span className="mypage-item-name">{b.name}</span>
+              {b.breadType ? (
+                <>
+                  <span className="mypage-item-name">{b.breadType}</span>
+                  <span className="mypage-item-sub">{b.name}</span>
+                </>
+              ) : (
+                <span className="mypage-item-name">{b.name}</span>
+              )}
               {b.address && <span className="mypage-item-sub">{b.address}</span>}
               <button type="button" className="save-btn saved" onClick={() => toggleSave(b)}>
                 ❤️ 찜 해제

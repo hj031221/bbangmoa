@@ -588,25 +588,54 @@ a{ color:var(--accent-text); }
 /* ===== 마이페이지 ===== */
 .mypage-gate{ max-width:480px; margin:80px auto; text-align:center; color:var(--muted); }
 .mypage-gate h2{ color:var(--brown); margin-bottom:10px; }
-.mypage-home{ display:grid; grid-template-columns:240px 1fr; gap:24px; align-items:start; }
-.mypage-profile{ display:flex; flex-direction:column; align-items:center; gap:10px; border:1px solid var(--line); border-radius:16px; padding:24px 16px; background:var(--card); text-align:center; }
+.mypage-home{ display:grid; grid-template-columns:180px 1fr; gap:24px; align-items:start; margin-top:56px; }
+.mypage-home-main{ display:flex; flex-direction:column; }
+.mypage-home-heading{ margin:6px 0 20px; }
+.mypage-home-heading h2{ margin:0 0 6px; color:var(--brown); }
+.mypage-home-heading p{ margin:0; color:var(--muted); font-size:.9rem; }
+.mypage-profile{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; min-height:340px; border:1px solid var(--line); border-radius:16px; padding:24px 16px; background:var(--card); text-align:center; }
 .mypage-avatar{ width:80px; height:80px; border-radius:50%; background:var(--gold); color:#fff; font-size:1.8rem; font-weight:800; display:flex; align-items:center; justify-content:center; }
 .mypage-name{ margin:0; color:var(--brown); }
 .mypage-nickname-form{ display:flex; flex-direction:column; gap:8px; width:100%; }
 .mypage-nickname-input{ padding:8px 12px; border:1.5px solid var(--line); border-radius:999px; font-size:.9rem; text-align:center; }
 .mypage-nickname-actions{ display:flex; gap:8px; justify-content:center; }
-.mypage-panel-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:16px; }
-.mypage-panel-card{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:32px 16px; border:1px solid var(--line); border-radius:16px; background:var(--card); font-weight:700; color:var(--brown); }
-.mypage-panel-card:hover{ border-color:var(--accent); }
-.mypage-panel-card-disabled{ opacity:.55; }
-.mypage-panel-icon{ font-size:1.6rem; }
+/* 마이페이지 홈 미리보기 패널 — 시안(대전 웹사이트4.pdf 11p) 골드 헤더 + 흰 배경 리스트 카드.
+   .result-header/.tour-detail-header 와 같은 골드 헤더 패턴을 마이페이지 전용 클래스로 재사용. */
+.mypage-preview-grid{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; align-items:start; }
+.mypage-preview-panel{ display:flex; flex-direction:column; min-width:0; background:var(--card); border-radius:20px; overflow:hidden; box-shadow:0 12px 26px rgba(76,49,13,.10); }
+.mypage-preview-header{ display:flex; align-items:center; gap:8px; width:100%; border:none; background:var(--gold); color:#fff; padding:14px 16px; font-weight:700; font-size:.95rem; cursor:pointer; text-align:left; }
+.mypage-preview-header:hover{ background:#DE9E2E; }
+.mypage-preview-panel-disabled .mypage-preview-header{ cursor:default; opacity:.85; }
+.mypage-preview-panel-disabled .mypage-preview-header:hover{ background:var(--gold); }
+.mypage-preview-icon{ font-size:1.1rem; flex:0 0 auto; }
+.mypage-preview-icon-badge{ width:30px; height:30px; border-radius:50%; background:#fff; flex:0 0 auto; display:flex; align-items:center; justify-content:center; }
+.mypage-preview-title{ flex:1; }
+.mypage-preview-chevron{ width:8px; height:14px; flex:0 0 auto; opacity:.9; color:#fff; }
+.mypage-preview-body{ padding:16px; flex:1; }
+.mypage-preview-empty{ margin:0; color:var(--muted); text-align:center; padding:24px 0; font-size:.85rem; }
+.mypage-preview-bakery-grid{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.mypage-preview-bakery-card{ display:flex; flex-direction:column; align-items:center; gap:4px; min-width:0; border:1px solid var(--line); border-radius:12px; padding:10px; text-align:center; }
+.mypage-preview-bakery-icon{ font-size:1.4rem; }
+.mypage-preview-bakery-name{ font-size:.8rem; font-weight:600; color:var(--brown); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.mypage-preview-bakery-sub{ font-size:.7rem; color:var(--muted); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.mypage-preview-course-list{ list-style:none; margin:0; padding:0; display:grid; gap:10px; }
+.mypage-preview-course-item{ display:flex; align-items:center; gap:10px; border:1px solid var(--line); border-radius:12px; padding:10px 12px; font-size:.8rem; font-weight:600; color:var(--brown); }
+.mypage-preview-course-num{ flex:0 0 auto; width:22px; height:22px; border-radius:50%; background:var(--gold); color:#fff; font-size:.75rem; font-weight:800; display:flex; align-items:center; justify-content:center; }
+.mypage-preview-diary-body{ display:flex; flex-direction:column; gap:10px; }
+.mypage-preview-diary-card{ background:var(--card2); border-radius:12px; padding:10px 12px; }
+.mypage-preview-diary-date{ font-size:.75rem; color:var(--muted); }
+.mypage-preview-diary-text{ margin:4px 0 0; font-size:.82rem; color:var(--ink); overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; }
 .mypage-panel{ max-width:720px; margin:0 auto; }
 .mypage-panel-header{ display:flex; align-items:center; gap:10px; margin-bottom:16px; }
 .mypage-panel-header h3{ margin:0; color:var(--brown); }
 .mypage-back{ border:none; background:none; font-size:1.4rem; color:var(--brown); cursor:pointer; line-height:1; padding:4px 8px; }
+@media (max-width:1024px){
+  .mypage-preview-grid{ grid-template-columns:repeat(2,1fr); }
+}
 @media (max-width:760px){
   .mypage-home{ grid-template-columns:1fr; }
-  .mypage-panel-grid{ grid-template-columns:1fr; }
+  .mypage-profile{ min-height:0; }
+  .mypage-preview-grid{ grid-template-columns:1fr; }
 }
 .mypage-card-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px; }
 .mypage-item-card{ display:flex; flex-direction:column; gap:6px; border:1px solid var(--line); border-radius:14px; padding:14px; background:var(--card); }
