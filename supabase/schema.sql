@@ -69,3 +69,175 @@ create policy "diary_entries_update_own" on diary_entries
 
 create policy "diary_entries_delete_own" on diary_entries
   for delete using (auth.uid() = user_id);
+
+-- ===== 이슈 #24: 친구코드 기반 친구 기능 =====
+
+-- 공개 프로필 — auth.users 는 클라이언트에서 타인 조회가 불가능해 별도 테이블이 필요하다.
+create table if not exists profiles (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  nickname text,
+  friend_code text not null unique,
+  created_at timestamptz not null default now()
+);
+
+alter table profiles enable row level security;
+
+-- 랜덤 8자리 코드 생성 (0/O/1/I 등 헷갈리는 문자 제외)
+create or replace function generate_friend_code()
+returns text
+language plpgsql
+as $$
+declare
+  chars text := 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  code text;
+  exists_code boolean;
+begin
+  loop
+    code := '';
+    for i in 1..8 loop
+      code := code || substr(chars, floor(random() * length(chars) + 1)::int, 1);
+    end loop;
+    select exists(select 1 from profiles where friend_code = code) into exists_code;
+    exit when not exists_code;
+  end loop;
+  return code;
+end;
+$$;
+
+-- 신규 가입자: auth.users insert 시 profiles 행 자동 생성
+create or replace function handle_new_user_profile()
+returns trigger
+language plpgsql
+security definer
+as $$
+begin
+  insert into profiles (user_id, nickname, friend_code)
+  values (new.id, new.raw_user_meta_data->>'nickname', generate_friend_code())
+  on conflict (user_id) do nothing;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created_profile on auth.users;
+create trigger on_auth_user_created_profile
+  after insert on auth.users
+  for each row execute function handle_new_user_profile();
+
+-- 기존 가입자 백필 (이 스크립트를 처음 실행할 때 1회 반영됨, 이후엔 no-op)
+insert into profiles (user_id, nickname, friend_code)
+select id, raw_user_meta_data->>'nickname', generate_friend_code()
+from auth.users
+on conflict (user_id) do nothing;
+
+-- 친구 요청/관계. 수락 시 새 행을 만들지 않고 status 만 바뀐다.
+create table if not exists friend_requests (
+  id uuid primary key default gen_random_uuid(),
+  requester_id uuid not null references auth.users(id) on delete cascade,
+  addressee_id uuid not null references auth.users(id) on delete cascade,
+  status text not null default 'pending' check (status in ('pending', 'accepted')),
+  created_at timestamptz not null default now(),
+  check (requester_id <> addressee_id),
+  unique (requester_id, addressee_id)
+);
+
+alter table friend_requests enable row level security;
+
+create policy "friend_requests_select_involved" on friend_requests
+  for select using (auth.uid() = requester_id or auth.uid() = addressee_id);
+
+create policy "friend_requests_insert_as_requester" on friend_requests
+  for insert with check (auth.uid() = requester_id);
+
+create policy "friend_requests_update_addressee_accept" on friend_requests
+  for update using (auth.uid() = addressee_id) with check (status = 'accepted');
+
+create policy "friend_requests_delete_involved" on friend_requests
+  for delete using (auth.uid() = requester_id or auth.uid() = addressee_id);
+
+-- 본인 또는 요청 관계(대기/수락 불문)가 있는 상대만 프로필 조회 가능
+create policy "profiles_select_self_or_related" on profiles
+  for select using (
+    auth.uid() = user_id
+    or exists (
+      select 1 from friend_requests
+      where (requester_id = auth.uid() and addressee_id = profiles.user_id)
+         or (requester_id = profiles.user_id and addressee_id = auth.uid())
+    )
+  );
+
+create policy "profiles_update_own" on profiles
+  for update using (auth.uid() = user_id);
+
+-- 친구 관계 판정 헬퍼
+create or replace function is_friends_with(other_user uuid)
+returns boolean
+language sql
+security definer
+stable
+as $$
+  select exists (
+    select 1 from friend_requests
+    where status = 'accepted'
+      and ((requester_id = auth.uid() and addressee_id = other_user)
+        or (requester_id = other_user and addressee_id = auth.uid()))
+  );
+$$;
+
+-- 기존 3개 테이블: "본인만" → "본인 또는 수락된 친구" 로 select 정책 교체 (insert/update/delete 는 그대로 본인만)
+drop policy if exists "saved_bakeries_select_own" on saved_bakeries;
+create policy "saved_bakeries_select_own_or_friend" on saved_bakeries
+  for select using (auth.uid() = user_id or is_friends_with(user_id));
+
+drop policy if exists "saved_courses_select_own" on saved_courses;
+create policy "saved_courses_select_own_or_friend" on saved_courses
+  for select using (auth.uid() = user_id or is_friends_with(user_id));
+
+drop policy if exists "diary_entries_select_own" on diary_entries;
+create policy "diary_entries_select_own_or_friend" on diary_entries
+  for select using (auth.uid() = user_id or is_friends_with(user_id));
+
+-- 친구가 아닌 상대는 RLS 로 못 찾으므로, 코드 정확히 일치하는 1건만 반환하는 RPC.
+create or replace function find_user_by_friend_code(code text)
+returns table(user_id uuid, nickname text)
+language sql
+security definer
+stable
+as $$
+  select user_id, nickname from profiles where friend_code = upper(code);
+$$;
+
+-- ===== 최종 리뷰 반영: RLS 보안 강화 =====
+
+-- 수락 정책의 WITH CHECK 가 status 만 검증해서, addressee 가 자신의 pending 행의
+-- requester_id/addressee_id 를 바꿔치기해 동의 없이 친구 관계를 위조할 수 있었음.
+-- WITH CHECK 에 auth.uid()=addressee_id 를 추가하고, update 권한을 status 컬럼만으로 제한.
+drop policy if exists "friend_requests_update_addressee_accept" on friend_requests;
+create policy "friend_requests_update_addressee_accept" on friend_requests
+  for update using (auth.uid() = addressee_id)
+  with check (auth.uid() = addressee_id and status = 'accepted');
+
+revoke update on friend_requests from authenticated;
+grant update (status) on friend_requests to authenticated;
+
+-- profiles_update_own 에 WITH CHECK 가 없어 본인 행의 아무 컬럼이나(friend_code 포함) 바꿀 수 있었음.
+-- 자가 편집된 코드는 RPC 의 upper(code) 조회 규칙과 충돌하므로 update 권한을 nickname 만으로 제한.
+drop policy if exists "profiles_update_own" on profiles;
+create policy "profiles_update_own" on profiles
+  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+revoke update on profiles from authenticated;
+grant update (nickname) on profiles to authenticated;
+
+-- 함수 생성 시 기본으로 EXECUTE 가 PUBLIC 에 부여돼 비로그인(anon) 요청도 코드를 스캔해
+-- 남의 닉네임을 조회할 수 있었음 — 로그인 사용자에게만 실행 권한을 준다.
+revoke execute on function find_user_by_friend_code(text) from public, anon;
+grant execute on function find_user_by_friend_code(text) to authenticated;
+
+-- 실사용 중 발견: auth.users insert 트리거(handle_new_user_profile)가 GoTrue 쪽 연결의
+-- search_path 에 public 이 없는 상태로 실행돼 "relation profiles does not exist" 로
+-- 신규 가입 자체가 막히는 버그가 실제로 발생함(최종 리뷰에서는 lint 수준 Minor로만 분류했었음).
+-- 트리거 체인에 관련된 함수 전부에 search_path 를 명시적으로 고정.
+alter function generate_friend_code() set search_path = public, pg_temp;
+alter function handle_new_user_profile() set search_path = public, pg_temp;
+alter function is_friends_with(uuid) set search_path = public, pg_temp;
+alter function find_user_by_friend_code(text) set search_path = public, pg_temp;

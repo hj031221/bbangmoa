@@ -1,9 +1,9 @@
 import { useSavedBakeries } from '../../hooks/useSavedBakeries'
 
-// 마이페이지 찜한 빵 목록 패널. useSavedBakeries 는 그대로 재사용하고
-// 카드 그리드 UI만 시안(대전 웹사이트 4.pdf page 11/12)에 맞게 새로 구성한다.
-export default function SavedBakeriesPanel({ onBack }) {
-  const { saved, toggleSave } = useSavedBakeries()
+// 마이페이지 찜한 빵 목록 패널. targetUserId 가 있으면(친구 상세 조회) 그 유저 데이터를 읽어오고,
+// readOnly 면 찜 해제 버튼만 숨긴다(RLS 로도 어차피 타인 delete 는 막혀 있음).
+export default function SavedBakeriesPanel({ onBack, targetUserId, readOnly = false }) {
+  const { saved, toggleSave } = useSavedBakeries(targetUserId)
 
   return (
     <div className="mypage-panel">
@@ -28,9 +28,11 @@ export default function SavedBakeriesPanel({ onBack }) {
                 <span className="mypage-item-name">{b.name}</span>
               )}
               {b.address && <span className="mypage-item-sub">{b.address}</span>}
-              <button type="button" className="save-btn saved" onClick={() => toggleSave(b)}>
-                ❤️ 찜 해제
-              </button>
+              {!readOnly && (
+                <button type="button" className="save-btn saved" onClick={() => toggleSave(b)}>
+                  ❤️ 찜 해제
+                </button>
+              )}
             </div>
           ))}
         </div>

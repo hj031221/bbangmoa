@@ -17,13 +17,14 @@ function readLocal() {
 //   로그아웃 상태: localStorage(브라우저별) 기반.
 //   로그인 상태: Supabase saved_bakeries 테이블(계정별, 기기 간 동기화).
 //     로컬 목록과는 합치지 않고, 로그인 시점부터 계정 DB 기준으로 새로 시작한다.
-export function useSavedBakeries() {
+//   targetUserId 가 있으면(친구 목록 읽기 전용 조회) 그 id 로만 조회하고 로컬스토리지는 건드리지 않는다.
+export function useSavedBakeries(targetUserId) {
   const { user } = useAuth()
-  const [saved, setSaved] = useState(readLocal)
+  const queryUserId = targetUserId ?? user?.id
+  const [saved, setSaved] = useState(targetUserId ? [] : readLocal)
 
-  // 로그인 상태가 바뀌면 그에 맞는 소스에서 다시 읽는다.
   useEffect(() => {
-    if (!user) {
+    if (!queryUserId) {
       setSaved(readLocal())
       return
     }
@@ -31,7 +32,7 @@ export function useSavedBakeries() {
     supabase
       .from('saved_bakeries')
       .select('bakery')
-      .eq('user_id', user.id)
+      .eq('user_id', queryUserId)
       .then(({ data, error }) => {
         if (!alive) return
         if (error) {
@@ -43,12 +44,12 @@ export function useSavedBakeries() {
     return () => {
       alive = false
     }
-  }, [user])
+  }, [queryUserId])
 
-  // 로그아웃 상태에서만 로컬에 반영 (로그인 상태는 토글 시 DB에 직접 반영)
+  // 로그아웃 상태에서만 로컬에 반영 (로그인 상태는 토글 시 DB에 직접 반영, 친구 조회는 애초에 mutate 안 함)
   useEffect(() => {
-    if (!user) localStorage.setItem(STORAGE_KEY, JSON.stringify(saved))
-  }, [saved, user])
+    if (!targetUserId && !user) localStorage.setItem(STORAGE_KEY, JSON.stringify(saved))
+  }, [saved, user, targetUserId])
 
   const toggleSave = (bakery) => {
     const alreadySaved = saved.some((b) => b.id === bakery.id)

@@ -3,9 +3,9 @@ import { useDiaryEntries } from '../../hooks/useDiaryEntries'
 import { formatDiaryDate as formatDate } from '../../lib/formatDate'
 
 // 마이페이지 기록장 패널. 작성은 RecommendCard(빵집 상세)의 "기록 남기기"에서만 가능
-// — 여기선 목록 보기 / 수정 / 삭제만 한다.
-export default function DiaryPanel({ onBack }) {
-  const { entries, loading, updateEntry, removeEntry } = useDiaryEntries()
+// — 여기선 목록 보기 / 수정 / 삭제만 한다. targetUserId+readOnly 면 친구 기록장을 읽기 전용으로 본다.
+export default function DiaryPanel({ onBack, targetUserId, readOnly = false }) {
+  const { entries, loading, updateEntry, removeEntry } = useDiaryEntries(targetUserId)
   const [selectedId, setSelectedId] = useState(null)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
@@ -40,7 +40,7 @@ export default function DiaryPanel({ onBack }) {
             <span className="diary-detail-bakery">{selected.bakery?.name}</span>
             <span>{formatDate(selected.created_at)}</span>
           </div>
-          {editing ? (
+          {editing && !readOnly ? (
             <form onSubmit={submitEdit} className="diary-modal-form">
               <textarea
                 className="diary-modal-textarea"
@@ -61,28 +61,30 @@ export default function DiaryPanel({ onBack }) {
           ) : (
             <>
               <p className="diary-detail-text">{selected.text}</p>
-              <div className="mypage-nickname-actions">
-                <button
-                  type="button"
-                  className="ghost-btn"
-                  onClick={() => {
-                    setDraft(selected.text)
-                    setEditing(true)
-                  }}
-                >
-                  수정하기
-                </button>
-                <button
-                  type="button"
-                  className="ghost-btn"
-                  onClick={() => {
-                    removeEntry(selectedId)
-                    setSelectedId(null)
-                  }}
-                >
-                  삭제
-                </button>
-              </div>
+              {!readOnly && (
+                <div className="mypage-nickname-actions">
+                  <button
+                    type="button"
+                    className="ghost-btn"
+                    onClick={() => {
+                      setDraft(selected.text)
+                      setEditing(true)
+                    }}
+                  >
+                    수정하기
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost-btn"
+                    onClick={() => {
+                      removeEntry(selectedId)
+                      setSelectedId(null)
+                    }}
+                  >
+                    삭제
+                  </button>
+                </div>
+              )}
             </>
           )}
         </div>

@@ -649,6 +649,9 @@ a{ color:var(--accent-text); }
 .mypage-nickname-form{ display:flex; flex-direction:column; gap:8px; width:100%; }
 .mypage-nickname-input{ padding:8px 12px; border:1.5px solid var(--line); border-radius:999px; font-size:.9rem; text-align:center; }
 .mypage-nickname-actions{ display:flex; gap:8px; justify-content:center; }
+.mypage-friend-code{ margin-top:12px; padding-top:12px; border-top:1px solid var(--line); width:100%; text-align:center; }
+.mypage-friend-code-label{ display:block; font-size:.8rem; color:var(--muted); margin-bottom:8px; }
+.mypage-friend-code-actions{ display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
 /* 마이페이지 홈 미리보기 패널 — 시안(대전 웹사이트4.pdf 11p) 골드 헤더 + 흰 배경 리스트 카드.
    .result-header/.tour-detail-header 와 같은 골드 헤더 패턴을 마이페이지 전용 클래스로 재사용. */
 .mypage-preview-grid{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; align-items:start; }
@@ -663,6 +666,9 @@ a{ color:var(--accent-text); }
 .mypage-preview-chevron{ width:8px; height:14px; flex:0 0 auto; opacity:.9; color:#fff; }
 .mypage-preview-body{ padding:16px; flex:1; }
 .mypage-preview-empty{ margin:0; color:var(--muted); text-align:center; padding:24px 0; font-size:.85rem; }
+.mypage-preview-badge{ background:var(--accent); color:#fff; font-size:.7rem; font-weight:800; min-width:18px; height:18px; border-radius:999px; display:flex; align-items:center; justify-content:center; padding:0 5px; }
+.mypage-preview-friend-chips{ display:flex; flex-wrap:wrap; gap:8px; }
+.mypage-preview-friend-chip{ background:var(--card2); color:var(--brown); font-size:.8rem; font-weight:600; padding:6px 12px; border-radius:999px; }
 .mypage-preview-bakery-grid{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
 .mypage-preview-bakery-card{ display:flex; flex-direction:column; align-items:center; gap:4px; min-width:0; border:1px solid var(--line); border-radius:12px; padding:10px; text-align:center; }
 .mypage-preview-bakery-icon{ font-size:1.4rem; }
@@ -709,3 +715,27 @@ a{ color:var(--accent-text); }
 .diary-detail-meta{ display:flex; justify-content:space-between; margin-bottom:12px; color:var(--muted); font-size:.85rem; }
 .diary-detail-bakery{ font-weight:700; color:var(--brown); }
 .diary-detail-text{ white-space:pre-wrap; line-height:1.6; color:var(--ink); }
+
+/* 친구목록 전체 화면 */
+.friend-code-form{ display:flex; gap:8px; margin-bottom:8px; }
+.friend-code-form .mypage-nickname-input{ flex:1; text-align:left; }
+.friend-form-message{ margin:0 0 12px; font-size:.85rem; color:var(--accent-text); }
+.friend-my-code{ margin:0 0 24px; font-size:.85rem; color:var(--muted); }
+.friend-section{ margin-bottom:24px; }
+.friend-section h4{ margin:0 0 10px; color:var(--brown); font-size:.95rem; }
+.friend-request-list, .friend-list{ list-style:none; margin:0; padding:0; display:grid; gap:10px; }
+.friend-request-item, .friend-list-item{ display:flex; align-items:center; justify-content:space-between; gap:12px; border:1px solid var(--line); border-radius:14px; padding:10px 14px; background:var(--card); }
+.friend-request-actions{ display:flex; gap:8px; }
+.friend-request-pending{ color:var(--muted); font-size:.85rem; }
+.friend-list-item-btn{ display:flex; align-items:center; gap:10px; border:none; background:none; font-weight:700; color:var(--brown); cursor:pointer; padding:0; font-size:.95rem; }
+.friend-avatar{ width:32px; height:32px; border-radius:50%; background:var(--gold); color:#fff; font-weight:800; display:flex; align-items:center; justify-content:center; font-size:.9rem; flex:0 0 auto; }
+.friend-detail-menu{ display:grid; gap:12px; max-width:360px; }
+.friend-detail-menu-btn{ padding:16px; border:1px solid var(--line); border-radius:14px; background:var(--card); color:var(--brown); font-weight:700; text-align:left; }
+.friend-detail-menu-btn:hover{ border-color:var(--accent); }
+
+/* 초대 링크 모달/배너 */
+.invite-modal-backdrop{ position:fixed; inset:0; background:rgba(76,49,13,.45); display:flex; align-items:center; justify-content:center; z-index:50; }
+.invite-modal{ background:var(--card); border-radius:20px; padding:28px 24px; max-width:340px; width:90%; text-align:center; box-shadow:0 20px 40px rgba(76,49,13,.25); }
+.invite-modal-text{ margin:0 0 20px; color:var(--brown); font-weight:700; font-size:1.05rem; }
+.invite-notice-banner{ position:fixed; top:80px; left:50%; transform:translateX(-50%); background:var(--brown); color:#fff; padding:12px 20px; border-radius:999px; display:flex; align-items:center; gap:10px; font-size:.85rem; z-index:50; box-shadow:0 10px 24px rgba(76,49,13,.3); }
+.invite-notice-close{ border:none; background:none; color:#fff; font-size:1rem; cursor:pointer; line-height:1; padding:0; }

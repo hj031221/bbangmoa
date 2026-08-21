@@ -14,11 +14,16 @@ import TourSurveyFlow from '../components/tour/TourSurveyFlow'
 import TourReveal from '../components/tour/TourReveal'
 import PilgrimagePage from '../components/tour/PilgrimagePage'
 import { resolveDistrict, isTourSurveyComplete } from '../lib/tourRecommend'
+import { useFriends } from '../hooks/useFriends'
+import { useInviteLink } from '../hooks/useInviteLink'
+import InviteFriendModal from '../components/mypage/InviteFriendModal'
 
 // 랜딩 = 마케팅 사이트. 상단 메뉴바(NavBar)는 어떤 화면에서도 항상 떠 있고,
 // 메뉴 클릭에 따라 그 아래 본문만 바뀐다. "취향 테스트 시작" 계열 버튼을 누르면
 // 같은 페이지 안에서 설문(SurveyFlow) → 오늘의 빵 리빌(BreadReveal) → 지도 결과(MapResult) 로 전환된다.
 export default function LandingPage() {
+  const { sendRequestByCode } = useFriends()
+  const { invite, notice, confirm, dismiss, dismissNotice } = useInviteLink(sendRequestByCode)
   const [featureOpen, setFeatureOpen] = useState(false)
   const [stage, setStage] = useState('survey') // 'survey' | 'reveal' | 'map'
   const [showMyPage, setShowMyPage] = useState(false)
@@ -163,6 +168,23 @@ export default function LandingPage() {
         onOpenPilgrimage={openPilgrimage}
         onOpenMyPage={openMyPage}
       />
+
+      {invite && (
+        <InviteFriendModal nickname={invite.nickname} onConfirm={confirm} onCancel={dismiss} />
+      )}
+      {notice && (
+        <div className="invite-notice-banner">
+          {notice}
+          <button
+            type="button"
+            className="invite-notice-close"
+            onClick={dismissNotice}
+            aria-label="닫기"
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       {showInfo && <InfoPage onStart={startTest} />}
 

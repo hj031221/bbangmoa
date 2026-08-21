@@ -4,14 +4,15 @@ import { useAuth } from './useAuth'
 import { supabase } from '../lib/supabase'
 
 // 저장된 "대전한바퀴" 코스 목록. 로그인 필수 — 비로그인 시 항상 빈 배열.
-// (PilgrimagePage.handleSave 가 insert 하는 saved_courses 테이블을 읽기만 한다.)
-export function useSavedCourses() {
+// targetUserId 가 있으면(친구 목록 읽기 전용 조회) 그 id 로 조회한다.
+export function useSavedCourses(targetUserId) {
   const { user } = useAuth()
+  const queryUserId = targetUserId ?? user?.id
   const [courses, setCourses] = useState([])
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (!user) {
+    if (!queryUserId) {
       setCourses([])
       return
     }
@@ -20,7 +21,7 @@ export function useSavedCourses() {
     supabase
       .from('saved_courses')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', queryUserId)
       .order('created_at', { ascending: false })
       .then(({ data, error }) => {
         if (!alive) return
@@ -34,7 +35,7 @@ export function useSavedCourses() {
     return () => {
       alive = false
     }
-  }, [user])
+  }, [queryUserId])
 
   const removeCourse = (id) => {
     setCourses((prev) => prev.filter((c) => c.id !== id))
