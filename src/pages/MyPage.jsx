@@ -8,13 +8,17 @@ import SavedBakeriesPreview from '../components/mypage/SavedBakeriesPreview'
 import SavedCoursesPreview from '../components/mypage/SavedCoursesPreview'
 import DiaryPreview from '../components/mypage/DiaryPreview'
 import FriendsPreview from '../components/mypage/FriendsPreview'
+import FriendsPanel from '../components/mypage/FriendsPanel'
 
-// 마이페이지 — 프로필 카드 + 찜한 빵/찜한 코스/기록장/친구목록(준비중) 4개 패널.
+// 마이페이지 — 프로필 카드 + 찜한 빵/찜한 코스/기록장/친구목록 4개 패널.
 // 로그인 필수: 비로그인 상태면 안내만 보여준다(로그인은 상단 AuthMenu 에서).
 // panel 이 'home' 이 아니면 해당 패널만 전체 화면으로 보여주고 '‹' 로 home 으로 돌아간다.
+// friend 가 설정돼 있으면 friendBakeries/friendCourses/friendDiary 패널이 그 친구 데이터를
+// 읽기 전용으로 보여준다(SavedBakeriesPanel 등을 targetUserId+readOnly 로 그대로 재사용).
 export default function MyPage() {
   const { user, loading } = useAuth()
-  const [panel, setPanel] = useState('home') // 'home' | 'bakeries' | 'courses' | 'diary' | 'friends'
+  const [panel, setPanel] = useState('home')
+  const [friend, setFriend] = useState(null) // { userId, nickname } | null
 
   if (loading) return null
 
@@ -27,17 +31,82 @@ export default function MyPage() {
     )
   }
 
+  const backToFriendList = () => {
+    setFriend(null)
+    setPanel('friends')
+  }
+
   if (panel === 'friends') {
+    return (
+      <FriendsPanel
+        onBack={() => setPanel('home')}
+        onSelectFriend={(f) => {
+          setFriend(f)
+          setPanel('friendDetail')
+        }}
+      />
+    )
+  }
+
+  if (panel === 'friendDetail' && friend) {
     return (
       <div className="mypage-panel">
         <div className="mypage-panel-header">
-          <button type="button" className="mypage-back" onClick={() => setPanel('home')}>
+          <button type="button" className="mypage-back" onClick={backToFriendList}>
             ‹
           </button>
-          <h3>친구목록</h3>
+          <h3>{friend.nickname}님의 마이페이지</h3>
         </div>
-        <p className="saved-empty">친구 기능은 준비 중이에요.</p>
+        <div className="friend-detail-menu">
+          <button
+            type="button"
+            className="friend-detail-menu-btn"
+            onClick={() => setPanel('friendBakeries')}
+          >
+            찜한 빵 목록
+          </button>
+          <button
+            type="button"
+            className="friend-detail-menu-btn"
+            onClick={() => setPanel('friendCourses')}
+          >
+            찜한 코스 목록
+          </button>
+          <button
+            type="button"
+            className="friend-detail-menu-btn"
+            onClick={() => setPanel('friendDiary')}
+          >
+            기록장
+          </button>
+        </div>
       </div>
+    )
+  }
+
+  if (panel === 'friendBakeries' && friend) {
+    return (
+      <SavedBakeriesPanel
+        targetUserId={friend.userId}
+        readOnly
+        onBack={() => setPanel('friendDetail')}
+      />
+    )
+  }
+
+  if (panel === 'friendCourses' && friend) {
+    return (
+      <SavedCoursesPanel
+        targetUserId={friend.userId}
+        readOnly
+        onBack={() => setPanel('friendDetail')}
+      />
+    )
+  }
+
+  if (panel === 'friendDiary' && friend) {
+    return (
+      <DiaryPanel targetUserId={friend.userId} readOnly onBack={() => setPanel('friendDetail')} />
     )
   }
 
