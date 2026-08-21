@@ -4,6 +4,7 @@ import { getRegion } from '../../config/regions'
 import { haversineKm, formatDistance } from '../../lib/distance'
 import MapView from './MapView'
 import RecommendCard from './RecommendCard'
+import MapSelectionSummary from './MapSelectionSummary'
 
 const DISTRICTS = getRegion().districts
 const NEARBY_LIMIT = 10
@@ -119,6 +120,7 @@ export default function BakeryMapPage({ origin = null, onClearOrigin, initialSea
             attractions={originAttraction}
             highlightDistrict={district}
           />
+          <MapSelectionSummary bakery={selected} />
         </section>
 
         <aside className="result-list-col">

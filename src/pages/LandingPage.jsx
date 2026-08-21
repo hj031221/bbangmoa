@@ -121,6 +121,16 @@ export default function LandingPage() {
     setTourSelectedId(selectedId)
     setTourStage('hub')
   }
+  const openTourAttraction = (selectedId) => {
+    setShowTour(true)
+    setTourStage('hub')
+    setTourSelectedId(selectedId)
+    setFeatureOpen(false)
+    setShowMyPage(false)
+    setShowInfo(false)
+    setShowMap(false)
+    setShowPilgrimage(false)
+  }
   const openPilgrimage = () => {
     setShowPilgrimage(true)
     setFeatureOpen(false)
@@ -219,7 +229,12 @@ export default function LandingPage() {
 
       {isHome && (
         <div className="bm-home">
-          <MainHero onStart={startTest} onOpenMap={() => openBakeryMap()} onSearch={searchBakeryMap} />
+          <MainHero
+            onStart={startTest}
+            onOpenMap={() => openBakeryMap()}
+            onOpenTour={openTourAttraction}
+            onSearch={searchBakeryMap}
+          />
         </div>
       )}
     </div>

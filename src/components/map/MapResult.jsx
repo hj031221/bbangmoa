@@ -9,6 +9,7 @@ import { pickBreadResult, matchBakeries } from '../../lib/breadRecommend'
 import daejeonTour from '../../data/daejeonTour.json'
 import MapView from './MapView'
 import RecommendCard from './RecommendCard'
+import MapSelectionSummary from './MapSelectionSummary'
 
 // 관광지 좌표만 미리 추림(이름·좌표). 빵집별 최근접 1곳 계산에 재사용.
 const TOUR_SPOTS = daejeonTour.filter((t) => Number.isFinite(t.lat) && Number.isFinite(t.lng))
@@ -119,6 +120,7 @@ export default function MapResult({ onRetake }) {
             onSelect={selectBakery}
             attractions={nearbyAttractions}
           />
+          <MapSelectionSummary bakery={selected} />
         </section>
 
         <aside className="result-list-col">

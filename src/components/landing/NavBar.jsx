@@ -49,20 +49,22 @@ export default function NavBar({
             마이페이지
           </button>
         </div>
-        <div className="bm-nav-auth">
-          <AuthMenu onSignOut={onGoHome} />
+        <div className="bm-nav-actions">
+          <div className="bm-nav-auth">
+            <AuthMenu onSignOut={onGoHome} />
+          </div>
+          <button
+            type="button"
+            className="bm-nav-toggle"
+            aria-label={navOpen ? '메뉴 닫기' : '메뉴 열기'}
+            aria-expanded={navOpen}
+            onClick={() => setNavOpen((v) => !v)}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
         </div>
-        <button
-          type="button"
-          className="bm-nav-toggle"
-          aria-label="메뉴 열기"
-          aria-expanded={navOpen}
-          onClick={() => setNavOpen((v) => !v)}
-        >
-          <span />
-          <span />
-          <span />
-        </button>
         {navOpen && (
           <div className="bm-nav-mobile-menu">
             <button
@@ -119,13 +121,6 @@ export default function NavBar({
             >
               마이페이지
             </button>
-            <AuthMenu
-              compact
-              onSignOut={() => {
-                onGoHome()
-                setNavOpen(false)
-              }}
-            />
           </div>
         )}
       </div>
