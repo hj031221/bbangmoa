@@ -3,15 +3,17 @@ import { useAuth } from './useAuth'
 import { supabase } from '../lib/supabase'
 
 // 빵집 연결 기록장. 로그인 필수 — 비로그인 시 항상 빈 배열.
-export function useDiaryEntries() {
+// targetUserId 가 있으면(친구 목록 읽기 전용 조회) 그 id 로 조회한다.
+export function useDiaryEntries(targetUserId) {
   const { user } = useAuth()
+  const queryUserId = targetUserId ?? user?.id
   const [entries, setEntries] = useState([])
   const [loading, setLoading] = useState(false)
 
   // reload 는 effect(마운트/유저 변경)에서도, addEntry 등 mutation 이후에도 직접 호출된다.
   // effect 쪽 호출만 alive 가드로 stale 응답을 무시하고, 직접 호출은 항상 최신 응답을 반영한다.
   const reload = (alive = { current: true }) => {
-    if (!user) {
+    if (!queryUserId) {
       setEntries([])
       return
     }
@@ -19,7 +21,7 @@ export function useDiaryEntries() {
     supabase
       .from('diary_entries')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', queryUserId)
       .order('created_at', { ascending: false })
       .then(({ data, error }) => {
         if (!alive.current) return
@@ -38,7 +40,7 @@ export function useDiaryEntries() {
     return () => {
       alive.current = false
     }
-  }, [user])
+  }, [queryUserId])
 
   const addEntry = (bakery, text) => {
     if (!user) return Promise.resolve({ error: new Error('로그인이 필요해요.') })
