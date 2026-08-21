@@ -1,4 +1,5 @@
-// "오늘의 빵은..." 결과 화면(설문 → 리빌 → 지도)에서 보여줄 빵 20종 카탈로그.
+// "오늘의 빵은..." 결과 화면(설문 → 리빌 → 지도)에서 보여줄 빵 15종 카탈로그.
+// (데니쉬/퀸아망/프레첼/포카치아/앙금빵은 실제 매칭되는 빵집이 없어 제외했다 — matchBakeries 결과 0곳)
 // category: 식사형/페이스트리형/든든한 간식형/달콤한 빵/디저트형 (BREAD_CATEGORIES 참고).
 // hashtags: 최대 4개, 결과 화면의 "취향 키워드"로 그대로 노출된다(정적 큐레이션값).
 // keywords : 빵집 이름/카테고리에서 "이 빵이 대표메뉴일 것 같다"를 유추하는 단서(빵집 매칭용).
@@ -66,24 +67,6 @@ export const BREAD_CANDIDATES = [
     keywords: ['크루아상', '패스츄리', '페이스트리'],
   },
   {
-    id: 'danish',
-    name: '데니쉬',
-    category: 'pastry',
-    emoji: '🥧',
-    description: '과일이나 크림이 올라간 달콤한 자태로 눈과 입이 즐거운 데니쉬를 추천드립니다',
-    hashtags: ['결이 살아있는 식감', '상큼한 과일 토핑', '사진이 예쁨', '버터 풍미'],
-    keywords: ['데니쉬'],
-  },
-  {
-    id: 'kouignAmann',
-    name: '퀸아망',
-    category: 'pastry',
-    emoji: '🍯',
-    description: '겉은 바삭 속은 쫀득, 카라멜라이즈드 버터향이 매력적인 퀸아망을 추천드립니다',
-    hashtags: ['바삭하고 쫀득한 식감', '카라멜 풍미', '진한 버터향', '고급스러운 느낌'],
-    keywords: ['퀸아망'],
-  },
-  {
     id: 'saltBread',
     name: '소금빵',
     category: 'pastry',
@@ -102,24 +85,6 @@ export const BREAD_CANDIDATES = [
     keywords: ['조리빵', '야채빵', '소시지빵'],
   },
   {
-    id: 'pretzel',
-    name: '프레첼',
-    category: 'snack',
-    emoji: '🥨',
-    description: '쫄깃하고 짭짤한 매력으로 새로운 도전하기 좋은 프레첼을 추천드립니다',
-    hashtags: ['쫄깃한 식감', '짭짤한 맛', '해외 스타일', '씹는 재미'],
-    keywords: ['프레첼'],
-  },
-  {
-    id: 'focaccia',
-    name: '포카치아',
-    category: 'snack',
-    emoji: '🫒',
-    description: '올리브오일과 허브향이 은은하게 퍼지는 포카치아를 추천드립니다',
-    hashtags: ['폭신한 식감', '허브·올리브 향', '짭짤한 감칠맛', '나눠 먹기 좋음'],
-    keywords: ['포카치아'],
-  },
-  {
     id: 'donut',
     name: '도넛',
     category: 'sweet',
@@ -127,15 +92,6 @@ export const BREAD_CANDIDATES = [
     description: '가볍게 하나 집어 먹기 좋은, 가성비 좋은 도넛을 추천드립니다',
     hashtags: ['폭신한 식감', '달콤한 글레이즈', '가볍게 한입', '가성비 좋음'],
     keywords: ['도넛', '도너츠'],
-  },
-  {
-    id: 'anBread',
-    name: '앙금빵',
-    category: 'sweet',
-    emoji: '🥮',
-    description: '다양한 필링과 부드러운 단맛이 매력적인 앙금빵을 추천드립니다',
-    hashtags: ['부드러운 단맛', '다양한 필링', '폭신한 식감', '선물 구성 좋음'],
-    keywords: ['앙금빵'],
   },
   {
     id: 'creamBread',

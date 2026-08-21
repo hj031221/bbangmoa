@@ -1,21 +1,19 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { isSurveyComplete } from '../lib/breadRecommend'
 import SurveyFlow from '../components/survey/SurveyFlow'
 import BreadReveal from '../components/result/BreadReveal'
 import MapResult from '../components/map/MapResult'
-import SavedListPage from './SavedListPage'
+import MyPage from './MyPage'
 import InfoPage from './InfoPage'
 import NavBar from '../components/landing/NavBar'
 import MainHero from '../components/landing/MainHero'
-import PhotoShowcase from '../components/landing/PhotoShowcase'
 import BakeryMapPage from '../components/map/BakeryMapPage'
 import TourPage from '../components/tour/TourPage'
 import TourSurveyFlow from '../components/tour/TourSurveyFlow'
 import TourReveal from '../components/tour/TourReveal'
 import PilgrimagePage from '../components/tour/PilgrimagePage'
 import { resolveDistrict, isTourSurveyComplete } from '../lib/tourRecommend'
-import logo from '../assets/logo-typeA-full.png'
 
 // 랜딩 = 마케팅 사이트. 상단 메뉴바(NavBar)는 어떤 화면에서도 항상 떠 있고,
 // 메뉴 클릭에 따라 그 아래 본문만 바뀐다. "취향 테스트 시작" 계열 버튼을 누르면
@@ -23,7 +21,7 @@ import logo from '../assets/logo-typeA-full.png'
 export default function LandingPage() {
   const [featureOpen, setFeatureOpen] = useState(false)
   const [stage, setStage] = useState('survey') // 'survey' | 'reveal' | 'map'
-  const [showSaved, setShowSaved] = useState(false)
+  const [showMyPage, setShowMyPage] = useState(false)
   const [showInfo, setShowInfo] = useState(false)
   const [showMap, setShowMap] = useState(false)
   const [showTour, setShowTour] = useState(false)
@@ -31,6 +29,7 @@ export default function LandingPage() {
   const [tourStage, setTourStage] = useState('survey') // 'survey' | 'reveal' | 'hub'
   const [tourSelectedId, setTourSelectedId] = useState(null) // hub 진입 시 바로 선택할 관광지
   const [nearbyOrigin, setNearbyOrigin] = useState(null) // 관광지 "근처 빵집 보기" 로 진입 시 { name, lat, lng }
+  const [mapSearch, setMapSearch] = useState('') // 랜딩 히어로 검색창에서 넘어온 빵집 이름 검색어
   const answers = useAppStore((s) => s.answers)
   const origin = useAppStore((s) => s.origin)
   const resetAnswers = useAppStore((s) => s.resetAnswers)
@@ -39,18 +38,37 @@ export default function LandingPage() {
 
   const surveyDone = !!origin && isSurveyComplete(answers)
   const tourSurveyDone = isTourSurveyComplete(tourAnswers)
+  const isHome = !showInfo && !showMap && !showTour && !showPilgrimage && !showMyPage && !featureOpen
+
+  // 메인 화면(홈)에서는 마우스 휠/스크롤이 필요 없게 — 다른 화면으로 전환되면 원래대로 복원.
+  // overflow:hidden 만으로는 휠 스크롤이 안 막혀서, 휠/터치 이벤트 자체를 막는다.
+  useEffect(() => {
+    document.documentElement.style.overflow = isHome ? 'hidden' : ''
+    document.body.style.overflow = isHome ? 'hidden' : ''
+    if (!isHome) return undefined
+
+    const preventScroll = (e) => e.preventDefault()
+    window.addEventListener('wheel', preventScroll, { passive: false })
+    window.addEventListener('touchmove', preventScroll, { passive: false })
+    return () => {
+      document.documentElement.style.overflow = ''
+      document.body.style.overflow = ''
+      window.removeEventListener('wheel', preventScroll)
+      window.removeEventListener('touchmove', preventScroll)
+    }
+  }, [isHome])
 
   const startTest = () => {
     setFeatureOpen(true)
-    setShowSaved(false)
+    setShowMyPage(false)
     setShowInfo(false)
     setShowMap(false)
     setShowTour(false)
     setShowPilgrimage(false)
     setStage(surveyDone ? 'reveal' : 'survey')
   }
-  const openSaved = () => {
-    setShowSaved(true)
+  const openMyPage = () => {
+    setShowMyPage(true)
     setFeatureOpen(false)
     setShowInfo(false)
     setShowMap(false)
@@ -60,7 +78,7 @@ export default function LandingPage() {
   const openInfo = () => {
     setShowInfo(true)
     setFeatureOpen(false)
-    setShowSaved(false)
+    setShowMyPage(false)
     setShowMap(false)
     setShowTour(false)
     setShowPilgrimage(false)
@@ -70,9 +88,21 @@ export default function LandingPage() {
     setNearbyOrigin(
       Number.isFinite(attraction?.lat) && Number.isFinite(attraction?.lng) ? attraction : null,
     )
+    setMapSearch('')
     setShowMap(true)
     setFeatureOpen(false)
-    setShowSaved(false)
+    setShowMyPage(false)
+    setShowInfo(false)
+    setShowTour(false)
+    setShowPilgrimage(false)
+  }
+  // 랜딩 히어로 검색창: 이름 검색어를 들고 빵 지도로 이동.
+  const searchBakeryMap = (query) => {
+    setNearbyOrigin(null)
+    setMapSearch(query)
+    setShowMap(true)
+    setFeatureOpen(false)
+    setShowMyPage(false)
     setShowInfo(false)
     setShowTour(false)
     setShowPilgrimage(false)
@@ -82,7 +112,7 @@ export default function LandingPage() {
     setTourStage(tourSurveyDone ? 'reveal' : 'survey')
     setTourSelectedId(null)
     setFeatureOpen(false)
-    setShowSaved(false)
+    setShowMyPage(false)
     setShowInfo(false)
     setShowMap(false)
     setShowPilgrimage(false)
@@ -94,14 +124,14 @@ export default function LandingPage() {
   const openPilgrimage = () => {
     setShowPilgrimage(true)
     setFeatureOpen(false)
-    setShowSaved(false)
+    setShowMyPage(false)
     setShowInfo(false)
     setShowMap(false)
     setShowTour(false)
   }
   const goHome = () => {
     setFeatureOpen(false)
-    setShowSaved(false)
+    setShowMyPage(false)
     setShowInfo(false)
     setShowMap(false)
     setShowTour(false)
@@ -121,14 +151,19 @@ export default function LandingPage() {
         onOpenMap={openBakeryMap}
         onOpenTour={openTour}
         onOpenPilgrimage={openPilgrimage}
-        onOpenSaved={openSaved}
+        onOpenMyPage={openMyPage}
       />
 
       {showInfo && <InfoPage onStart={startTest} />}
 
       {showMap && (
         <div className="page">
-          <BakeryMapPage origin={nearbyOrigin} onClearOrigin={() => setNearbyOrigin(null)} />
+          <BakeryMapPage
+            origin={nearbyOrigin}
+            onClearOrigin={() => setNearbyOrigin(null)}
+            initialSearch={mapSearch}
+            onBack={goHome}
+          />
         </div>
       )}
 
@@ -166,9 +201,9 @@ export default function LandingPage() {
         </div>
       )}
 
-      {showSaved && (
+      {showMyPage && (
         <div className="page">
-          <SavedListPage />
+          <MyPage />
         </div>
       )}
 
@@ -182,17 +217,10 @@ export default function LandingPage() {
         </div>
       )}
 
-      {!showInfo && !showMap && !showTour && !showPilgrimage && !showSaved && !featureOpen && (
-        <>
-          <MainHero onStart={startTest} />
-          <PhotoShowcase />
-
-          <div className="bm-footer">
-            <img src={logo} alt="빵모아 로고" />
-            <span>빵모아</span>
-            <span className="bm-footer-credit">· 『2026 관광데이터 활용 공모전』 출품작</span>
-          </div>
-        </>
+      {isHome && (
+        <div className="bm-home">
+          <MainHero onStart={startTest} onOpenMap={() => openBakeryMap()} onSearch={searchBakeryMap} />
+        </div>
       )}
     </div>
   )

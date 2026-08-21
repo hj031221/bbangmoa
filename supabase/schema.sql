@@ -44,3 +44,28 @@ create policy "saved_courses_insert_own" on saved_courses
 
 create policy "saved_courses_delete_own" on saved_courses
   for delete using (auth.uid() = user_id);
+
+-- 마이페이지 "기록장": 빵집 상세에서 남기는 짧은 기록. 사진 첨부는 이번 범위에서 제외.
+create table if not exists diary_entries (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  bakery_id text not null,
+  bakery jsonb not null,
+  text text not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table diary_entries enable row level security;
+
+create policy "diary_entries_select_own" on diary_entries
+  for select using (auth.uid() = user_id);
+
+create policy "diary_entries_insert_own" on diary_entries
+  for insert with check (auth.uid() = user_id);
+
+create policy "diary_entries_update_own" on diary_entries
+  for update using (auth.uid() = user_id);
+
+create policy "diary_entries_delete_own" on diary_entries
+  for delete using (auth.uid() = user_id);

@@ -13,9 +13,10 @@ const NEARBY_LIMIT = 10
 //
 // origin 이 주어지면(관광지 상세의 "근처 빵집 보기") 구 필터 대신 origin 기준 거리순
 // 상위 NEARBY_LIMIT 곳만 보여주는 "근처 빵집" 모드로 전환된다.
-export default function BakeryMapPage({ origin = null, onClearOrigin }) {
+export default function BakeryMapPage({ origin = null, onClearOrigin, initialSearch = '', onBack }) {
   const [district, setDistrict] = useState(null) // null = 전체
   const [selectedId, setSelectedId] = useState(null)
+  const [search, setSearch] = useState(initialSearch.trim())
   const { bakeries, loading, error, source } = useBakeries({
     regionId: undefined,
     answers: {},
@@ -24,6 +25,7 @@ export default function BakeryMapPage({ origin = null, onClearOrigin }) {
   })
 
   const nearbyMode = !!origin
+  const searchMode = !nearbyMode && !!search
 
   const filtered = useMemo(() => {
     if (nearbyMode) {
@@ -33,8 +35,11 @@ export default function BakeryMapPage({ origin = null, onClearOrigin }) {
         .sort((a, b) => a.distKm - b.distKm)
         .slice(0, NEARBY_LIMIT)
     }
+    if (search) {
+      return bakeries.filter((b) => (b.name || '').includes(search))
+    }
     return district ? bakeries.filter((b) => (b.address || '').includes(district)) : bakeries
-  }, [bakeries, district, nearbyMode, origin])
+  }, [bakeries, district, nearbyMode, origin, search])
 
   const selected = filtered.find((b) => b.id === selectedId) || null
 
@@ -49,12 +54,21 @@ export default function BakeryMapPage({ origin = null, onClearOrigin }) {
     : []
 
   return (
-    <div className="result">
+    <div className="result result-browse">
       <header className="result-header">
+        {onBack && (
+          <button type="button" className="result-back" onClick={onBack} aria-label="처음으로">
+            <svg viewBox="0 0 16 28" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="13 4 3 14 13 24" />
+            </svg>
+          </button>
+        )}
         <h2>
           {nearbyMode
             ? `${origin.name} 근처 빵집 (${filtered.length}곳)`
-            : `빵집 지도 (${filtered.length}곳)`}
+            : searchMode
+              ? `'${search}' 검색 결과 (${filtered.length}곳)`
+              : `빵집 지도 (${filtered.length}곳)`}
         </h2>
         {source === 'sample' && <span className="badge warn">샘플 데이터 (API 키 미설정)</span>}
       </header>
@@ -65,6 +79,12 @@ export default function BakeryMapPage({ origin = null, onClearOrigin }) {
       {nearbyMode ? (
         <div className="bm-district-filters">
           <button type="button" className="bm-district-chip" onClick={onClearOrigin}>
+            ← 전체 빵 지도 보기
+          </button>
+        </div>
+      ) : searchMode ? (
+        <div className="bm-district-filters">
+          <button type="button" className="bm-district-chip" onClick={() => setSearch('')}>
             ← 전체 빵 지도 보기
           </button>
         </div>
@@ -101,8 +121,7 @@ export default function BakeryMapPage({ origin = null, onClearOrigin }) {
           />
         </section>
 
-        <aside className="result-side">
-          <RecommendCard bakery={selected} />
+        <aside className="result-list-col">
           <ol className="rec-list">
             {filtered.map((b, i) => (
               <li
@@ -125,10 +144,18 @@ export default function BakeryMapPage({ origin = null, onClearOrigin }) {
             ))}
             {!loading && filtered.length === 0 && (
               <li className="rec-list-empty">
-                {nearbyMode ? '근처에 표시할 빵집이 없어요.' : '해당 구에는 표시할 빵집이 없어요.'}
+                {nearbyMode
+                  ? '근처에 표시할 빵집이 없어요.'
+                  : searchMode
+                    ? '검색 결과가 없어요.'
+                    : '해당 구에는 표시할 빵집이 없어요.'}
               </li>
             )}
           </ol>
+        </aside>
+
+        <aside className="result-detail-col">
+          <RecommendCard bakery={selected} />
         </aside>
       </div>
     </div>

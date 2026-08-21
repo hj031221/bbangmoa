@@ -74,8 +74,10 @@ export default function MapResult({ onRetake }) {
   return (
     <div className="result result-quiz">
       <header className="result-header">
-        <button className="ghost-btn" onClick={onRetake}>
-          ← 취향 다시 설정
+        <button type="button" className="result-back" onClick={onRetake} aria-label="취향 다시 설정">
+          <svg viewBox="0 0 16 28" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="13 4 3 14 13 24" />
+          </svg>
         </button>
         <h2>
           {breadResult ? `${breadResult.bread.name} 맛집 추천` : '대전 빵집 추천'} (
@@ -117,8 +119,7 @@ export default function MapResult({ onRetake }) {
           />
         </section>
 
-        <aside className="result-side">
-          <RecommendCard bakery={selected} />
+        <aside className="result-list-col">
           <ol className="rec-list">
             {bakeriesWithDist.map((b, i) => (
               <li
@@ -137,6 +138,10 @@ export default function MapResult({ onRetake }) {
               </li>
             ))}
           </ol>
+        </aside>
+
+        <aside className="result-detail-col">
+          <RecommendCard bakery={selected} />
         </aside>
       </div>
     </div>

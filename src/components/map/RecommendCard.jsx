@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react'
 import { getDetail, tourEnabled } from '../../api'
 import { TASTE_TAGS } from '../../data/tasteTags'
 import { useSavedBakeries } from '../../hooks/useSavedBakeries'
+import { useAuth } from '../../hooks/useAuth'
+import { useDiaryEntries } from '../../hooks/useDiaryEntries'
+import DiaryEntryModal from '../mypage/DiaryEntryModal'
 import { formatDistance } from '../../lib/distance'
 
 // 선택된 빵집 상세 카드.
@@ -9,6 +12,9 @@ import { formatDistance } from '../../lib/distance'
 export default function RecommendCard({ bakery }) {
   const [detail, setDetail] = useState(null)
   const { toggleSave, isSaved } = useSavedBakeries()
+  const { user } = useAuth()
+  const { addEntry } = useDiaryEntries()
+  const [diaryOpen, setDiaryOpen] = useState(false)
 
   useEffect(() => {
     setDetail(null)
@@ -43,6 +49,13 @@ export default function RecommendCard({ bakery }) {
           {saved ? '❤️ 찜함' : '🤍 찜하기'}
         </button>
       </div>
+      {user && (
+        <div className="rec-actions">
+          <button type="button" className="save-btn" onClick={() => setDiaryOpen(true)}>
+            📝 기록 남기기
+          </button>
+        </div>
+      )}
       <div className="rec-tags">
         {bakery.tags?.map((t) => (
           <span key={t} className="rec-tag">
@@ -63,6 +76,13 @@ export default function RecommendCard({ bakery }) {
         <a className="rec-link" href={bakery.url} target="_blank" rel="noreferrer">
           카카오맵에서 보기 →
         </a>
+      )}
+      {diaryOpen && (
+        <DiaryEntryModal
+          bakery={bakery}
+          onClose={() => setDiaryOpen(false)}
+          onSubmit={(text) => addEntry(bakery, text)}
+        />
       )}
     </div>
   )
