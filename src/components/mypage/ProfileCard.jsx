@@ -1,14 +1,19 @@
 import { useState } from 'react'
 import { useAuth } from '../../hooks/useAuth'
+import { useFriends } from '../../hooks/useFriends'
 import { getDisplayName } from '../../lib/displayName'
+import { buildInviteLink } from '../../lib/inviteLink'
 
 // 마이페이지 왼쪽 프로필 카드. 아바타는 이니셜 placeholder(이미지 업로드 없음),
 // 닉네임만 편집 가능 — user_metadata.nickname 에 저장되고 getDisplayName 이 최우선으로 읽는다.
+// 친구코드/초대 링크 복사는 useFriends 의 friendCode(profiles 테이블) 를 그대로 노출한다.
 export default function ProfileCard() {
   const { user, updateNickname } = useAuth()
+  const { friendCode } = useFriends()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
   const [saving, setSaving] = useState(false)
+  const [copied, setCopied] = useState('') // 'code' | 'link' | ''
 
   const name = getDisplayName(user)
   const initial = name?.[0] || '?'
@@ -30,6 +35,20 @@ export default function ProfileCard() {
       return
     }
     setEditing(false)
+  }
+
+  const copyCode = async () => {
+    if (!friendCode) return
+    await navigator.clipboard.writeText(friendCode)
+    setCopied('code')
+    setTimeout(() => setCopied(''), 1500)
+  }
+
+  const copyLink = async () => {
+    if (!friendCode) return
+    await navigator.clipboard.writeText(buildInviteLink(window.location.origin, friendCode))
+    setCopied('link')
+    setTimeout(() => setCopied(''), 1500)
   }
 
   return (
@@ -60,6 +79,19 @@ export default function ProfileCard() {
             프로필 편집
           </button>
         </>
+      )}
+      {friendCode && (
+        <div className="mypage-friend-code">
+          <span className="mypage-friend-code-label">친구코드 {friendCode}</span>
+          <div className="mypage-friend-code-actions">
+            <button type="button" className="ghost-btn" onClick={copyCode}>
+              {copied === 'code' ? '복사됨!' : '코드 복사'}
+            </button>
+            <button type="button" className="ghost-btn" onClick={copyLink}>
+              {copied === 'link' ? '복사됨!' : '초대 링크 복사'}
+            </button>
+          </div>
+        </div>
       )}
     </div>
   )
