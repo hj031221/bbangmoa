@@ -62,7 +62,10 @@ export default function MainHero({ onStart, onOpenMap, onOpenTour, onSearch }) {
             aria-label="빵집 검색"
           />
           <button type="submit" aria-label="검색">
-            🔍
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="11" cy="11" r="6.5" />
+              <path d="m16 16 6 6" />
+            </svg>
           </button>
         </form>
 
