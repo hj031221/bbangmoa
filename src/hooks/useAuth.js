@@ -47,7 +47,13 @@ export function useAuth() {
   const signOut = () => supabase?.auth.signOut()
 
   // 프로필 편집(닉네임 변경). user_metadata.nickname 에 저장 — getDisplayName 이 최우선으로 읽는다.
-  const updateNickname = (nickname) => supabase?.auth.updateUser({ data: { nickname } })
+  // profiles.nickname 은 친구가 볼 수 있게 별도로 미러링한다(auth.users 는 타인이 조회 불가).
+  const updateNickname = async (nickname) => {
+    const result = await supabase?.auth.updateUser({ data: { nickname } })
+    if (!result || result.error) return result ?? { error: new Error('로그인이 필요해요.') }
+    await supabase.from('profiles').update({ nickname }).eq('user_id', result.data.user.id)
+    return result
+  }
 
   return { user, loading, signInWithGoogle, signInWithKakao, signOut, updateNickname }
 }
