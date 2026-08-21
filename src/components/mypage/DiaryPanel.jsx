@@ -1,10 +1,6 @@
 import { useState } from 'react'
 import { useDiaryEntries } from '../../hooks/useDiaryEntries'
-
-function formatDate(iso) {
-  const d = new Date(iso)
-  return `${d.getFullYear()}. ${String(d.getMonth() + 1).padStart(2, '0')}. ${String(d.getDate()).padStart(2, '0')}`
-}
+import { formatDiaryDate as formatDate } from '../../lib/formatDate'
 
 // 마이페이지 기록장 패널. 작성은 RecommendCard(빵집 상세)의 "기록 남기기"에서만 가능
 // — 여기선 목록 보기 / 수정 / 삭제만 한다.

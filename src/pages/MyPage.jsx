@@ -4,6 +4,10 @@ import ProfileCard from '../components/mypage/ProfileCard'
 import SavedBakeriesPanel from '../components/mypage/SavedBakeriesPanel'
 import SavedCoursesPanel from '../components/mypage/SavedCoursesPanel'
 import DiaryPanel from '../components/mypage/DiaryPanel'
+import SavedBakeriesPreview from '../components/mypage/SavedBakeriesPreview'
+import SavedCoursesPreview from '../components/mypage/SavedCoursesPreview'
+import DiaryPreview from '../components/mypage/DiaryPreview'
+import FriendsPreview from '../components/mypage/FriendsPreview'
 
 // 마이페이지 — 프로필 카드 + 찜한 빵/찜한 코스/기록장/친구목록(준비중) 4개 패널.
 // 로그인 필수: 비로그인 상태면 안내만 보여준다(로그인은 상단 AuthMenu 에서).
@@ -46,28 +50,17 @@ export default function MyPage() {
   return (
     <div className="mypage-home">
       <ProfileCard />
-      <div className="mypage-panel-grid">
-        <button type="button" className="mypage-panel-card" onClick={() => setPanel('bakeries')}>
-          <span className="mypage-panel-icon" aria-hidden="true">❤️</span>
-          찜한 빵 목록
-        </button>
-        <button type="button" className="mypage-panel-card" onClick={() => setPanel('courses')}>
-          <span className="mypage-panel-icon" aria-hidden="true">📍</span>
-          찜한 코스 목록
-        </button>
-        <button type="button" className="mypage-panel-card" onClick={() => setPanel('diary')}>
-          <span className="mypage-panel-icon" aria-hidden="true">📄</span>
-          기록장
-        </button>
-        <button
-          type="button"
-          className="mypage-panel-card mypage-panel-card-disabled"
-          onClick={() => setPanel('friends')}
-          aria-disabled="true"
-        >
-          <span className="mypage-panel-icon" aria-hidden="true">👥</span>
-          친구목록
-        </button>
+      <div className="mypage-home-main">
+        <div className="mypage-home-heading">
+          <h2>마이페이지</h2>
+          <p>마음에 들었던 빵과 코스를 찜하고 기록장에 그 날의 빵을 기록해보세요!</p>
+        </div>
+        <div className="mypage-preview-grid">
+          <SavedBakeriesPreview onExpand={() => setPanel('bakeries')} />
+          <SavedCoursesPreview onExpand={() => setPanel('courses')} />
+          <DiaryPreview onExpand={() => setPanel('diary')} />
+          <FriendsPreview onExpand={() => setPanel('friends')} />
+        </div>
       </div>
     </div>
   )

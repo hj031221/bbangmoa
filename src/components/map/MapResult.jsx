@@ -56,8 +56,10 @@ export default function MapResult({ onRetake }) {
         ...b,
         distInfo: getBakeryDistanceInfo(b, { origin, coords, bbox: region.bbox }),
         nearSpot: nearestAttraction(b),
+        breadType: breadResult?.bread?.name,
+        breadTypeEmoji: breadResult?.bread?.emoji,
       })),
-    [filteredBakeries, origin, coords, region],
+    [filteredBakeries, origin, coords, region, breadResult?.bread?.name, breadResult?.bread?.emoji],
   )
   const selected =
     bakeriesWithDist.find((b) => b.id === selectedBakeryId) || bakeriesWithDist[0]
