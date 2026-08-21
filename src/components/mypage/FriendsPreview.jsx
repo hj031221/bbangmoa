@@ -1,16 +1,32 @@
+import { useFriends } from '../../hooks/useFriends'
 import PreviewChevron from './PreviewChevron'
 
-// 마이페이지 홈 4번째 컬럼 자리표시자. 친구 기능 실제 구현은 이슈 #24.
+// 마이페이지 홈 미리보기 카드. 친구 수 + 이름 몇 개, 받은 요청이 있으면 헤더에 배지로 표시.
 export default function FriendsPreview({ onExpand }) {
+  const { friends, incomingRequests } = useFriends()
+
   return (
-    <div className="mypage-preview-panel mypage-preview-panel-disabled">
-      <button type="button" className="mypage-preview-header" onClick={onExpand} aria-disabled="true">
+    <div className="mypage-preview-panel">
+      <button type="button" className="mypage-preview-header" onClick={onExpand}>
         <span className="mypage-preview-icon" aria-hidden="true">👥</span>
         <span className="mypage-preview-title">친구목록</span>
+        {incomingRequests.length > 0 && (
+          <span className="mypage-preview-badge">{incomingRequests.length}</span>
+        )}
         <PreviewChevron />
       </button>
       <div className="mypage-preview-body">
-        <p className="mypage-preview-empty">친구 기능은 준비 중이에요.</p>
+        {friends.length === 0 ? (
+          <p className="mypage-preview-empty">아직 추가한 친구가 없어요.</p>
+        ) : (
+          <div className="mypage-preview-friend-chips">
+            {friends.slice(0, 4).map((f) => (
+              <span key={f.id} className="mypage-preview-friend-chip">
+                {f.nickname}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
