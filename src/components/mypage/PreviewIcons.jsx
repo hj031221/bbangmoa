@@ -37,3 +37,21 @@ export function PaperIcon() {
     </svg>
   )
 }
+
+export function FriendsIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+      <circle cx="9" cy="8" r="3.2" fill="#F97658" />
+      <circle cx="16.5" cy="9" r="2.7" fill="#F97658" opacity=".78" />
+      <path
+        fill="#F97658"
+        d="M3.5 19c0-3.4 2.45-5.7 5.5-5.7s5.5 2.3 5.5 5.7c0 .55-.45 1-1 1h-9c-.55 0-1-.45-1-1Z"
+      />
+      <path
+        fill="#F97658"
+        opacity=".78"
+        d="M14.2 14.25c.7-.42 1.5-.65 2.3-.65 2.3 0 4 1.8 4 4.55 0 .47-.38.85-.85.85h-3.7a7.5 7.5 0 0 0-1.75-4.75Z"
+      />
+    </svg>
+  )
+}
