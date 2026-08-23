@@ -653,6 +653,9 @@ a{ color:var(--accent-text); }
 .pil-modal-row{ width:100%; display:flex; justify-content:space-between; align-items:center; border:none; background:none; padding:10px 10px; border-radius:10px; text-align:left; }
 .pil-modal-row:hover{ background:var(--card2); }
 .pil-modal-plus{ color:var(--accent-text); font-weight:800; }
+.pil-modal-row.added{ opacity:.45; cursor:default; }
+.pil-modal-row.added:hover{ background:none; }
+.pil-modal-row.added .pil-modal-plus{ color:var(--muted); font-weight:600; font-size:.8rem; }
 .pil-modal-empty{ text-align:center; color:var(--muted); padding:20px 0; }
 
 @media (max-width:820px){

@@ -15,15 +15,24 @@ export default function AddStopModal({ bakeries, attractions, excludeIds, onAdd,
   // 없어서 대상이 없다(범위 제외 확정).
   const { isSaved } = useSavedBakeries()
 
+  // 이미 코스에 있는 항목도 목록에서 안 지우고 "이미 추가됨"으로 흐리게 보여준다 — 전엔 그냥
+  // 걸러서 안 보이게 했는데, 찜한 빵집이 이미 코스에 들어있는 경우 "찜한 게 검색에 안 뜬다"로
+  // 오해하기 쉬웠다(실제론 우선노출이 아니라 제외 필터에 걸린 것). 코스 안에 있다는 걸 눈에
+  // 보이게 하는 쪽이 더 명확하다.
+  // 30개 상한은 "아직 안 넣은" 후보에만 건다 — 이미 코스에 있는 항목까지 그 상한에 같이
+  // 밀려들어가면(코스 상한이 애초에 적어 개수는 적지만, 정렬상 항상 맨 뒤라) 검색 결과가 많을 때
+  // 잘려서 안 보이는, 지금 고치려는 것과 똑같은 증상이 재발한다.
   const pool = tab === 'bakery' ? bakeries : attractions
-  const matched = pool
-    .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng) && !excludeIds.has(p.id))
+  const queried = pool
+    .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng))
     .filter((p) => !query.trim() || p.name.includes(query.trim()))
-  const ordered =
+  const addable = queried.filter((p) => !excludeIds.has(p.id))
+  const already = queried.filter((p) => excludeIds.has(p.id))
+  const sortedAddable =
     tab === 'bakery'
-      ? [...matched].sort((a, b) => Number(isSaved(b.id)) - Number(isSaved(a.id)))
-      : matched
-  const filtered = ordered.slice(0, 30)
+      ? [...addable].sort((a, b) => Number(isSaved(b.id)) - Number(isSaved(a.id)))
+      : addable
+  const filtered = [...sortedAddable.slice(0, 30), ...already]
 
   return (
     <div className="pil-modal-backdrop" onClick={onClose}>
@@ -55,20 +64,26 @@ export default function AddStopModal({ bakeries, attractions, excludeIds, onAdd,
         />
         <div className="pil-modal-list">
           {filtered.length === 0 && <div className="pil-modal-empty">검색 결과가 없어요.</div>}
-          {filtered.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              className="pil-modal-row"
-              onClick={() => onAdd({ type: tab, id: p.id, name: p.name, lat: p.lat, lng: p.lng })}
-            >
-              <span>
-                {tab === 'bakery' && isSaved(p.id) && <span aria-hidden="true">❤️ </span>}
-                {p.name}
-              </span>
-              <span className="pil-modal-plus">+</span>
-            </button>
-          ))}
+          {filtered.map((p) => {
+            const added = excludeIds.has(p.id)
+            return (
+              <button
+                key={p.id}
+                type="button"
+                className={'pil-modal-row' + (added ? ' added' : '')}
+                onClick={() =>
+                  !added && onAdd({ type: tab, id: p.id, name: p.name, lat: p.lat, lng: p.lng })
+                }
+                disabled={added}
+              >
+                <span>
+                  {tab === 'bakery' && isSaved(p.id) && <span aria-hidden="true">❤️ </span>}
+                  {p.name}
+                </span>
+                <span className="pil-modal-plus">{added ? '이미 추가됨' : '+'}</span>
+              </button>
+            )
+          })}
         </div>
       </div>
     </div>
