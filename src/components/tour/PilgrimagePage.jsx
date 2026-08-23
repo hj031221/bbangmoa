@@ -32,8 +32,11 @@ function formatMinutes(min) {
 export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }) {
   const regionId = useAppStore((s) => s.regionId)
   const origin = useAppStore((s) => s.origin)
+  const setOrigin = useAppStore((s) => s.setOrigin)
   const answers = useAppStore((s) => s.answers)
   const tourAnswers = useAppStore((s) => s.tourAnswers)
+  const pendingCourseLoad = useAppStore((s) => s.pendingCourseLoad)
+  const setPendingCourseLoad = useAppStore((s) => s.setPendingCourseLoad)
   const { user } = useAuth()
 
   const tourResult = isTourSurveyComplete(tourAnswers)
@@ -69,6 +72,26 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
   const dragIndexRef = useRef(null)
   const [dragOverIndex, setDragOverIndex] = useState(null)
 
+  // 마이페이지 "찜한 코스"에서 불러온 경우엔 설문 미완료여도 게이트를 우회한다(§CP10-3) — 이미
+  // 확정된 경유지 목록이 있으니 설문이 필요 없다. pendingCourseLoad는 아래 effect가 한 번 소비하고
+  // 비우므로, 그 뒤에도 게이트를 계속 우회하려면 별도 플래그(gateBypassed)로 기억해둬야 한다.
+  const [gateBypassed, setGateBypassed] = useState(false)
+  const loadedFromSavedRef = useRef(false)
+
+  useEffect(() => {
+    if (!pendingCourseLoad) return
+    loadedFromSavedRef.current = true
+    setGateBypassed(true)
+    setCustomStops(pendingCourseLoad.stops)
+    setManualOrderIds(pendingCourseLoad.stops.map((s) => s.id))
+    setTravelMode(pendingCourseLoad.travel_mode || 'car')
+    if (!origin && pendingCourseLoad.origin) setOrigin(pendingCourseLoad.origin)
+    setPendingCourseLoad(null)
+    // origin/setOrigin/setPendingCourseLoad는 안정적인 참조/스토어 상태라 deps에서 뺀다 —
+    // pendingCourseLoad가 들어올 때 딱 한 번만 소비하면 된다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingCourseLoad])
+
   const baseRoute = useMemo(() => {
     if (!breadDone || !tourDone) return null
     return buildRoute({ breadResult, tourResult, origin, travelMode: 'car' })
@@ -76,8 +99,12 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
 
   // 빵집 목록이 아직 로딩 중일 때 초기화하면 bakeries:[] 인 채로 고정돼버린다(빵집 0곳으로 굳음)
   // → 로딩이 끝난 뒤(bakeriesLoading=false) 딱 한 번만 기본 코스로 채운다.
+  // 찜한 코스를 불러온 경우엔(loadedFromSavedRef) 이 자동 채우기를 건너뛴다 — 위 effect가 이미
+  // customStops를 채웠는데, 같은 렌더에서 이 effect도 "아직 null"로 보고 덮어쓸 수 있어서다.
   useEffect(() => {
-    if (customStops === null && baseRoute && !bakeriesLoading) setCustomStops(baseRoute.stops)
+    if (customStops === null && baseRoute && !bakeriesLoading && !loadedFromSavedRef.current) {
+      setCustomStops(baseRoute.stops)
+    }
   }, [baseRoute, customStops, bakeriesLoading])
 
   const route = useMemo(() => {
@@ -178,7 +205,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
     setSaveState('saved')
   }
 
-  if (!breadDone || !tourDone) {
+  if ((!breadDone || !tourDone) && !gateBypassed && !pendingCourseLoad) {
     return (
       <div className="pil-gate">
         <h2>대전한바퀴</h2>

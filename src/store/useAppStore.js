@@ -17,6 +17,9 @@ export const useAppStore = create((set) => ({
   answers: {},
   tourAnswers: {},
   selectedBakeryId: null,
+  // 마이페이지 "찜한 코스"에서 "불러오기"를 누르면 여기 담겼다가, 대전한바퀴 화면이 마운트되면서
+  // 한 번 소비하고 다시 null로 비운다(§CP10-3). LandingPage가 화면 전환을, PilgrimagePage가 소비를 맡는다.
+  pendingCourseLoad: null,
 
   setAnswer: (questionId, optionId) =>
     set((s) => ({ answers: { ...s.answers, [questionId]: optionId } })),
@@ -34,4 +37,6 @@ export const useAppStore = create((set) => ({
   resetTourAnswers: () => set({ tourAnswers: {} }),
 
   selectBakery: (id) => set({ selectedBakeryId: id }),
+
+  setPendingCourseLoad: (course) => set({ pendingCourseLoad: course }),
 }))

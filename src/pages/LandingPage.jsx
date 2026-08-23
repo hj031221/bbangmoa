@@ -40,6 +40,7 @@ export default function LandingPage() {
   const resetAnswers = useAppStore((s) => s.resetAnswers)
   const tourAnswers = useAppStore((s) => s.tourAnswers)
   const resetTourAnswers = useAppStore((s) => s.resetTourAnswers)
+  const setPendingCourseLoad = useAppStore((s) => s.setPendingCourseLoad)
 
   const surveyDone = !!origin && isSurveyComplete(answers)
   const tourSurveyDone = isTourSurveyComplete(tourAnswers)
@@ -143,6 +144,12 @@ export default function LandingPage() {
     setShowInfo(false)
     setShowMap(false)
     setShowTour(false)
+  }
+  // 마이페이지 "찜한 코스"에서 "불러오기" → 그 코스를 스토어에 담아두고 대전한바퀴로 이동한다.
+  // PilgrimagePage가 마운트되면서 pendingCourseLoad를 소비해 화면을 채운다(§CP10-3).
+  const loadCourseIntoPilgrimage = (course) => {
+    setPendingCourseLoad(course)
+    openPilgrimage()
   }
   // 홈으로 나가면 두 설문 결과를 모두 초기화한다 — 홈 갔다 다시 들어와도 예전 결과가
   // 그대로 뜨지 않고 항상 새 설문부터 시작하게(피드백4). 설문 화면 안에서 서로 넘나드는 건
@@ -250,7 +257,7 @@ export default function LandingPage() {
 
       {showMyPage && (
         <div className="page">
-          <MyPage />
+          <MyPage onLoadCourse={loadCourseIntoPilgrimage} />
         </div>
       )}
 

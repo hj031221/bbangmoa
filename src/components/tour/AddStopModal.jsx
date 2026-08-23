@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSavedBakeries } from '../../hooks/useSavedBakeries'
 
 const TABS = [
   { id: 'bakery', label: '빵집 검색' },
@@ -10,12 +11,19 @@ const TABS = [
 export default function AddStopModal({ bakeries, attractions, excludeIds, onAdd, onClose }) {
   const [tab, setTab] = useState('bakery')
   const [query, setQuery] = useState('')
+  // 찜한 빵집을 검색 결과 위쪽에 먼저 보여준다(피드백 추가요청) — 관광지는 찜 기능 자체가
+  // 없어서 대상이 없다(범위 제외 확정).
+  const { isSaved } = useSavedBakeries()
 
   const pool = tab === 'bakery' ? bakeries : attractions
-  const filtered = pool
+  const matched = pool
     .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng) && !excludeIds.has(p.id))
     .filter((p) => !query.trim() || p.name.includes(query.trim()))
-    .slice(0, 30)
+  const ordered =
+    tab === 'bakery'
+      ? [...matched].sort((a, b) => Number(isSaved(b.id)) - Number(isSaved(a.id)))
+      : matched
+  const filtered = ordered.slice(0, 30)
 
   return (
     <div className="pil-modal-backdrop" onClick={onClose}>
@@ -54,7 +62,10 @@ export default function AddStopModal({ bakeries, attractions, excludeIds, onAdd,
               className="pil-modal-row"
               onClick={() => onAdd({ type: tab, id: p.id, name: p.name, lat: p.lat, lng: p.lng })}
             >
-              <span>{p.name}</span>
+              <span>
+                {tab === 'bakery' && isSaved(p.id) && <span aria-hidden="true">❤️ </span>}
+                {p.name}
+              </span>
               <span className="pil-modal-plus">+</span>
             </button>
           ))}
