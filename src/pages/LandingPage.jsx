@@ -144,6 +144,10 @@ export default function LandingPage() {
     setShowMap(false)
     setShowTour(false)
   }
+  // 홈으로 나가면 두 설문 결과를 모두 초기화한다 — 홈 갔다 다시 들어와도 예전 결과가
+  // 그대로 뜨지 않고 항상 새 설문부터 시작하게(피드백4). 설문 화면 안에서 서로 넘나드는 건
+  // (아래 handleSurveyComplete/handleTourSurveyComplete, 리빌 화면의 교차 링크) 홈을 거치지
+  // 않으니 영향 없다 — 리셋은 "홈으로 나가는 행동" 자체에만 건다.
   const goHome = () => {
     setFeatureOpen(false)
     setShowMyPage(false)
@@ -151,10 +155,22 @@ export default function LandingPage() {
     setShowMap(false)
     setShowTour(false)
     setShowPilgrimage(false)
+    resetAnswers()
+    resetTourAnswers()
   }
   const retakeSurvey = () => {
     resetAnswers()
     setStage('survey')
+  }
+  // 빵집 찾기 설문을 막 끝냈을 때, 관광모아도 이미 끝나 있으면 이 설문의 리빌 화면 대신
+  // 바로 대전한바퀴 최적 코스로 보낸다(피드백2). 아니면 지금처럼 리빌 화면부터 보여준다.
+  const handleSurveyComplete = () => {
+    if (tourSurveyDone) openPilgrimage()
+    else setStage('reveal')
+  }
+  const handleTourSurveyComplete = () => {
+    if (surveyDone) openPilgrimage()
+    else setTourStage('reveal')
   }
 
   return (
@@ -202,10 +218,7 @@ export default function LandingPage() {
       {showTour && (
         <div className="page">
           {tourStage === 'survey' && (
-            <TourSurveyFlow
-              onComplete={() => setTourStage('reveal')}
-              onSkip={() => openTourHub(null)}
-            />
+            <TourSurveyFlow onComplete={handleTourSurveyComplete} onSkip={() => openTourHub(null)} />
           )}
           {tourStage === 'reveal' && (
             <TourReveal
@@ -215,6 +228,8 @@ export default function LandingPage() {
                 setTourStage('survey')
               }}
               onOpenHub={openTourHub}
+              breadDone={surveyDone}
+              onGoToBread={startTest}
             />
           )}
           {tourStage === 'hub' && (
@@ -241,9 +256,14 @@ export default function LandingPage() {
 
       {featureOpen && (
         <div className="page">
-          {stage === 'survey' && <SurveyFlow onComplete={() => setStage('reveal')} />}
+          {stage === 'survey' && <SurveyFlow onComplete={handleSurveyComplete} />}
           {stage === 'reveal' && (
-            <BreadReveal onRetake={retakeSurvey} onShowMap={() => setStage('map')} />
+            <BreadReveal
+              onRetake={retakeSurvey}
+              onShowMap={() => setStage('map')}
+              tourDone={tourSurveyDone}
+              onGoToTour={openTour}
+            />
           )}
           {stage === 'map' && <MapResult onRetake={retakeSurvey} />}
         </div>

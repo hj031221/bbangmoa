@@ -5,7 +5,7 @@ const THEME_LABELS = { nature: '자연', history: '역사', culture: '문화', e
 
 // 관광모아 설문 완료 직후 결과 화면: 테마 + 추천 이유 + TOP3 관광지 카드.
 // BreadReveal.jsx와 동일한 구성(리빌 문구 → 점수 → 카드 리스트 → 액션 버튼)을 관광지용으로 재구성.
-export default function TourReveal({ answers, onRetake, onOpenHub }) {
+export default function TourReveal({ answers, onRetake, onOpenHub, breadDone, onGoToBread }) {
   const result = answers ? getTourRecommendation(answers, TAGGED_ATTRACTIONS) : null
 
   if (!result || result.results.length === 0) {
@@ -59,6 +59,14 @@ export default function TourReveal({ answers, onRetake, onOpenHub }) {
           관광지 더 둘러보기 →
         </button>
       </div>
+
+      {!breadDone && onGoToBread && (
+        <div className="reveal-crosslink">
+          <button type="button" className="ghost-btn" onClick={onGoToBread}>
+            빵집 찾기 설문하러 가기 →
+          </button>
+        </div>
+      )}
     </div>
   )
 }

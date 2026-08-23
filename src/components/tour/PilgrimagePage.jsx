@@ -36,7 +36,6 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
   const tourAnswers = useAppStore((s) => s.tourAnswers)
   const { user } = useAuth()
 
-  const breadPick = pickBreadResult(answers)
   const tourResult = isTourSurveyComplete(tourAnswers)
     ? getTourRecommendation(tourAnswers, TAGGED_ATTRACTIONS)
     : null
@@ -48,6 +47,10 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
     origin,
     limit: Infinity,
   })
+
+  // 로딩 중엔 필터 없이(연결된 빵집 없는 빵도 포함해서) 고르고, 로딩이 끝나면 §CP10-2 필터가 적용된
+  // 결과로 다시 계산된다 — BreadReveal/MapResult 와 동일 패턴.
+  const breadPick = pickBreadResult(answers, bakeriesLoading ? [] : allBakeries)
 
   const breadDone = !!origin && !!breadPick
   const tourDone = !!tourResult

@@ -523,6 +523,9 @@ a{ color:var(--accent-text); }
 .bread-reveal-actions .primary-btn{ background:var(--gold); box-shadow:0 10px 22px rgba(255,185,74,.32); }
 .bread-reveal-actions .primary-btn:hover{ background:#DE9E2E; }
 
+/* 빵/관광 리빌 화면 하단 — 아직 안 끝낸 반대쪽 설문으로 넘어가는 링크 */
+.reveal-crosslink{ display:flex; justify-content:center; margin-top:14px; }
+
 /* 나만의 리스트 */
 .saved-empty{ color:var(--muted); text-align:center; padding:60px 0; }
 .saved-list{ list-style:none; padding:0; margin:0; display:grid; gap:12px; }

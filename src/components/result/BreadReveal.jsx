@@ -7,7 +7,7 @@ import { hoursBadgeText } from '../../lib/hours'
 
 // 설문 완료 직후 리빌 화면: 오늘의 빵 + 취향 적합도 + 추천 이유 + 취향 키워드 + 대표 빵집 최대 5곳.
 // "지도에서 보기" 를 누르면 같은 지역/응답으로 지도(MapResult) 로 넘어간다.
-export default function BreadReveal({ onRetake, onShowMap }) {
+export default function BreadReveal({ onRetake, onShowMap, tourDone, onGoToTour }) {
   const regionId = useAppStore((s) => s.regionId)
   const origin = useAppStore((s) => s.origin)
   const answers = useAppStore((s) => s.answers)
@@ -18,7 +18,17 @@ export default function BreadReveal({ onRetake, onShowMap }) {
   // matchBakeries 가 그중 상위 5곳만 추리게 한다(그마저도 origin 기준 가까운 순으로 이미 정렬돼 있다).
   const { bakeries, loading } = useBakeries({ regionId, answers: {}, origin, limit: Infinity })
 
-  const result = pickBreadResult(answers)
+  // 빵집 목록이 로딩 중일 땐 아직 안 고른다 — 로딩 전에 픽하면(빵집 0곳인 상태로 필터링) 나중에
+  // 데이터가 도착했을 때 "오늘의 빵"이 바뀌어버리는 깜빡임이 생긴다(피드백3 대응, §CP10-2).
+  if (loading) {
+    return (
+      <div className="bread-reveal">
+        <div className="banner">불러오는 중…</div>
+      </div>
+    )
+  }
+
+  const result = pickBreadResult(answers, bakeries)
 
   if (!result) {
     return (
@@ -56,10 +66,8 @@ export default function BreadReveal({ onRetake, onShowMap }) {
         ))}
       </div>
 
-      {loading && <div className="banner">불러오는 중…</div>}
-
       <div className="bread-reveal-list">
-        {!loading && spotlight.length === 0 && (
+        {spotlight.length === 0 && (
           <div className="rec-card empty">이 지역엔 아직 추천할 {bread.name} 맛집 정보가 없어요.</div>
         )}
         {spotlight.map((b) => {
@@ -87,6 +95,14 @@ export default function BreadReveal({ onRetake, onShowMap }) {
           지도에서 보기
         </button>
       </div>
+
+      {!tourDone && onGoToTour && (
+        <div className="reveal-crosslink">
+          <button type="button" className="ghost-btn" onClick={onGoToTour}>
+            관광모아 설문하러 가기 →
+          </button>
+        </div>
+      )}
     </div>
   )
 }
