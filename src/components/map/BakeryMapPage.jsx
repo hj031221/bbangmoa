@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useBakeries } from '../../hooks/useBakeries'
+import { useSavedBakeries } from '../../hooks/useSavedBakeries'
 import { getRegion } from '../../config/regions'
 import { haversineKm, formatDistance } from '../../lib/distance'
 import MapView from './MapView'
@@ -24,6 +25,9 @@ export default function BakeryMapPage({ origin = null, onClearOrigin, initialSea
     origin: null,
     limit: Infinity,
   })
+  // 찜한 빵집을 목록 위쪽에 먼저 보여준다(§CP10-6) — "근처 빵집"(nearbyMode)은 거리순이
+  // 핵심이라 여긴 적용하지 않는다.
+  const { isSaved } = useSavedBakeries()
 
   const nearbyMode = !!origin
   const searchMode = !nearbyMode && !!search
@@ -36,11 +40,13 @@ export default function BakeryMapPage({ origin = null, onClearOrigin, initialSea
         .sort((a, b) => a.distKm - b.distKm)
         .slice(0, NEARBY_LIMIT)
     }
-    if (search) {
-      return bakeries.filter((b) => (b.name || '').includes(search))
-    }
-    return district ? bakeries.filter((b) => (b.address || '').includes(district)) : bakeries
-  }, [bakeries, district, nearbyMode, origin, search])
+    const base = search
+      ? bakeries.filter((b) => (b.name || '').includes(search))
+      : district
+        ? bakeries.filter((b) => (b.address || '').includes(district))
+        : bakeries
+    return [...base].sort((a, b) => Number(isSaved(b.id)) - Number(isSaved(a.id)))
+  }, [bakeries, district, nearbyMode, origin, search, isSaved])
 
   const selected = filtered.find((b) => b.id === selectedId) || null
 
@@ -76,6 +82,16 @@ export default function BakeryMapPage({ origin = null, onClearOrigin, initialSea
 
       {error && <div className="banner error">데이터 오류: {String(error.message)}</div>}
       {loading && <div className="banner">불러오는 중…</div>}
+
+      {!nearbyMode && (
+        <input
+          type="text"
+          className="bm-map-search-input"
+          placeholder="빵집 이름 검색…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      )}
 
       {nearbyMode ? (
         <div className="bm-district-filters">
@@ -133,6 +149,7 @@ export default function BakeryMapPage({ origin = null, onClearOrigin, initialSea
               >
                 <span className="rl-name">
                   {nearbyMode ? `${i + 1}. ` : ''}
+                  {!nearbyMode && isSaved(b.id) && <span aria-hidden="true">❤️ </span>}
                   {b.name}
                 </span>
                 {nearbyMode ? (

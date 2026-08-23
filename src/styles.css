@@ -440,6 +440,7 @@ a{ color:var(--accent-text); }
 .rec-list-empty{ padding:10px; color:var(--muted); font-size:.85rem; }
 
 /* 빵 지도: 구 필터 칩 */
+.bm-map-search-input{ display:block; width:100%; padding:10px 14px; border:1px solid var(--line); border-radius:10px; font:inherit; margin-bottom:10px; }
 .bm-district-filters{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
 .bm-district-chip{ padding:8px 16px; border-radius:999px; border:1.5px solid var(--line); background:var(--card); color:var(--brown); font-weight:600; font-size:.85rem; }
 .bm-district-chip:hover{ border-color:var(--accent); }
@@ -492,6 +493,7 @@ a{ color:var(--accent-text); }
 .result-browse .result-header{ background:var(--gold); margin:0; padding:16px 24px; gap:14px; }
 .result-browse .result-header h2{ color:#fff; }
 .result-browse .bm-district-filters{ padding:16px 16px 0; }
+.result-browse .bm-map-search-input{ margin:16px 16px 0; width:auto; }
 .result-browse > .banner{ margin:16px 16px 0; }
 .result-browse .result-body{ grid-template-columns:1fr 260px 300px; padding:16px; }
 .result-browse .result-list-col{ overflow-y:auto; }
