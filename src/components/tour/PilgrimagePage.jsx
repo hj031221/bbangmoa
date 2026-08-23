@@ -10,6 +10,7 @@ import { estimateActualRoute } from '../../lib/travelTime'
 import { formatDistance } from '../../lib/distance'
 import { supabase } from '../../lib/supabase'
 import { TAGGED_ATTRACTIONS } from '../../data/tourAttractionTags'
+import { useSavedCourses } from '../../hooks/useSavedCourses'
 import AddStopModal from './AddStopModal'
 
 const MODES = [
@@ -17,6 +18,15 @@ const MODES = [
   { id: 'transit', label: '🚌 대중교통' },
   { id: 'walk', label: '🚶 도보' },
 ]
+
+// 코스의 "정체성" — 경유지 타입+id를 순서대로 이어붙인 키. 순서가 바뀌면 다른 코스로 본다
+// (§CP10-7 — "똑같은 코스 저장 방지" 요청 대응). lat/lng/name/order 등은 무시한다(같은 id면
+// 항상 같은 값이라 중복이라 비교할 이유가 없다). origin·이동수단은 여기 포함하지 않는다 —
+// 이동수단이 다르면 아래에서 별도로 비교한다(같은 경유지·순서라도 이동수단이 다르면 다른 저장으로
+// 허용), origin은 "그때그때 어디서 출발했는지"일 뿐 코스 자체의 정체성은 아니라고 판단했다.
+function stopsSignature(stops) {
+  return (stops || []).map((s) => `${s.type}:${s.id}`).join('|')
+}
 
 function formatMinutes(min) {
   if (!Number.isFinite(min)) return '-'
@@ -38,6 +48,8 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
   const pendingCourseLoad = useAppStore((s) => s.pendingCourseLoad)
   const setPendingCourseLoad = useAppStore((s) => s.setPendingCourseLoad)
   const { user } = useAuth()
+  // 이미 저장해둔 코스 목록 — "똑같은 코스 저장 방지"(§CP10-7) 중복 판정에 쓴다.
+  const { courses: savedCourses, loading: savedCoursesLoading } = useSavedCourses()
 
   const tourResult = isTourSurveyComplete(tourAnswers)
     ? getTourRecommendation(tourAnswers, TAGGED_ATTRACTIONS)
@@ -69,6 +81,10 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
   const [manualOrderIds, setManualOrderIds] = useState(null)
   const [addOpen, setAddOpen] = useState(false)
   const [saveState, setSaveState] = useState('idle') // 'idle' | 'saving' | 'saved' | 'error'
+  // useSavedCourses는 마운트 시점 한 번만 조회해서, 이 화면에서 방금 막 저장한 코스는 반영이
+  // 안 돼 있다 — 그래서 이번에 저장 성공한 것들만 세션 안에서 따로 기억해둔다(중복판정용).
+  const [justSaved, setJustSaved] = useState([])
+  const savingRef = useRef(false) // 저장 중 빠른 연타로 두 번 insert되는 것 방지(state는 한 박자 늦게 반영됨)
   const dragIndexRef = useRef(null)
   const [dragOverIndex, setDragOverIndex] = useState(null)
 
@@ -123,6 +139,21 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
   }, [customStops, manualOrderIds, travelMode, origin])
 
   const excludeIds = useMemo(() => new Set((customStops || []).map((s) => s.id)), [customStops])
+
+  // 지금 화면의 코스(경유지+순서+이동수단)가 이미 저장된 것과 같은지 — 같으면 저장 버튼을 막는다
+  // (§CP10-7). DB 조회분(savedCourses) + 이 화면에서 방금 저장한 것(justSaved) 둘 다 본다.
+  const isDuplicateOfSaved = useMemo(() => {
+    if (!route) return false
+    const sig = stopsSignature(route.stops)
+    const isSameAs = (c) => c.travel_mode === travelMode && stopsSignature(c.stops) === sig
+    return savedCourses.some(isSameAs) || justSaved.some(isSameAs)
+  }, [route, travelMode, savedCourses, justSaved])
+
+  // 코스 내용이 바뀌면(경유지·순서·이동수단) 이전 저장 상태 표시를 지운다 — 안 그러면 한 번
+  // 저장한 뒤 코스를 고쳐도 버튼이 "저장됨 ✓"에 갇혀서 새 버전을 다시 저장할 방법이 없었다.
+  useEffect(() => {
+    setSaveState('idle')
+  }, [route, travelMode])
 
   // CP6-4: route가 정해지면 실API로 정밀 이동시간 + 구간별 실제 경로 좌표를 한 번 더 구한다.
   // 실패/도보 모드면 null 유지 — 그럴 땐 route.totalMinutes(근사치) + 직선 경로를 그대로 쓴다.
@@ -193,7 +224,11 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
   }
 
   const handleSave = async () => {
-    if (!user || !route) return
+    // savingRef: state(saveState)로 disabled를 걸어도 리렌더가 한 박자 늦어서, 아주 빠른 연속
+    // 클릭(더블클릭 등)은 둘 다 disabled 반영 전에 통과해 insert가 두 번 나갈 수 있다 — ref는
+    // 동기적으로 바로 반영되니 여기서 즉시 막는다.
+    if (!user || !route || savingRef.current || isDuplicateOfSaved || savedCoursesLoading) return
+    savingRef.current = true
     setSaveState('saving')
     const { error } = await supabase.from('saved_courses').insert({
       user_id: user.id,
@@ -202,11 +237,13 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
       stops: route.stops,
       origin,
     })
+    savingRef.current = false
     if (error) {
       console.error('[대전한바퀴] 코스 저장 실패', error)
       setSaveState('error')
       return
     }
+    setJustSaved((prev) => [...prev, { stops: route.stops, travel_mode: travelMode }])
     setSaveState('saved')
   }
 
@@ -325,7 +362,13 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
           type="button"
           className="pil-save-btn"
           onClick={handleSave}
-          disabled={!user || saveState === 'saving' || saveState === 'saved'}
+          disabled={
+            !user ||
+            saveState === 'saving' ||
+            saveState === 'saved' ||
+            isDuplicateOfSaved ||
+            savedCoursesLoading
+          }
         >
           {!user
             ? '로그인 후 저장 가능'
@@ -333,9 +376,11 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
               ? '저장 중…'
               : saveState === 'saved'
                 ? '저장됨 ✓'
-                : saveState === 'error'
-                  ? '저장 실패, 다시 시도'
-                  : '코스 저장하기'}
+                : isDuplicateOfSaved
+                  ? '이미 저장된 코스예요'
+                  : saveState === 'error'
+                    ? '저장 실패, 다시 시도'
+                    : '코스 저장하기'}
         </button>
       </div>
 
