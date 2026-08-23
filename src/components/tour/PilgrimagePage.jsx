@@ -80,6 +80,11 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
 
   useEffect(() => {
     if (!pendingCourseLoad) return
+    if (!Array.isArray(pendingCourseLoad.stops)) {
+      // 형식이 이상한 코스(예: 옛 스키마 잔여 데이터)면 조용히 무시하고 정리한다 — 크래시보다 낫다.
+      setPendingCourseLoad(null)
+      return
+    }
     loadedFromSavedRef.current = true
     setGateBypassed(true)
     setCustomStops(pendingCourseLoad.stops)
