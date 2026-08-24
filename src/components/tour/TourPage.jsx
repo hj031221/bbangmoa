@@ -1,10 +1,9 @@
 import { useMemo, useEffect, useState } from 'react'
-import daejeonTour from '../../data/daejeonTour.json'
+import { useAttractions } from '../../hooks/useAttractions'
 import { getDetail, tourEnabled, reverseGeocodeAddress, kakaoLocalEnabled } from '../../api'
 import { hoursBadgeText } from '../../lib/hours'
 import { getRegion } from '../../config/regions'
 
-const ATTRACTIONS = daejeonTour.filter((t) => t.image)
 const DISTRICTS = getRegion().districts
 const DESC_MAX = 160
 const PAGE_SIZE = 21
@@ -20,13 +19,14 @@ function splitOverview(raw) {
 // "관광모아" 메뉴 전용 화면. 명소를 원형 사진 그리드로 둘러보다가(허브),
 // 하나를 고르면 같은 화면 안에서 상세 뷰로 전환된다(빵 지도의 selectedId 패턴과 동일).
 export default function TourPage({ onShowBakeryMap, initialDistrict = null, initialSelectedId = null }) {
+  const { tagged: ATTRACTIONS } = useAttractions()
   const [selectedId, setSelectedId] = useState(initialSelectedId)
   const [district, setDistrict] = useState(initialDistrict) // null = 전체
   const [page, setPage] = useState(1)
   const selected = ATTRACTIONS.find((a) => a.id === selectedId) || null
   const filtered = useMemo(
     () => (district ? ATTRACTIONS.filter((a) => (a.addr || '').includes(district)) : ATTRACTIONS),
-    [district],
+    [ATTRACTIONS, district],
   )
 
   if (selected) {
