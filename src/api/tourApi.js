@@ -87,11 +87,12 @@ export async function fetchTourBakeries(regionId) {
 }
 
 // areaBasedList2 관광지/문화시설 원본 아이템 → attractionTagging.js 가 기대하는 site 형태로 정규화.
-function normalizeAttraction(item, typeLabel) {
+function normalizeAttraction(item, contentTypeId, typeLabel) {
   const lat = Number(item.mapy)
   const lng = Number(item.mapx)
   return {
     id: String(item.contentid),
+    contentTypeId, // detailIntro2 호출 시 필요(관광지/문화시설 필드명이 다름)
     name: item.title || '',
     type: typeLabel,
     lat: Number.isFinite(lat) ? lat : null,
@@ -126,7 +127,7 @@ export async function fetchAttractions(regionId) {
           pageNo: 1,
         },
       })
-        .then((json) => extractItems(json).map((item) => normalizeAttraction(item, label)))
+        .then((json) => extractItems(json).map((item) => normalizeAttraction(item, contentTypeId, label)))
         .catch(() => []),
     ),
   )

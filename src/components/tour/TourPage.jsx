@@ -1,7 +1,7 @@
 import { useMemo, useEffect, useState } from 'react'
 import { useAttractions } from '../../hooks/useAttractions'
-import { getDetail, tourEnabled, reverseGeocodeAddress, kakaoLocalEnabled } from '../../api'
-import { hoursBadgeText } from '../../lib/hours'
+import { getDetail, getAttractionIntro, tourEnabled, reverseGeocodeAddress, kakaoLocalEnabled } from '../../api'
+import { hoursBadgeText, parseHours } from '../../lib/hours'
 import { getRegion } from '../../config/regions'
 
 const DISTRICTS = getRegion().districts
@@ -122,7 +122,9 @@ function AttractionDetail({ attraction, onBack, onShowBakeryMap }) {
   const [detailLoading, setDetailLoading] = useState(false)
   const [preciseAddr, setPreciseAddr] = useState(null)
   const [descExpanded, setDescExpanded] = useState(false)
-  const { id, name, image, addr, lat, lng, hours, rest } = attraction
+  const [hours, setHours] = useState(null)
+  const [rest, setRest] = useState('')
+  const { id, name, image, addr, lat, lng, contentTypeId } = attraction
 
   useEffect(() => {
     setDescExpanded(false)
@@ -141,6 +143,24 @@ function AttractionDetail({ attraction, onBack, onShowBakeryMap }) {
       alive = false
     }
   }, [id])
+
+  // 영업시간/휴무 — 목록엔 안 담고 상세를 열 때만 그때 조회한다(186곳 전부를 매번 부를 필요 없음).
+  useEffect(() => {
+    setHours(null)
+    setRest('')
+    if (!id || !contentTypeId || !tourEnabled()) return
+    let alive = true
+    getAttractionIntro(id, contentTypeId)
+      .then((intro) => {
+        if (!alive || !intro) return
+        setHours(parseHours(intro.rawHours))
+        setRest(intro.rest)
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [id, contentTypeId])
 
   // 관광공사 정적 주소가 "OO동"까지만 있는 경우가 많아, 좌표로 도로명 주소를 보강한다.
   useEffect(() => {
