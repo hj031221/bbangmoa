@@ -161,12 +161,27 @@ export function buildThemeReason(branchId, answers, theme) {
   return `${picks.join(', ')} 같은 성향이 반영되어 ${THEME_LABELS[theme]} 테마가 추천되었습니다.`
 }
 
-export function buildAttractionReason(userVec, attraction) {
+// peers: 이번 추천 결과에 함께 노출되는 다른 관광지들(자기 자신 포함해도 됨).
+// 기존 로직은 "내 상위 태그 2개"만 보고 문구를 만들어서, 함께 노출된 후보끼리
+// 그 태그값이 같으면(=벡터가 다르더라도) 문구가 완전히 같아지는 문제가 있었다.
+// → 후보들 사이에서 이 장소만 유독 높은 성향(태그)이 있으면 한 문장 덧붙여 구분한다.
+export function buildAttractionReason(userVec, attraction, peers = []) {
   const userTop = topTags(userVec, 2)
   const common = userTop.filter((tag) => (attraction.traits[tag] ?? 0) >= 4)
   if (common.length === 0) return ''
   const labels = common.map((tag) => TAG_LABELS[tag])
-  return `${labels.join('과 ')}을 중요하게 생각하는 여행 성향과 잘 맞는 장소입니다.`
+  const base = `${labels.join('과 ')}을 중요하게 생각하는 여행 성향과 잘 맞는 장소입니다.`
+
+  const others = peers.filter((p) => p !== attraction)
+  if (others.length === 0) return base
+
+  const distinguishing = TRAIT_TAGS
+    .filter((tag) => (attraction.traits[tag] ?? 0) >= 4)
+    .filter((tag) => others.every((o) => (attraction.traits[tag] ?? 0) > (o.traits[tag] ?? 0)))
+    .sort((a, b) => (attraction.traits[b] ?? 0) - (attraction.traits[a] ?? 0))
+
+  if (distinguishing.length === 0) return base
+  return `${base} 특히 ${TAG_LABELS[distinguishing[0]]} 면에서 다른 추천지보다 두드러집니다.`
 }
 
 export function getTourRecommendation(answers, attractions) {
@@ -191,7 +206,7 @@ export function getTourRecommendation(answers, attractions) {
     results: results.map((r) => ({
       attraction: r.attraction,
       score: Math.round(r.finalScore),
-      reason: buildAttractionReason(userVec, r.attraction),
+      reason: buildAttractionReason(userVec, r.attraction, results.map((x) => x.attraction)),
     })),
   }
 }
