@@ -23,39 +23,6 @@ function extractItems(json) {
   return Array.isArray(item) ? item : [item]
 }
 
-// 키워드 기반 검색. 빵집은 분류코드가 없어 키워드("대전 빵" 등)로 긁는다.
-export async function searchByKeyword(keyword, { regionId, numOfRows = 30 } = {}) {
-  const region = getRegion(regionId)
-  const json = await getJson(`${BASE}/searchKeyword2`, {
-    params: {
-      ...COMMON,
-      keyword,
-      lDongRegnCd: region.lDongRegnCd,
-      arrange: 'C', // 수정일순 + 이미지 우선
-      numOfRows,
-      pageNo: 1,
-    },
-  })
-  return extractItems(json)
-}
-
-// 좌표 반경 기반 검색 (음식점 contentTypeId=39). "내 주변" 확장 기능용.
-export async function searchByLocation({ lat, lng, radius = 2000, numOfRows = 30 } = {}) {
-  const json = await getJson(`${BASE}/locationBasedList2`, {
-    params: {
-      ...COMMON,
-      mapX: lng,
-      mapY: lat,
-      radius,
-      contentTypeId: 39,
-      arrange: 'E', // 거리순
-      numOfRows,
-      pageNo: 1,
-    },
-  })
-  return extractItems(json)
-}
-
 // 상세 공통정보 (마커/카드 탭 시 설명·대표이미지 보강)
 export async function getDetail(contentId) {
   const json = await getJson(`${BASE}/detailCommon2`, {
