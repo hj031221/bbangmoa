@@ -9,7 +9,7 @@ import { buildRoute, recalcRoute, summarizeOrder } from '../../lib/routePlan'
 import { estimateActualRoute } from '../../lib/travelTime'
 import { formatDistance } from '../../lib/distance'
 import { supabase } from '../../lib/supabase'
-import { TAGGED_ATTRACTIONS } from '../../data/tourAttractionTags'
+import { useAttractions } from '../../hooks/useAttractions'
 import { useSavedCourses } from '../../hooks/useSavedCourses'
 import AddStopModal from './AddStopModal'
 
@@ -50,9 +50,10 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
   const { user } = useAuth()
   // 이미 저장해둔 코스 목록 — "똑같은 코스 저장 방지"(§CP10-7) 중복 판정에 쓴다.
   const { courses: savedCourses, loading: savedCoursesLoading } = useSavedCourses()
+  const { tagged: attractions } = useAttractions()
 
   const tourResult = isTourSurveyComplete(tourAnswers)
-    ? getTourRecommendation(tourAnswers, TAGGED_ATTRACTIONS)
+    ? getTourRecommendation(tourAnswers, attractions)
     : null
 
   // 빵집 매칭은 대전 전역 풀에서(BreadReveal과 동일 방식) — origin 근처 10곳으로 잘리면 안 됨.
@@ -391,7 +392,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
       {addOpen && (
         <AddStopModal
           bakeries={allBakeries}
-          attractions={TAGGED_ATTRACTIONS}
+          attractions={attractions}
           excludeIds={excludeIds}
           onAdd={addStop}
           onClose={() => setAddOpen(false)}
