@@ -67,13 +67,28 @@ function breakTie(tiedCandidates, branch) {
 
 // 응답 → { branch, bread, score, raw } | null(Q1 미응답)
 // 취향 적합도는 인위적 최소/최대 보정 없이 실제 점수(0~100)를 그대로 반올림해 사용한다.
-export function pickBreadResult(answers) {
+//
+// bakeries(선택): 주어지면(그리고 로딩이 끝나 1곳 이상 있으면) 연결된 빵집이 하나도 없는 빵은
+// 후보에서 미리 제외하고 점수를 매긴다(피드백3 — "빵집 정보 없어요"가 뜨는 빵 자체를 안 고름).
+// 모든 후보가 빵집이 0곳이면(그 branch 데이터 자체가 아직 빈약한 경우) 필터 없이 원래대로 고른다.
+// bakeries 를 안 주거나 아직 로딩 전(빈 배열)이면 필터를 건너뛴다 — 호출부는 로딩이 끝난 뒤에
+// 불러야 이 필터가 실제로 적용된다(그 전엔 빵집 데이터 자체가 없어 전부 걸러질 수 있어서).
+export function pickBreadResult(answers, bakeries) {
   const branchId = resolveBranch(answers)
   if (!branchId) return null
   const branch = BRANCHES[branchId]
   const scored = scoreCandidates(branchId, answers)
-  const maxScore = Math.max(...scored.map((s) => s.score))
-  const tied = scored.filter((s) => s.score === maxScore)
+
+  let candidates = scored
+  if (bakeries && bakeries.length > 0) {
+    const withBakery = scored.filter(
+      (s) => matchBakeries(bakeries, getBreadById(s.breadId), 1).length > 0,
+    )
+    if (withBakery.length > 0) candidates = withBakery
+  }
+
+  const maxScore = Math.max(...candidates.map((s) => s.score))
+  const tied = candidates.filter((s) => s.score === maxScore)
   const winner = tied.length > 1 ? breakTie(tied, branch) : tied[0]
 
   return {

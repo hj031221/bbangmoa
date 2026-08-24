@@ -4,7 +4,7 @@ import { useSavedCourses } from '../../hooks/useSavedCourses'
 import { formatCourseLabel } from '../../lib/courseLabel'
 import SavedCourseMap from './SavedCourseMap'
 
-export default function SavedCoursesPanel({ onBack, targetUserId, readOnly = false }) {
+export default function SavedCoursesPanel({ onBack, targetUserId, readOnly = false, onLoadCourse }) {
   const { courses, loading, removeCourse } = useSavedCourses(targetUserId)
   const [selectedId, setSelectedId] = useState(null)
 
@@ -28,16 +28,23 @@ export default function SavedCoursesPanel({ onBack, targetUserId, readOnly = fal
           ))}
         </ol>
         {!readOnly && (
-          <button
-            type="button"
-            className="ghost-btn"
-            onClick={() => {
-              removeCourse(selectedId)
-              setSelectedId(null)
-            }}
-          >
-            코스 삭제
-          </button>
+          <div className="mypage-course-detail-actions">
+            {onLoadCourse && (
+              <button type="button" className="primary-btn" onClick={() => onLoadCourse(selected)}>
+                이 코스 불러오기
+              </button>
+            )}
+            <button
+              type="button"
+              className="ghost-btn"
+              onClick={() => {
+                removeCourse(selectedId)
+                setSelectedId(null)
+              }}
+            >
+              코스 삭제
+            </button>
+          </div>
         )}
       </div>
     )

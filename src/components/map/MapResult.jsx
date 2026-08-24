@@ -47,7 +47,9 @@ export default function MapResult({ onRetake }) {
 
   // 설문에서 나온 "오늘의 빵" 결과가 있으면 그 빵을 파는 빵집만(BreadReveal 과 동일 기준) 보여준다.
   // 결과가 없으면(Q1 미응답 등) 대전 전역을 가까운 순으로 보여주는 기존 방식으로 폴백한다.
-  const breadResult = pickBreadResult(answers)
+  // 로딩 중엔 bakeries 가 비어있어 필터가 자연히 no-op 되고, 로딩이 끝나면 실제 목록으로 재계산된다
+  // (§CP10-2 — 연결된 빵집이 없는 빵은 애초에 후보에서 제외).
+  const breadResult = pickBreadResult(answers, bakeries)
   const filteredBakeries = breadResult ? matchBakeries(bakeries, breadResult.bread, 10) : bakeries
 
   // 빵집별 거리: 설문서 고른 origin 우선, 없으면 현재 위치/역 폴백
