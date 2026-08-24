@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import heroIllustration from '../../assets/landing-hero-illustration.svg'
 import { useAttractions } from '../../hooks/useAttractions'
 
@@ -33,6 +33,17 @@ export default function MainHero({ onStart, onOpenMap, onOpenTour, onSearch }) {
   const [tourIndex, setTourIndex] = useState(() => getRandomTourIndex(TOUR_SPOTS.length))
   const [tourStep, setTourStep] = useState(0)
   const [tourPaused, setTourPaused] = useState(false)
+  const spotsReadyRef = useRef(TOUR_SPOTS.length > 0)
+
+  // 관광지 데이터가 실시간 API에서 로딩되는 동안(TOUR_SPOTS가 빈 배열)엔 위 초기 인덱스가
+  // 0으로 고정된다 — 데이터가 처음 도착하는 순간 한 번 더 랜덤화해서, 로딩 완료 직후 첫 회전
+  // 전까지 항상 같은(응답 순서상 첫 번째) 관광지만 보이던 문제를 없앤다.
+  useEffect(() => {
+    if (!spotsReadyRef.current && TOUR_SPOTS.length > 0) {
+      spotsReadyRef.current = true
+      setTourIndex(getRandomTourIndex(TOUR_SPOTS.length))
+    }
+  }, [TOUR_SPOTS.length])
 
   useEffect(() => {
     if (tourPaused || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return undefined
