@@ -85,3 +85,65 @@ export async function fetchTourBakeries(regionId) {
   })
   return extractItems(json)
 }
+
+// areaBasedList2 관광지/문화시설 원본 아이템 → attractionTagging.js 가 기대하는 site 형태로 정규화.
+function normalizeAttraction(item, typeLabel) {
+  const lat = Number(item.mapy)
+  const lng = Number(item.mapx)
+  return {
+    id: String(item.contentid),
+    name: item.title || '',
+    type: typeLabel,
+    lat: Number.isFinite(lat) ? lat : null,
+    lng: Number.isFinite(lng) ? lng : null,
+    image: item.firstimage || '',
+    addr: item.addr1 || '',
+    cat: item.cat3 || item.cat2 || '',
+  }
+}
+
+const ATTRACTION_TYPES = [
+  { contentTypeId: 12, label: '관광지' },
+  { contentTypeId: 14, label: '문화시설' },
+]
+
+// 지역의 관광지(12) + 문화시설(14) 목록을 실시간으로 가져온다.
+//   prefetchTour.mjs(삭제됨, git log d1b51cf 참고)가 빌드타임에 하던 것과 같은 소스·필터를
+//   런타임에 그대로 호출한다. 영업시간(detailIntro2)은 여기 포함하지 않는다 — 상세 열람 시
+//   getAttractionIntro()로 그때 따로 가져온다(186곳 전부를 매번 부를 필요 없음).
+export async function fetchAttractions(regionId) {
+  if (!tourEnabled()) return []
+  const region = getRegion(regionId)
+  const lists = await Promise.all(
+    ATTRACTION_TYPES.map(({ contentTypeId, label }) =>
+      getJson(`${BASE}/areaBasedList2`, {
+        params: {
+          ...COMMON,
+          contentTypeId,
+          lDongRegnCd: region.lDongRegnCd,
+          arrange: 'C',
+          numOfRows: 200,
+          pageNo: 1,
+        },
+      })
+        .then((json) => extractItems(json).map((item) => normalizeAttraction(item, label)))
+        .catch(() => []),
+    ),
+  )
+  return lists.flat().filter((a) => a.lat && a.lng && a.name)
+}
+
+// 관광지 상세 열람 시 영업시간/휴무 원문(detailIntro2). contentTypeId 별로 필드명이 다르다
+// (관광지=usetime/restdate, 문화시설=usetimeculture/restdateculture).
+export async function getAttractionIntro(contentId, contentTypeId) {
+  const json = await getJson(`${BASE}/detailIntro2`, {
+    params: { ...COMMON, contentId, contentTypeId, numOfRows: 1, pageNo: 1 },
+  })
+  const item = extractItems(json)[0] || null
+  if (!item) return null
+  const isCulture = String(contentTypeId) === '14'
+  return {
+    rawHours: (isCulture ? item.usetimeculture : item.usetime) || '',
+    rest: (isCulture ? item.restdateculture : item.restdate) || '',
+  }
+}
