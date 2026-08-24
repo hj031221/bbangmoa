@@ -6,19 +6,16 @@ import { getRegion } from '../../config/regions'
 import { isWithinBbox, formatDistance, haversineKm } from '../../lib/distance'
 import { getBakeryDistanceInfo } from '../../lib/bakeryDistance'
 import { pickBreadResult, matchBakeries } from '../../lib/breadRecommend'
-import daejeonTour from '../../data/daejeonTour.json'
+import { useAttractions } from '../../hooks/useAttractions'
 import MapView from './MapView'
 import RecommendCard from './RecommendCard'
 import MapSelectionSummary from './MapSelectionSummary'
 
-// 관광지 좌표만 미리 추림(이름·좌표). 빵집별 최근접 1곳 계산에 재사용.
-const TOUR_SPOTS = daejeonTour.filter((t) => Number.isFinite(t.lat) && Number.isFinite(t.lng))
-
 // 빵집 한 곳에서 가장 가까운 관광지 1곳 → { name, km, lat, lng }
-function nearestAttraction(bakery) {
+function nearestAttraction(bakery, spots) {
   if (!Number.isFinite(bakery.lat) || !Number.isFinite(bakery.lng)) return null
   let best = null
-  for (const t of TOUR_SPOTS) {
+  for (const t of spots) {
     const km = haversineKm({ lat: bakery.lat, lng: bakery.lng }, { lat: t.lat, lng: t.lng })
     if (!best || km < best.km) best = { name: t.name, km, lat: t.lat, lng: t.lng }
   }
@@ -45,6 +42,13 @@ export default function MapResult({ onRetake }) {
   const { status: locStatus, coords, label: locLabel } = useCurrentLocation()
   const inRegion = isWithinBbox(coords, region.bbox)
 
+  // 관광지 좌표만 추림(이름·좌표). 빵집별 최근접 1곳 계산에 재사용.
+  const { raw: attractionsRaw } = useAttractions()
+  const tourSpots = useMemo(
+    () => attractionsRaw.filter((t) => Number.isFinite(t.lat) && Number.isFinite(t.lng)),
+    [attractionsRaw],
+  )
+
   // 설문에서 나온 "오늘의 빵" 결과가 있으면 그 빵을 파는 빵집만(BreadReveal 과 동일 기준) 보여준다.
   // 결과가 없으면(Q1 미응답 등) 대전 전역을 가까운 순으로 보여주는 기존 방식으로 폴백한다.
   // 로딩 중엔 bakeries 가 비어있어 필터가 자연히 no-op 되고, 로딩이 끝나면 실제 목록으로 재계산된다
@@ -58,11 +62,11 @@ export default function MapResult({ onRetake }) {
       filteredBakeries.map((b) => ({
         ...b,
         distInfo: getBakeryDistanceInfo(b, { origin, coords, bbox: region.bbox }),
-        nearSpot: nearestAttraction(b),
+        nearSpot: nearestAttraction(b, tourSpots),
         breadType: breadResult?.bread?.name,
         breadTypeEmoji: breadResult?.bread?.emoji,
       })),
-    [filteredBakeries, origin, coords, region, breadResult?.bread?.name, breadResult?.bread?.emoji],
+    [filteredBakeries, origin, coords, region, tourSpots, breadResult?.bread?.name, breadResult?.bread?.emoji],
   )
   const selected =
     bakeriesWithDist.find((b) => b.id === selectedBakeryId) || bakeriesWithDist[0]
