@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { isSurveyComplete } from '../lib/breadRecommend'
 import SurveyFlow from '../components/survey/SurveyFlow'
@@ -45,6 +45,24 @@ export default function LandingPage() {
   const surveyDone = !!origin && isSurveyComplete(answers)
   const tourSurveyDone = isTourSurveyComplete(tourAnswers)
   const isHome = !showInfo && !showMap && !showTour && !showPilgrimage && !showMyPage && !featureOpen
+
+  // 서비스 소개처럼 스크롤 가능한 화면에서 새로고침하면 브라우저가 이전 scrollY를 복원한다.
+  // 앱 상태는 홈으로 초기화되므로, 아래 스크롤 잠금이 걸리기 전에 반드시 홈 상단으로 되돌린다.
+  useLayoutEffect(() => {
+    if (!isHome) return undefined
+
+    const resetHomeScroll = () => window.scrollTo(0, 0)
+    resetHomeScroll()
+    const frame = window.requestAnimationFrame(resetHomeScroll)
+    window.addEventListener('pageshow', resetHomeScroll)
+    window.addEventListener('load', resetHomeScroll)
+
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.removeEventListener('pageshow', resetHomeScroll)
+      window.removeEventListener('load', resetHomeScroll)
+    }
+  }, [isHome])
 
   // 메인 화면(홈)에서는 마우스 휠/스크롤이 필요 없게 — 다른 화면으로 전환되면 원래대로 복원.
   // overflow:hidden 만으로는 휠 스크롤이 안 막혀서, 휠/터치 이벤트 자체를 막는다.
@@ -181,7 +199,7 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="bm-landing">
+    <div className={`bm-landing${isHome ? ' is-home' : ''}`}>
       <NavBar
         onGoHome={goHome}
         onOpenInfo={openInfo}

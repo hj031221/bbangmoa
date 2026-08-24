@@ -1,11 +1,13 @@
 import { useSavedBakeries } from '../../hooks/useSavedBakeries'
 import PreviewChevron from './PreviewChevron'
 import { HeartIcon } from './PreviewIcons'
+import { getBreadById, getBreadByName } from '../../data/breadCandidates'
 
 // 마이페이지 홈 미리보기 카드. 개수 제한 없이 찜한 만큼 세로로 늘어난다.
 // 상세 조작(찜 해제 등)은 헤더 클릭 시 SavedBakeriesPanel 로 이동해서 한다.
 export default function SavedBakeriesPreview({ onExpand }) {
   const { saved } = useSavedBakeries()
+  const fallbackIllustration = getBreadById('breadLoaf')?.illustration
 
   return (
     <div className="mypage-preview-panel">
@@ -21,19 +23,24 @@ export default function SavedBakeriesPreview({ onExpand }) {
           <p className="mypage-preview-empty">아직 찜한 빵집이 없어요.</p>
         ) : (
           <div className="mypage-preview-bakery-grid">
-            {saved.map((b) => (
-              <div key={b.id} className="mypage-preview-bakery-card">
-                <span className="mypage-preview-bakery-icon" aria-hidden="true">{b.breadTypeEmoji || '🍞'}</span>
-                {b.breadType ? (
-                  <>
-                    <span className="mypage-preview-bakery-name">{b.breadType}</span>
-                    <span className="mypage-preview-bakery-sub">{b.name}</span>
-                  </>
-                ) : (
-                  <span className="mypage-preview-bakery-name">{b.name}</span>
-                )}
-              </div>
-            ))}
+            {saved.map((b) => {
+              const illustration =
+                b.breadTypeIllustration || getBreadByName(b.breadType)?.illustration || fallbackIllustration
+
+              return (
+                <div key={b.id} className="mypage-preview-bakery-card">
+                  <img className="mypage-preview-bakery-icon" src={illustration} alt="" aria-hidden="true" />
+                  {b.breadType ? (
+                    <>
+                      <span className="mypage-preview-bakery-name">{b.breadType}</span>
+                      <span className="mypage-preview-bakery-sub">{b.name}</span>
+                    </>
+                  ) : (
+                    <span className="mypage-preview-bakery-name">{b.name}</span>
+                  )}
+                </div>
+              )
+            })}
           </div>
         )}
       </div>
