@@ -93,24 +93,26 @@ export default function MainHero({ onStart, onOpenMap, onOpenTour, onSearch }) {
         onFocusCapture={() => setTourPaused(true)}
         onBlurCapture={() => setTourPaused(false)}
       >
-        <button
-          type="button"
-          className="bm-tour-showcase-card"
-          onClick={() => onOpenTour?.(TOUR_SPOTS[tourIndex].id)}
-          aria-label={`${TOUR_SPOTS[tourIndex].name} 자세히 보기`}
-        >
-          <img
-            key={TOUR_SPOTS[tourIndex].id}
-            src={TOUR_SPOTS[tourIndex].image}
-            alt=""
-          />
-          <span className="bm-tour-showcase-copy">
-            <small>대전에서 여기도 어때요?</small>
-            <strong>{TOUR_SPOTS[tourIndex].name}</strong>
-            <span>{TOUR_SPOTS[tourIndex].caption}</span>
-          </span>
-          <span className="bm-tour-showcase-more" aria-hidden="true">둘러보기 →</span>
-        </button>
+        {TOUR_SPOTS[tourIndex] && (
+          <button
+            type="button"
+            className="bm-tour-showcase-card"
+            onClick={() => onOpenTour?.(TOUR_SPOTS[tourIndex].id)}
+            aria-label={`${TOUR_SPOTS[tourIndex].name} 자세히 보기`}
+          >
+            <img
+              key={TOUR_SPOTS[tourIndex].id}
+              src={TOUR_SPOTS[tourIndex].image}
+              alt=""
+            />
+            <span className="bm-tour-showcase-copy">
+              <small>대전에서 여기도 어때요?</small>
+              <strong>{TOUR_SPOTS[tourIndex].name}</strong>
+              <span>{TOUR_SPOTS[tourIndex].caption}</span>
+            </span>
+            <span className="bm-tour-showcase-more" aria-hidden="true">둘러보기 →</span>
+          </button>
+        )}
 
         <div className="bm-tour-showcase-dots" aria-hidden="true">
           {[0, 1, 2, 3].map((step) => (
