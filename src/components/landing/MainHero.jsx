@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import heroIllustration from '../../assets/landing-hero-illustration.svg'
-import { TAGGED_ATTRACTIONS } from '../../data/tourAttractionTags'
+import { useAttractions } from '../../hooks/useAttractions'
 
 const TOUR_CAPTIONS = {
   nature: '산책과 휴식을 함께 즐기기 좋은 자연 명소',
@@ -10,36 +10,51 @@ const TOUR_CAPTIONS = {
   etc: '대전에서 색다른 시간을 보내기 좋은 장소',
 }
 
-const TOUR_SPOTS = TAGGED_ATTRACTIONS
-  .filter((place) => place.image?.startsWith('https://'))
-  .map((place) => ({
-    ...place,
-    caption: TOUR_CAPTIONS[place.themes[0]] ?? TOUR_CAPTIONS.etc,
-  }))
-
-function getRandomTourIndex(current = -1) {
-  const next = Math.floor(Math.random() * (TOUR_SPOTS.length - (current >= 0 ? 1 : 0)))
+function getRandomTourIndex(total, current = -1) {
+  const next = Math.floor(Math.random() * (total - (current >= 0 ? 1 : 0)))
   return current >= 0 && next >= current ? next + 1 : next
 }
 
 // 메인 화면 히어로 — 팀 시안(1p) 구성: 좌측 정렬 헤드라인+검색창+CTA 2개, 그 아래 시안
 // 일러스트를 화면 전체 폭으로 깔아 시안처럼 이미지가 화면 전체에 걸치도록 한다.
 export default function MainHero({ onStart, onOpenMap, onOpenTour, onSearch }) {
+  const { tagged } = useAttractions()
+  const TOUR_SPOTS = useMemo(
+    () =>
+      tagged
+        .filter((place) => place.image?.startsWith('https://'))
+        .map((place) => ({
+          ...place,
+          caption: TOUR_CAPTIONS[place.themes[0]] ?? TOUR_CAPTIONS.etc,
+        })),
+    [tagged],
+  )
   const [query, setQuery] = useState('')
-  const [tourIndex, setTourIndex] = useState(() => getRandomTourIndex())
+  const [tourIndex, setTourIndex] = useState(() => getRandomTourIndex(TOUR_SPOTS.length))
   const [tourStep, setTourStep] = useState(0)
   const [tourPaused, setTourPaused] = useState(false)
+  const spotsReadyRef = useRef(TOUR_SPOTS.length > 0)
+
+  // 관광지 데이터가 실시간 API에서 로딩되는 동안(TOUR_SPOTS가 빈 배열)엔 위 초기 인덱스가
+  // 0으로 고정된다 — 데이터가 처음 도착하는 순간 한 번 더 랜덤화해서, 로딩 완료 직후 첫 회전
+  // 전까지 항상 같은(응답 순서상 첫 번째) 관광지만 보이던 문제를 없앤다.
+  useEffect(() => {
+    if (!spotsReadyRef.current && TOUR_SPOTS.length > 0) {
+      spotsReadyRef.current = true
+      setTourIndex(getRandomTourIndex(TOUR_SPOTS.length))
+    }
+  }, [TOUR_SPOTS.length])
 
   useEffect(() => {
     if (tourPaused || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return undefined
 
     const timer = window.setInterval(() => {
-      setTourIndex((current) => getRandomTourIndex(current))
+      setTourIndex((current) => getRandomTourIndex(TOUR_SPOTS.length, current))
       setTourStep((current) => (current + 1) % 4)
     }, 4500)
 
     return () => window.clearInterval(timer)
-  }, [tourPaused])
+  }, [tourPaused, TOUR_SPOTS.length])
 
   const submitSearch = (e) => {
     e.preventDefault()
@@ -89,24 +104,26 @@ export default function MainHero({ onStart, onOpenMap, onOpenTour, onSearch }) {
         onFocusCapture={() => setTourPaused(true)}
         onBlurCapture={() => setTourPaused(false)}
       >
-        <button
-          type="button"
-          className="bm-tour-showcase-card"
-          onClick={() => onOpenTour?.(TOUR_SPOTS[tourIndex].id)}
-          aria-label={`${TOUR_SPOTS[tourIndex].name} 자세히 보기`}
-        >
-          <img
-            key={TOUR_SPOTS[tourIndex].id}
-            src={TOUR_SPOTS[tourIndex].image}
-            alt=""
-          />
-          <span className="bm-tour-showcase-copy">
-            <small>대전에서 여기도 어때요?</small>
-            <strong>{TOUR_SPOTS[tourIndex].name}</strong>
-            <span>{TOUR_SPOTS[tourIndex].caption}</span>
-          </span>
-          <span className="bm-tour-showcase-more" aria-hidden="true">둘러보기 →</span>
-        </button>
+        {TOUR_SPOTS[tourIndex] && (
+          <button
+            type="button"
+            className="bm-tour-showcase-card"
+            onClick={() => onOpenTour?.(TOUR_SPOTS[tourIndex].id)}
+            aria-label={`${TOUR_SPOTS[tourIndex].name} 자세히 보기`}
+          >
+            <img
+              key={TOUR_SPOTS[tourIndex].id}
+              src={TOUR_SPOTS[tourIndex].image}
+              alt=""
+            />
+            <span className="bm-tour-showcase-copy">
+              <small>대전에서 여기도 어때요?</small>
+              <strong>{TOUR_SPOTS[tourIndex].name}</strong>
+              <span>{TOUR_SPOTS[tourIndex].caption}</span>
+            </span>
+            <span className="bm-tour-showcase-more" aria-hidden="true">둘러보기 →</span>
+          </button>
+        )}
 
         <div className="bm-tour-showcase-dots" aria-hidden="true">
           {[0, 1, 2, 3].map((step) => (
