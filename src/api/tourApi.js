@@ -1,5 +1,5 @@
 // 한국관광공사 KorService2 래퍼.
-// 매뉴얼 v4.4 기준 엔드포인트: searchKeyword2 / locationBasedList2 / detailCommon2
+// 매뉴얼 v4.4 기준 엔드포인트: areaBasedList2 / detailCommon2 / detailIntro2
 // base 는 dev proxy(`/tourapi`) 를 통해 https://apis.data.go.kr 로 전달된다 (CORS 우회).
 import { getJson, hasKey } from './http'
 import { getRegion } from '../config/regions'
@@ -82,7 +82,11 @@ const ATTRACTION_TYPES = [
 export async function fetchAttractions(regionId) {
   if (!tourEnabled()) return []
   const region = getRegion(regionId)
-  const lists = await Promise.all(
+  // allSettled — 관광지(12)/문화시설(14) 둘 중 하나만 실패해도 나머지는 그대로 살려서 보여준다.
+  // 단, 둘 다 실패하면(API 전체 장애 등) 조용히 빈 배열로 넘기지 않고 실제로 throw해서
+  // useAttractions의 error state가 채워지게 한다 — "이 지역엔 원래 없음"과 "지금 장애남"을
+  // 구분할 방법이 아예 없었던 문제(finding #5) 대응.
+  const settled = await Promise.allSettled(
     ATTRACTION_TYPES.map(({ contentTypeId, label }) =>
       getJson(`${BASE}/areaBasedList2`, {
         params: {
@@ -93,12 +97,12 @@ export async function fetchAttractions(regionId) {
           numOfRows: 200,
           pageNo: 1,
         },
-      })
-        .then((json) => extractItems(json).map((item) => normalizeAttraction(item, contentTypeId, label)))
-        .catch(() => []),
+      }).then((json) => extractItems(json).map((item) => normalizeAttraction(item, contentTypeId, label))),
     ),
   )
-  return lists.flat().filter((a) => a.lat && a.lng && a.name)
+  const succeeded = settled.filter((r) => r.status === 'fulfilled')
+  if (succeeded.length === 0) throw settled[0].reason
+  return succeeded.flatMap((r) => r.value).filter((a) => a.lat && a.lng && a.name)
 }
 
 // 관광지 상세 열람 시 영업시간/휴무 원문(detailIntro2). contentTypeId 별로 필드명이 다르다

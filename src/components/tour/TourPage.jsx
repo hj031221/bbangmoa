@@ -19,7 +19,7 @@ function splitOverview(raw) {
 // "관광모아" 메뉴 전용 화면. 명소를 원형 사진 그리드로 둘러보다가(허브),
 // 하나를 고르면 같은 화면 안에서 상세 뷰로 전환된다(빵 지도의 selectedId 패턴과 동일).
 export default function TourPage({ onShowBakeryMap, initialDistrict = null, initialSelectedId = null }) {
-  const { tagged: ATTRACTIONS } = useAttractions()
+  const { tagged: ATTRACTIONS, loading } = useAttractions()
   const [selectedId, setSelectedId] = useState(initialSelectedId)
   const [district, setDistrict] = useState(initialDistrict) // null = 전체
   const [page, setPage] = useState(1)
@@ -28,6 +28,17 @@ export default function TourPage({ onShowBakeryMap, initialDistrict = null, init
     () => (district ? ATTRACTIONS.filter((a) => (a.addr || '').includes(district)) : ATTRACTIONS),
     [ATTRACTIONS, district],
   )
+
+  // 딥링크(initialSelectedId)로 들어온 경우, 데이터가 아직 로딩 중이면 ATTRACTIONS가 비어있어
+  // selected를 못 찾는다 — 그대로 두면 상세뷰 대신 허브 그리드가 잠깐 잘못 보였다가(§finding3)
+  // 데이터 도착 후에야 상세뷰로 바뀐다. 로딩 중엔 허브를 그리지 않고 기다린다.
+  if (loading && selectedId) {
+    return (
+      <div className="tour-hub">
+        <div className="banner">불러오는 중…</div>
+      </div>
+    )
+  }
 
   if (selected) {
     return (
@@ -80,7 +91,9 @@ export default function TourPage({ onShowBakeryMap, initialDistrict = null, init
             <span className="tour-tile-name">{a.name}</span>
           </button>
         ))}
-        {pageItems.length === 0 && <p className="tour-empty">해당 구에는 표시할 명소가 없어요.</p>}
+        {pageItems.length === 0 && (
+          <p className="tour-empty">{loading ? '불러오는 중…' : '해당 구에는 표시할 명소가 없어요.'}</p>
+        )}
       </div>
       <TourPagination page={page} totalPages={totalPages} onChange={setPage} />
     </div>
