@@ -195,11 +195,11 @@ a{ color:var(--accent-text); }
 .bm-hero-card-dots{ display:flex; gap:6px; margin-top:16px; }
 .bm-hero-card-dots span{ height:5px; width:26px; border-radius:3px; background:var(--bm-line); display:block; }
 .bm-hero-card-dots span.on{ background:var(--bm-accent); }
-.bm-float{ position:absolute; }
-.bm-float-1{ top:0; right:12px; width:50px; height:38px; background:var(--bm-gold); border-radius:22px 22px 10px 10px; animation:bm-float 4.5s ease-in-out infinite; }
-.bm-float-2{ bottom:12px; left:0; width:42px; height:42px; background:var(--bm-accent); border-radius:50% 50% 50% 6px; transform:rotate(-45deg); animation:bm-float-slow 5.5s ease-in-out infinite; }
+.bm-float{ position:absolute; filter:drop-shadow(0 6px 10px rgba(0,0,0,.15)); }
+.bm-float-1{ top:0; right:16px; width:26px; height:35.8px; animation:bm-float 4.5s ease-in-out infinite; }
+.bm-float-2{ bottom:10px; left:8px; width:32px; height:44px; animation:bm-float-slow 5.5s ease-in-out infinite; }
 @keyframes bm-float{ 0%,100%{ transform:translateY(0);} 50%{ transform:translateY(-12px);} }
-@keyframes bm-float-slow{ 0%,100%{ transform:translateY(0) rotate(-45deg);} 50%{ transform:translateY(-10px) rotate(-41deg);} }
+@keyframes bm-float-slow{ 0%,100%{ transform:translateY(0);} 50%{ transform:translateY(-10px);} }
 
 /* 2) 문제 제기 */
 .bm-problem{ padding:var(--bm-sp-7) var(--bm-sp-4); text-align:center; }
