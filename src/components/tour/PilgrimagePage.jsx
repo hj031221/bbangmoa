@@ -9,7 +9,7 @@ import { buildRoute, recalcRoute, summarizeOrder } from '../../lib/routePlan'
 import { estimateActualRoute } from '../../lib/travelTime'
 import { formatDistance } from '../../lib/distance'
 import { supabase } from '../../lib/supabase'
-import { TAGGED_ATTRACTIONS } from '../../data/tourAttractionTags'
+import { useAttractions } from '../../hooks/useAttractions'
 import { useSavedCourses } from '../../hooks/useSavedCourses'
 import AddStopModal from './AddStopModal'
 
@@ -50,9 +50,10 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
   const { user } = useAuth()
   // 이미 저장해둔 코스 목록 — "똑같은 코스 저장 방지"(§CP10-7) 중복 판정에 쓴다.
   const { courses: savedCourses, loading: savedCoursesLoading } = useSavedCourses()
+  const { tagged: attractions, loading: attractionsLoading } = useAttractions()
 
   const tourResult = isTourSurveyComplete(tourAnswers)
-    ? getTourRecommendation(tourAnswers, TAGGED_ATTRACTIONS)
+    ? getTourRecommendation(tourAnswers, attractions)
     : null
 
   // 빵집 매칭은 대전 전역 풀에서(BreadReveal과 동일 방식) — origin 근처 10곳으로 잘리면 안 됨.
@@ -118,15 +119,23 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
     return buildRoute({ breadResult, tourResult, origin, travelMode: 'car' })
   }, [breadDone, tourDone, breadResult, tourResult, origin])
 
-  // 빵집 목록이 아직 로딩 중일 때 초기화하면 bakeries:[] 인 채로 고정돼버린다(빵집 0곳으로 굳음)
-  // → 로딩이 끝난 뒤(bakeriesLoading=false) 딱 한 번만 기본 코스로 채운다.
+  // 빵집·관광지 목록이 아직 로딩 중일 때 초기화하면 그중 하나가 0곳인 채로 고정돼버린다
+  // (getTourRecommendation은 attractions=[] 이어도 results:[] 인 truthy 객체를 반환하므로
+  // tourDone만으로는 "관광지 데이터가 실제로 도착했는지"를 구분 못 한다 — 반드시 attractionsLoading도
+  // 같이 봐야 한다). → 두 로딩이 다 끝난 뒤 딱 한 번만 기본 코스로 채운다.
   // 찜한 코스를 불러온 경우엔(loadedFromSavedRef) 이 자동 채우기를 건너뛴다 — 위 effect가 이미
   // customStops를 채웠는데, 같은 렌더에서 이 effect도 "아직 null"로 보고 덮어쓸 수 있어서다.
   useEffect(() => {
-    if (customStops === null && baseRoute && !bakeriesLoading && !loadedFromSavedRef.current) {
+    if (
+      customStops === null &&
+      baseRoute &&
+      !bakeriesLoading &&
+      !attractionsLoading &&
+      !loadedFromSavedRef.current
+    ) {
       setCustomStops(baseRoute.stops)
     }
-  }, [baseRoute, customStops, bakeriesLoading])
+  }, [baseRoute, customStops, bakeriesLoading, attractionsLoading])
 
   const route = useMemo(() => {
     if (!customStops || !origin) return null
@@ -391,7 +400,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
       {addOpen && (
         <AddStopModal
           bakeries={allBakeries}
-          attractions={TAGGED_ATTRACTIONS}
+          attractions={attractions}
           excludeIds={excludeIds}
           onAdd={addStop}
           onClose={() => setAddOpen(false)}

@@ -1,10 +1,9 @@
 import { useMemo, useEffect, useState } from 'react'
-import daejeonTour from '../../data/daejeonTour.json'
-import { getDetail, tourEnabled, reverseGeocodeAddress, kakaoLocalEnabled } from '../../api'
-import { hoursBadgeText } from '../../lib/hours'
+import { useAttractions } from '../../hooks/useAttractions'
+import { getDetail, getAttractionIntro, tourEnabled, reverseGeocodeAddress, kakaoLocalEnabled } from '../../api'
+import { hoursBadgeText, parseHours } from '../../lib/hours'
 import { getRegion } from '../../config/regions'
 
-const ATTRACTIONS = daejeonTour.filter((t) => t.image)
 const DISTRICTS = getRegion().districts
 const DESC_MAX = 160
 const PAGE_SIZE = 21
@@ -20,14 +19,26 @@ function splitOverview(raw) {
 // "관광모아" 메뉴 전용 화면. 명소를 원형 사진 그리드로 둘러보다가(허브),
 // 하나를 고르면 같은 화면 안에서 상세 뷰로 전환된다(빵 지도의 selectedId 패턴과 동일).
 export default function TourPage({ onShowBakeryMap, initialDistrict = null, initialSelectedId = null }) {
+  const { tagged: ATTRACTIONS, loading } = useAttractions()
   const [selectedId, setSelectedId] = useState(initialSelectedId)
   const [district, setDistrict] = useState(initialDistrict) // null = 전체
   const [page, setPage] = useState(1)
   const selected = ATTRACTIONS.find((a) => a.id === selectedId) || null
   const filtered = useMemo(
     () => (district ? ATTRACTIONS.filter((a) => (a.addr || '').includes(district)) : ATTRACTIONS),
-    [district],
+    [ATTRACTIONS, district],
   )
+
+  // 딥링크(initialSelectedId)로 들어온 경우, 데이터가 아직 로딩 중이면 ATTRACTIONS가 비어있어
+  // selected를 못 찾는다 — 그대로 두면 상세뷰 대신 허브 그리드가 잠깐 잘못 보였다가(§finding3)
+  // 데이터 도착 후에야 상세뷰로 바뀐다. 로딩 중엔 허브를 그리지 않고 기다린다.
+  if (loading && selectedId) {
+    return (
+      <div className="tour-hub">
+        <div className="banner">불러오는 중…</div>
+      </div>
+    )
+  }
 
   if (selected) {
     return (
@@ -80,7 +91,9 @@ export default function TourPage({ onShowBakeryMap, initialDistrict = null, init
             <span className="tour-tile-name">{a.name}</span>
           </button>
         ))}
-        {pageItems.length === 0 && <p className="tour-empty">해당 구에는 표시할 명소가 없어요.</p>}
+        {pageItems.length === 0 && (
+          <p className="tour-empty">{loading ? '불러오는 중…' : '해당 구에는 표시할 명소가 없어요.'}</p>
+        )}
       </div>
       <TourPagination page={page} totalPages={totalPages} onChange={setPage} />
     </div>
@@ -122,7 +135,9 @@ function AttractionDetail({ attraction, onBack, onShowBakeryMap }) {
   const [detailLoading, setDetailLoading] = useState(false)
   const [preciseAddr, setPreciseAddr] = useState(null)
   const [descExpanded, setDescExpanded] = useState(false)
-  const { id, name, image, addr, lat, lng, hours, rest } = attraction
+  const [hours, setHours] = useState(null)
+  const [rest, setRest] = useState('')
+  const { id, name, image, addr, lat, lng, contentTypeId } = attraction
 
   useEffect(() => {
     setDescExpanded(false)
@@ -141,6 +156,24 @@ function AttractionDetail({ attraction, onBack, onShowBakeryMap }) {
       alive = false
     }
   }, [id])
+
+  // 영업시간/휴무 — 목록엔 안 담고 상세를 열 때만 그때 조회한다(186곳 전부를 매번 부를 필요 없음).
+  useEffect(() => {
+    setHours(null)
+    setRest('')
+    if (!id || !contentTypeId || !tourEnabled()) return
+    let alive = true
+    getAttractionIntro(id, contentTypeId)
+      .then((intro) => {
+        if (!alive || !intro) return
+        setHours(parseHours(intro.rawHours))
+        setRest(intro.rest)
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [id, contentTypeId])
 
   // 관광공사 정적 주소가 "OO동"까지만 있는 경우가 많아, 좌표로 도로명 주소를 보강한다.
   useEffect(() => {
