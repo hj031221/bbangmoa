@@ -36,6 +36,16 @@ function formatMinutes(min) {
   return m === 0 ? `${h}시간` : `${h}시간 ${m}분`
 }
 
+// CP11-4 — 이 값이 실API로 구한 실측인지, 실API가 없어서/실패해서 보정계수로 어림한 값인지를
+// 항상 명시한다(전엔 실측일 때만 조용히 "(실시간)"이 붙고 어림값일 땐 아무 표시가 없었다).
+function PrecisionTag({ precise }) {
+  return (
+    <span className={'pil-precision-tag' + (precise ? ' measured' : ' estimated')}>
+      {precise ? '실측' : '추정'}
+    </span>
+  )
+}
+
 // CP6-3 — 대전한바퀴: 관광모아 + 빵모아 결과를 합친 기본 코스 화면.
 // 두 설문이 모두 끝났을 때만 코스를 보여주고, 후보 풀(설문 결과) + 전체 지도 검색으로 추가/제거하며
 // 커스터마이즈할 수 있다(§07). 순서는 origin 기준 그리디(§06), 이동수단 3종(§08).
@@ -149,6 +159,23 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
 
   const excludeIds = useMemo(() => new Set((customStops || []).map((s) => s.id)), [customStops])
 
+  // "추가하기" 모달에서, 설문에서 이미 후보로 나왔는데 지금 코스엔 없는 것들을 상단으로 올려
+  // 보여주기 위한 id 집합. excludeIds가 바뀔 때마다(추가/제거) 자동으로 다시 계산된다.
+  const suggestedBakeryIds = useMemo(
+    () => new Set((breadResult?.bakeries || []).filter((b) => !excludeIds.has(b.id)).map((b) => b.id)),
+    [breadResult, excludeIds],
+  )
+  const suggestedAttractionIds = useMemo(
+    () =>
+      new Set(
+        (tourResult?.results || [])
+          .map((r) => r.attraction)
+          .filter((a) => !excludeIds.has(a.id))
+          .map((a) => a.id),
+      ),
+    [tourResult, excludeIds],
+  )
+
   // 지금 화면의 코스(경유지+순서+이동수단)가 이미 저장된 것과 같은지 — 같으면 저장 버튼을 막는다
   // (§CP10-7). DB 조회분(savedCourses) + 이 화면에서 방금 저장한 것(justSaved) 둘 다 본다.
   const isDuplicateOfSaved = useMemo(() => {
@@ -164,24 +191,42 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
     setSaveState('idle')
   }, [route, travelMode])
 
-  // CP6-4: route가 정해지면 실API로 정밀 이동시간 + 구간별 실제 경로 좌표를 한 번 더 구한다.
-  // 실패/도보 모드면 null 유지 — 그럴 땐 route.totalMinutes(근사치) + 직선 경로를 그대로 쓴다.
+  // CP6-4/CP11-4: route가 정해지면 실API로 정밀 이동시간·거리 + 구간별 실제 경로 좌표를 한 번 더
+  // 구한다. 실패/도보 모드면 null 유지 — 그럴 땐 route.totalMinutes/totalDistanceKm(근사치) +
+  // 직선 경로를 그대로 쓴다.
   const [preciseMinutes, setPreciseMinutes] = useState(null)
+  const [preciseDistanceKm, setPreciseDistanceKm] = useState(null)
   const [legPaths, setLegPaths] = useState(null)
+  const [legDistancesKm, setLegDistancesKm] = useState(null)
+  const [legMinutes, setLegMinutes] = useState(null)
+  const [legEstimated, setLegEstimated] = useState(null)
   useEffect(() => {
     setPreciseMinutes(null)
+    setPreciseDistanceKm(null)
     setLegPaths(null)
+    setLegDistancesKm(null)
+    setLegMinutes(null)
+    setLegEstimated(null)
     if (!route || route.stops.length === 0) return
     let alive = true
     estimateActualRoute(origin, route.stops, travelMode).then((result) => {
       if (!alive) return
       setPreciseMinutes(result?.totalMinutes ?? null)
+      setPreciseDistanceKm(result?.totalDistanceKm ?? null)
       setLegPaths(result?.legPaths ?? null)
+      setLegDistancesKm(result?.legDistancesKm ?? null)
+      setLegMinutes(result?.legMinutes ?? null)
+      setLegEstimated(result?.legEstimated ?? null)
     })
     return () => {
       alive = false
     }
   }, [route, travelMode, origin])
+
+  // CP11-4 — 리스트에서 경유지를 호버/탭하면 지도의 해당 구간(그 경유지로 들어오는 leg)이
+  // 강조된다. points=[origin,...stops] 기준으로 stop의 배열 index가 곧 그 stop으로 들어오는
+  // leg의 index와 같다(leg i는 points[i]→points[i+1], stop[index]는 points[index+1]).
+  const [highlightIndex, setHighlightIndex] = useState(null)
 
   const removeStop = (id) => {
     setCustomStops((prev) => (prev || []).filter((s) => s.id !== id))
@@ -300,11 +345,15 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
           <div className="pil-summary">
             <div>
               <b>{formatMinutes(preciseMinutes ?? route.totalMinutes)}</b>
-              <span>{preciseMinutes != null ? '예상 소요 (실시간)' : '예상 소요'}</span>
+              <span>
+                예상 소요 <PrecisionTag precise={preciseMinutes != null} />
+              </span>
             </div>
             <div>
-              <b>{formatDistance(route.totalDistanceKm)}</b>
-              <span>총 거리</span>
+              <b>{formatDistance(preciseDistanceKm ?? route.totalDistanceKm)}</b>
+              <span>
+                이동 거리(편도) <PrecisionTag precise={preciseDistanceKm != null} />
+              </span>
             </div>
             <div>
               <b>{route.stops.length}곳</b>
@@ -320,7 +369,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
             <li
               key={stop.id}
               data-index={index}
-              className={`pil-stop ${stop.type}${dragOverIndex === index ? ' drag-over' : ''}`}
+              className={`pil-stop ${stop.type}${dragOverIndex === index ? ' drag-over' : ''}${highlightIndex === index ? ' leg-highlight' : ''}`}
             >
               <span
                 className="pil-stop-handle"
@@ -334,9 +383,19 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
                 ☰
               </span>
               <span className="pil-stop-num">{stop.order}</span>
-              <span className="pil-stop-info">
+              <span
+                className="pil-stop-info"
+                onMouseEnter={() => setHighlightIndex(index)}
+                onMouseLeave={() => setHighlightIndex(null)}
+                onClick={() => setHighlightIndex((p) => (p === index ? null : index))}
+              >
                 <span className="pil-stop-name">{stop.name}</span>
-                <span className="pil-stop-type">{stop.type === 'attraction' ? '📍 관광지' : '🥐 빵집'}</span>
+                <span className="pil-stop-type">
+                  {stop.type === 'attraction' ? '📍 관광지' : '🥐 빵집'}
+                  {legDistancesKm && legMinutes && (
+                    <> · 이전 경유지에서 {formatDistance(legDistancesKm[index])} · {legMinutes[index]}분</>
+                  )}
+                </span>
               </span>
               <button
                 type="button"
@@ -394,7 +453,15 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
       </div>
 
       <div className="pil-map">
-        <RouteMap origin={origin} stops={route?.stops || []} legPaths={legPaths} />
+        <RouteMap
+          origin={origin}
+          stops={route?.stops || []}
+          legPaths={legPaths}
+          legDistancesKm={legDistancesKm}
+          legMinutes={legMinutes}
+          legEstimated={legEstimated}
+          highlightIndex={highlightIndex}
+        />
       </div>
 
       {addOpen && (
@@ -402,6 +469,8 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
           bakeries={allBakeries}
           attractions={attractions}
           excludeIds={excludeIds}
+          suggestedBakeryIds={suggestedBakeryIds}
+          suggestedAttractionIds={suggestedAttractionIds}
           onAdd={addStop}
           onClose={() => setAddOpen(false)}
         />
@@ -411,9 +480,13 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
 }
 
 // origin + 순번 매겨진 stops → 카카오맵에 번호 핀 + 경로선. PilgrimagePage 전용이라 여기에 둔다.
-// legPaths가 있으면(CP6-4 실API 응답) 구간마다 실제 도로/경유지 좌표로 그리고, 없으면(도보이거나
-// 실API 실패) 직선으로 그린다 — 실선/점선으로 구분해서 "이건 추정치"라는 걸 시각적으로도 알려준다.
-function RouteMap({ origin, stops, legPaths }) {
+// legEstimated[i]가 false면(CP11-4 실API 응답) 실선, true면(실API 실패로 보정계수 어림값을 쓴
+// 구간) 점선으로 그려 "이건 추정치"라는 걸 시각적으로도 알려준다.
+// (예전엔 legPaths[i]가 채워져 있는지로 판정했는데, 어림값 구간도 항상 [출발점,도착점] 2점짜리
+// 배열을 채워 넣어서 실측처럼 늘 실선으로 보이던 버그가 있었다 — legEstimated로 명시적으로 구분.)
+// highlightIndex가 가리키는 구간은 리스트에서 그 경유지를 호버/탭했을 때 굵은 선 + 거리·시간
+// 라벨로 강조된다.
+function RouteMap({ origin, stops, legPaths, legDistancesKm, legMinutes, legEstimated, highlightIndex }) {
   const { loaded, error } = useKakaoLoader()
   const containerRef = useRef(null)
   const mapRef = useRef(null)
@@ -447,17 +520,31 @@ function RouteMap({ origin, stops, legPaths }) {
       const legPoints = legPaths?.[i]?.length > 0 ? legPaths[i] : [points[i], points[i + 1]]
       const path = legPoints.map((p) => new kakao.maps.LatLng(p.lat, p.lng))
       path.forEach((ll) => bounds.extend(ll))
+      const isHighlighted = i === highlightIndex
+      const isEstimated = legEstimated ? legEstimated[i] : legPaths?.[i]?.length > 0 ? false : true
       polylinesRef.current.push(
         new kakao.maps.Polyline({
           map,
           path,
-          strokeWeight: 4,
-          strokeColor: '#F2814A',
+          strokeWeight: isHighlighted ? 7 : 4,
+          strokeColor: isHighlighted ? '#D9591A' : '#F2814A',
           strokeOpacity: 0.85,
-          // 실제 경로가 있으면 실선(정확한 경로), 없으면 점선(직선 추정)으로 구분.
-          strokeStyle: legPaths?.[i]?.length > 0 ? 'solid' : 'shortdash',
+          // 실API로 구한 구간이면 실선, 보정계수 어림값이면 점선으로 구분.
+          strokeStyle: isEstimated ? 'shortdash' : 'solid',
         }),
       )
+
+      if (isHighlighted && legDistancesKm && legMinutes) {
+        const mid = legPoints[Math.floor(legPoints.length / 2)]
+        overlaysRef.current.push(
+          new kakao.maps.CustomOverlay({
+            map,
+            position: new kakao.maps.LatLng(mid.lat, mid.lng),
+            content: `<div class="pil-leg-label">${formatDistance(legDistancesKm[i]) ?? '-'} · ${legMinutes[i]}분</div>`,
+            yAnchor: 1.4,
+          }),
+        )
+      }
     }
 
     const originOverlay = new kakao.maps.CustomOverlay({
@@ -481,7 +568,7 @@ function RouteMap({ origin, stops, legPaths }) {
     })
 
     if (points.length > 0) map.setBounds(bounds)
-  }, [loaded, origin, stops, legPaths])
+  }, [loaded, origin, stops, legPaths, legDistancesKm, legMinutes, legEstimated, highlightIndex])
 
   return (
     <div className="map-wrap">
