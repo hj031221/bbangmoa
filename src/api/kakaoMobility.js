@@ -3,8 +3,8 @@
 // 실패하면 null을 반환 — 호출부가 근사치(travelMin)로 폴백한다.
 const REST_KEY = import.meta.env.VITE_KAKAO_REST_KEY
 
-// 두 좌표({lat,lng}) 사이 실제 자동차 이동시간(분) + 실제 도로를 따라가는 경로 좌표.
-// → { minutes, path: [{lat,lng}, ...] } | null
+// 두 좌표({lat,lng}) 사이 실제 자동차 이동시간(분) + 실거리(km) + 실제 도로를 따라가는 경로 좌표.
+// → { minutes, distanceKm, path: [{lat,lng}, ...] } | null
 export async function fetchDriving(a, b) {
   if (!REST_KEY) return null
   const origin = `${a.lng},${a.lat}`
@@ -18,6 +18,7 @@ export async function fetchDriving(a, b) {
     const data = await res.json()
     const route = data?.routes?.[0]
     const duration = route?.summary?.duration // 초
+    const distance = route?.summary?.distance // 미터 — CP11-4: 이전엔 여기서 안 꺼내고 버렸음
     if (!Number.isFinite(duration)) return null
 
     // sections[].roads[].vertexes: [lng, lat, lng, lat, ...] 평탄화된 배열 — 실제 도로 좌표.
@@ -28,7 +29,11 @@ export async function fetchDriving(a, b) {
         for (let i = 0; i + 1 < v.length; i += 2) path.push({ lat: v[i + 1], lng: v[i] })
       }
     }
-    return { minutes: Math.round(duration / 60), path: path.length > 0 ? path : null }
+    return {
+      minutes: Math.round(duration / 60),
+      distanceKm: Number.isFinite(distance) ? distance / 1000 : null,
+      path: path.length > 0 ? path : null,
+    }
   } catch {
     return null
   }
@@ -41,7 +46,8 @@ export async function fetchDriving(a, b) {
 // 그래서 호출부는 이게 null이면 구간별 fetchDriving()으로 폴백해야 한다.
 // points: [{lat,lng}, ...] 최소 2개(출발+도착). name 필드는 한글을 넣으면 400이 나서(원인 불명,
 // 재현 확인함) 아예 안 보낸다 — 우리는 안내문구를 안 쓰므로 없어도 된다.
-// → { minutes, legPaths: [[{lat,lng}, ...], ...] } | null  (legPaths.length === points.length - 1)
+// → { minutes, distanceKm, legPaths, legDistancesKm, legMinutes } | null
+//   (legPaths/legDistancesKm/legMinutes.length === points.length - 1, 인덱스 1:1 대응)
 export async function fetchDrivingMultiWaypoint(points) {
   if (!REST_KEY || points.length < 2) return null
   const [origin, ...rest] = points
@@ -64,10 +70,12 @@ export async function fetchDrivingMultiWaypoint(points) {
     const route = data?.routes?.[0]
     if (route?.result_code !== 0) return null // 예: 103 = 경유지 중 하나 근처 도로망 탐색 불가
     const duration = route?.summary?.duration
+    const distance = route?.summary?.distance
     if (!Number.isFinite(duration)) return null
 
     // sections[i] = origin/waypoint[i-1] → waypoint[i]/destination 구간. points와 1:1 대응.
-    const legPaths = (route.sections || []).map((section) => {
+    const sections = route.sections || []
+    const legPaths = sections.map((section) => {
       const path = []
       for (const road of section.roads || []) {
         const v = road.vertexes || []
@@ -77,7 +85,32 @@ export async function fetchDrivingMultiWaypoint(points) {
     })
     if (legPaths.length !== points.length - 1) return null // 구간 수가 안 맞으면 신뢰 안 함
 
-    return { minutes: Math.round(duration / 60), legPaths }
+    // CP11-4: section 자체가 구간별 distance/duration을 주면 그대로 쓰고, 응답에 없으면(카카오
+    // 필드 유무 미확인 — section.roads[].vertexes 개수 비례로 근사 분배(총계는 실측 유지, 구간
+    // 배분만 근사).
+    const hasSectionMetrics = sections.every(
+      (s) => Number.isFinite(s.distance) && Number.isFinite(s.duration),
+    )
+    let legDistancesKm, legMinutes
+    if (hasSectionMetrics) {
+      legDistancesKm = sections.map((s) => s.distance / 1000)
+      legMinutes = sections.map((s) => Math.round(s.duration / 60))
+    } else {
+      const weights = legPaths.map((p) => Math.max(p.length, 1))
+      const totalWeight = weights.reduce((a, b) => a + b, 0)
+      legDistancesKm = weights.map((w) =>
+        Number.isFinite(distance) ? (distance / 1000) * (w / totalWeight) : null,
+      )
+      legMinutes = weights.map((w) => Math.round((duration / 60) * (w / totalWeight)))
+    }
+
+    return {
+      minutes: Math.round(duration / 60),
+      distanceKm: Number.isFinite(distance) ? distance / 1000 : null,
+      legPaths,
+      legDistancesKm,
+      legMinutes,
+    }
   } catch {
     return null
   }

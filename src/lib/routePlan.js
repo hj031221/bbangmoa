@@ -4,10 +4,18 @@
 //     tourResult:  getTourRecommendation(tourAnswers, attractions) 결과
 //   routeResult = { stops, totalDistanceKm, totalMinutes, travelMode }
 import { haversineKm } from './distance.js'
-import { travelMin } from './travelTime.js'
+import { travelMin, estimateKm } from './travelTime.js'
 
 const ATTRACTION_COUNT = 2
 const BAKERY_COUNT = 3
+
+// 좌표가 유효한지(NaN/null/undefined 아닌지). "찜한 코스 불러오기"(옛 스키마 잔여 데이터 등)로
+// lat/lng가 없는 stop이 들어올 수 있어, haversineKm에 그대로 넘기기 전에 걸러야 한다 — 안 그러면
+// null이 산술 연산에서 0으로 강제 형변환되며 적도/그리니치 기준 수천km짜리 거리로 조용히
+// 틀어진다(다른 좌표 소비처인 bakeryDistance.js, AddStopModal.jsx는 이미 이렇게 검증한다).
+function hasValidCoords(p) {
+  return Number.isFinite(p?.lat) && Number.isFinite(p?.lng)
+}
 
 function toAttractionStop({ attraction }) {
   return { type: 'attraction', id: attraction.id, name: attraction.name, lat: attraction.lat, lng: attraction.lng }
@@ -32,12 +40,14 @@ export function buildGreedyOrder(origin, stops) {
 }
 
 // origin → 순서대로 stops를 지날 때의 총 이동거리(km)/총 이동시간(분).
+// 실API 응답 전 최초 렌더용 근사치라 DETOUR 보정을 적용한다(travelMin과 짝) — 순수 직선거리를
+// 그대로 쓰면 실측(카카오모빌리티 실API로 확인됨)보다 1.6~2.7배 작게 나온다.
 function summarize(origin, orderedStops, travelMode) {
   let totalDistanceKm = 0
   let totalMinutes = 0
   let prev = origin
   for (const stop of orderedStops) {
-    totalDistanceKm += haversineKm(prev, stop)
+    totalDistanceKm += estimateKm(prev, stop)
     totalMinutes += travelMin(prev, stop, travelMode)
     prev = stop
   }
@@ -48,7 +58,9 @@ function summarize(origin, orderedStops, travelMode) {
 // 그리디로 재정렬하지 않고 주어진 순서를 그대로 존중한다.
 export function summarizeOrder(origin, orderedStops, travelMode = 'car') {
   if (!origin || !orderedStops || orderedStops.length === 0) return null
-  const stops = orderedStops.map((stop, i) => ({ ...stop, order: i + 1 }))
+  const valid = orderedStops.filter(hasValidCoords)
+  if (valid.length === 0) return null
+  const stops = valid.map((stop, i) => ({ ...stop, order: i + 1 }))
   const { totalDistanceKm, totalMinutes } = summarize(origin, stops, travelMode)
   return { stops, totalDistanceKm, totalMinutes, travelMode }
 }
@@ -57,7 +69,9 @@ export function summarizeOrder(origin, orderedStops, travelMode = 'car') {
 // CP6-3의 추가/제거 후 재계산에도 그대로 쓴다(§07).
 export function recalcRoute(origin, candidateStops, travelMode = 'car') {
   if (!origin || !candidateStops || candidateStops.length === 0) return null
-  const stops = buildGreedyOrder(origin, candidateStops)
+  const valid = candidateStops.filter(hasValidCoords)
+  if (valid.length === 0) return null
+  const stops = buildGreedyOrder(origin, valid)
   const { totalDistanceKm, totalMinutes } = summarize(origin, stops, travelMode)
   return { stops, totalDistanceKm, totalMinutes, travelMode }
 }
