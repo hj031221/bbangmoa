@@ -209,15 +209,23 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
     setLegEstimated(null)
     if (!route || route.stops.length === 0) return
     let alive = true
-    estimateActualRoute(origin, route.stops, travelMode).then((result) => {
-      if (!alive) return
-      setPreciseMinutes(result?.totalMinutes ?? null)
-      setPreciseDistanceKm(result?.totalDistanceKm ?? null)
-      setLegPaths(result?.legPaths ?? null)
-      setLegDistancesKm(result?.legDistancesKm ?? null)
-      setLegMinutes(result?.legMinutes ?? null)
-      setLegEstimated(result?.legEstimated ?? null)
-    })
+    estimateActualRoute(origin, route.stops, travelMode)
+      .then((result) => {
+        if (!alive) return
+        setPreciseMinutes(result?.totalMinutes ?? null)
+        setPreciseDistanceKm(result?.totalDistanceKm ?? null)
+        setLegPaths(result?.legPaths ?? null)
+        setLegDistancesKm(result?.legDistancesKm ?? null)
+        setLegMinutes(result?.legMinutes ?? null)
+        setLegEstimated(result?.legEstimated ?? null)
+      })
+      // 리뷰 발견: estimateActualRoute 내부 어딘가(특히 findNearbyParking)가 던지면 여기 .catch()가
+      // 없어 unhandled rejection이 나고, 화면은 아무 에러 표시 없이 preciseMinutes=null(근사치)
+      // 상태로 조용히 멈춰 있었다. travelTime.js 쪽에서 이미 흡수하도록 고쳤지만, 이 화면도
+      // "실패하면 근사치를 그대로 쓴다"는 기존 원칙대로 방어적으로 한 번 더 잡는다.
+      .catch((e) => {
+        console.error('[대전한바퀴] 실API 이동시간/거리 계산 실패 — 근사치로 대체', e)
+      })
     return () => {
       alive = false
     }
@@ -393,7 +401,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
                 <span className="pil-stop-type">
                   {stop.type === 'attraction' ? '📍 관광지' : '🥐 빵집'}
                   {legDistancesKm && legMinutes && (
-                    <> · 이전 경유지에서 {formatDistance(legDistancesKm[index])} · {legMinutes[index]}분</>
+                    <> · 이전 경유지에서 {formatDistance(legDistancesKm[index]) ?? '-'} · {legMinutes[index]}분</>
                   )}
                 </span>
               </span>
@@ -479,6 +487,21 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
   )
 }
 
+// 경로 좌표 배열의 중점. legPoints[Math.floor(length/2)]로 인덱스만 고르면, 2점짜리(직선 폴백)
+// 배열에선 index 1 = 도착점이라 라벨이 중점이 아니라 목적지 핀 위에 겹쳐 그려지는 버그가 있었다
+// (리뷰 발견, 하필 새로 만든 '추정 구간' 하이라이트 케이스에서 발생). 짝수 길이면 가운데 두 점의
+// 실제 좌표 평균을 쓴다.
+function midpointOf(points) {
+  if (points.length === 1) return points[0]
+  const half = Math.floor(points.length / 2)
+  if (points.length % 2 === 0) {
+    const a = points[half - 1]
+    const b = points[half]
+    return { lat: (a.lat + b.lat) / 2, lng: (a.lng + b.lng) / 2 }
+  }
+  return points[half]
+}
+
 // origin + 순번 매겨진 stops → 카카오맵에 번호 핀 + 경로선. PilgrimagePage 전용이라 여기에 둔다.
 // legEstimated[i]가 false면(CP11-4 실API 응답) 실선, true면(실API 실패로 보정계수 어림값을 쓴
 // 구간) 점선으로 그려 "이건 추정치"라는 걸 시각적으로도 알려준다.
@@ -535,7 +558,7 @@ function RouteMap({ origin, stops, legPaths, legDistancesKm, legMinutes, legEsti
       )
 
       if (isHighlighted && legDistancesKm && legMinutes) {
-        const mid = legPoints[Math.floor(legPoints.length / 2)]
+        const mid = midpointOf(legPoints)
         overlaysRef.current.push(
           new kakao.maps.CustomOverlay({
             map,

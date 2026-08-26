@@ -29,17 +29,58 @@ async function fetchDrivingWithSubstitute(a, b) {
   const direct = await fetchDriving(a, b)
   if (direct) return direct
 
-  const subB = await findNearbyParking(b.lat, b.lng)
-  if (subB) {
-    const viaB = await fetchDriving(a, subB)
-    if (viaB) return viaB
+  // findNearbyParking()은 getJson()이 비2xx 응답에 throw하는 걸 그대로 물려받는다 — 여기서
+  // 안 잡으면 estimateLegByLeg()의 Promise.all()이 이 leg 하나 때문에 전체 reject되어, 결과
+  // 화면이 아무 에러 표시 없이 조용히 멈춘다(리뷰로 발견). 대체 지점 검색 실패는 그냥 다음
+  // 단계(첫 결과 없음)로 넘어가면 되는 상황이라 여기서 흡수한다.
+  try {
+    const subB = await findNearbyParking(b.lat, b.lng)
+    if (subB) {
+      const viaB = await fetchDriving(a, subB)
+      if (viaB) return appendLastMile(viaB, subB, b)
+    }
+  } catch {
+    // 다음 단계(subA)로 계속 진행
   }
-  const subA = await findNearbyParking(a.lat, a.lng)
-  if (subA) {
-    const viaA = await fetchDriving(subA, b)
-    if (viaA) return viaA
+  try {
+    const subA = await findNearbyParking(a.lat, a.lng)
+    if (subA) {
+      const viaA = await fetchDriving(subA, b)
+      if (viaA) return prependFirstMile(viaA, a, subA)
+    }
+  } catch {
+    // 아래 return null로 자연히 폴백
   }
   return null
+}
+
+// 대체 지점(주차장)까지는 실API로 구했어도, 그 지점→실제 목적지 구간은 실API로 다시 못 구한다
+// (그 지점 자체가 도로망 탐색 실패 지점 근처라 재시도해도 또 실패할 공산이 큼). 이 구간을 안
+// 더하면 "대체 지점까지"만 반영되고 마지막 구간이 통째로 빠져 거리가 다시 과소평가된다(이 PR이
+// 고치려는 문제가 형태만 바꿔 재발 — 리뷰로 발견) → DETOUR 보정 어림값으로 채워 합산하고, 이
+// leg 전체를 "추정 포함"(estimated:true)으로 표시한다.
+function appendLastMile(real, substitutePoint, actualPoint) {
+  const lastKm = estimateKm(substitutePoint, actualPoint)
+  const lastMin = travelMin(substitutePoint, actualPoint, 'car')
+  return {
+    minutes: real.minutes + lastMin,
+    distanceKm: Number.isFinite(real.distanceKm) ? real.distanceKm + lastKm : null,
+    path: real.path && real.path.length > 0 ? [...real.path, actualPoint] : null,
+    estimated: true,
+  }
+}
+
+// origin 쪽이 도로망 탐색 실패 지점이라 대체 지점을 앞에 붙인 경우 — 실제 출발지→대체 지점
+// 구간이 위와 같은 이유로 빠져있어 앞쪽에 채워 넣는다.
+function prependFirstMile(real, actualPoint, substitutePoint) {
+  const firstKm = estimateKm(actualPoint, substitutePoint)
+  const firstMin = travelMin(actualPoint, substitutePoint, 'car')
+  return {
+    minutes: real.minutes + firstMin,
+    distanceKm: Number.isFinite(real.distanceKm) ? real.distanceKm + firstKm : null,
+    path: real.path && real.path.length > 0 ? [actualPoint, ...real.path] : null,
+    estimated: true,
+  }
 }
 
 // 구간마다 따로 fetchLeg()를 불러 이어붙인다(폴백 경로). 구간 하나가 실패해도(예: 호수·공원 등
@@ -70,7 +111,9 @@ async function estimateLegByLeg(fetchLeg, points, travelMode) {
       legDistancesKm.push(km)
       legMinutes.push(leg.minutes)
       legPaths.push(leg.path && leg.path.length > 0 ? leg.path : [points[i], points[i + 1]])
-      legEstimated.push(false)
+      // leg.estimated — fetchDrivingWithSubstitute가 대체 지점을 써서 일부 구간을 어림값으로
+      // 채운 경우 true로 표시해 넘겨준다(리뷰 발견: 전엔 무조건 false=실측으로 하드코딩돼 있었음).
+      legEstimated.push(!!leg.estimated)
     } else {
       const min = travelMin(points[i], points[i + 1], travelMode)
       const km = estimateKm(points[i], points[i + 1])
@@ -106,7 +149,10 @@ export async function estimateActualRoute(origin, orderedStops, travelMode) {
         legPaths: multi.legPaths,
         legDistancesKm: multi.legDistancesKm,
         legMinutes: multi.legMinutes,
-        legEstimated: multi.legPaths.map(() => false), // 다중경유지 성공 = 전 구간 실측
+        // multi.legEstimated — section별 distance/duration이 없어 총계를 비례 분배한 구간은
+        // 여기서도 true로 온다(리뷰 발견: 전엔 다중경유지 성공이면 무조건 false로 하드코딩해서,
+        // 비례 분배한 근사값 구간까지 실측처럼 지도에 실선으로 그려졌음).
+        legEstimated: multi.legEstimated,
       }
     }
     return estimateLegByLeg(fetchDrivingWithSubstitute, points, travelMode)

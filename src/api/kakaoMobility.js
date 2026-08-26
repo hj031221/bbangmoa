@@ -46,8 +46,8 @@ export async function fetchDriving(a, b) {
 // 그래서 호출부는 이게 null이면 구간별 fetchDriving()으로 폴백해야 한다.
 // points: [{lat,lng}, ...] 최소 2개(출발+도착). name 필드는 한글을 넣으면 400이 나서(원인 불명,
 // 재현 확인함) 아예 안 보낸다 — 우리는 안내문구를 안 쓰므로 없어도 된다.
-// → { minutes, distanceKm, legPaths, legDistancesKm, legMinutes } | null
-//   (legPaths/legDistancesKm/legMinutes.length === points.length - 1, 인덱스 1:1 대응)
+// → { minutes, distanceKm, legPaths, legDistancesKm, legMinutes, legEstimated } | null
+//   (legPaths/legDistancesKm/legMinutes/legEstimated.length === points.length - 1, 인덱스 1:1 대응)
 export async function fetchDrivingMultiWaypoint(points) {
   if (!REST_KEY || points.length < 2) return null
   const [origin, ...rest] = points
@@ -110,6 +110,10 @@ export async function fetchDrivingMultiWaypoint(points) {
       legPaths,
       legDistancesKm,
       legMinutes,
+      // hasSectionMetrics가 false면 legDistancesKm/legMinutes가 실측이 아니라 총계를 비례
+      // 분배한 근사값이다 — 호출부(travelTime.js)가 legEstimated로 그대로 넘겨써서 지도에
+      // 정확히 실선/점선을 구분하게 한다(리뷰 발견: 전엔 이 구분 없이 항상 실측 취급했음).
+      legEstimated: legPaths.map(() => !hasSectionMetrics),
     }
   } catch {
     return null
