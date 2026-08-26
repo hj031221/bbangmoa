@@ -200,6 +200,8 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
   const [legDistancesKm, setLegDistancesKm] = useState(null)
   const [legMinutes, setLegMinutes] = useState(null)
   const [legEstimated, setLegEstimated] = useState(null)
+  const [legMinutesEstimated, setLegMinutesEstimated] = useState(null)
+  const [legDistanceEstimated, setLegDistanceEstimated] = useState(null)
   useEffect(() => {
     setPreciseMinutes(null)
     setPreciseDistanceKm(null)
@@ -207,6 +209,8 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
     setLegDistancesKm(null)
     setLegMinutes(null)
     setLegEstimated(null)
+    setLegMinutesEstimated(null)
+    setLegDistanceEstimated(null)
     if (!route || route.stops.length === 0) return
     let alive = true
     estimateActualRoute(origin, route.stops, travelMode)
@@ -218,6 +222,8 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
         setLegDistancesKm(result?.legDistancesKm ?? null)
         setLegMinutes(result?.legMinutes ?? null)
         setLegEstimated(result?.legEstimated ?? null)
+        setLegMinutesEstimated(result?.legMinutesEstimated ?? null)
+        setLegDistanceEstimated(result?.legDistanceEstimated ?? null)
       })
       // 리뷰 발견: estimateActualRoute 내부 어딘가(특히 findNearbyParking)가 던지면 여기 .catch()가
       // 없어 unhandled rejection이 나고, 화면은 아무 에러 표시 없이 preciseMinutes=null(근사치)
@@ -342,6 +348,15 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
     return <div className="banner">코스를 준비하는 중…</div>
   }
 
+  // 상단 요약 배지 — "계산 자체가 성공했나"(preciseMinutes/preciseDistanceKm != null)만 보면
+  // 구간 5개 중 1개만 추정으로 채워져도(예: 대중교통은 거리가 항상 추정, 자동차도 대체 지점
+  // 폴백을 탄 구간이 섞이면) 전체를 "실측"으로 잘못 표시한다(리뷰 발견) — 구간 배열이 하나라도
+  // 추정이면 전체도 추정으로 내린다.
+  const minutesFullyMeasured =
+    preciseMinutes != null && (!legMinutesEstimated || legMinutesEstimated.every((e) => !e))
+  const distanceFullyMeasured =
+    preciseDistanceKm != null && (!legDistanceEstimated || legDistanceEstimated.every((e) => !e))
+
   return (
     <div className="pil-page">
       <div className="pil-panel">
@@ -354,13 +369,13 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
             <div>
               <b>{formatMinutes(preciseMinutes ?? route.totalMinutes)}</b>
               <span>
-                예상 소요 <PrecisionTag precise={preciseMinutes != null} />
+                예상 소요 <PrecisionTag precise={minutesFullyMeasured} />
               </span>
             </div>
             <div>
               <b>{formatDistance(preciseDistanceKm ?? route.totalDistanceKm)}</b>
               <span>
-                이동 거리(편도) <PrecisionTag precise={preciseDistanceKm != null} />
+                이동 거리(편도) <PrecisionTag precise={distanceFullyMeasured} />
               </span>
             </div>
             <div>

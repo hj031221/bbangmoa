@@ -86,10 +86,13 @@ function prependFirstMile(real, actualPoint, substitutePoint) {
 // 구간마다 따로 fetchLeg()를 불러 이어붙인다(폴백 경로). 구간 하나가 실패해도(예: 호수·공원 등
 // 도로망을 못 찾는 지점) 그 구간만 estimateKm/travelMin 근사치로 메우고 나머지는 실API 값을 쓴다.
 // 전 구간이 다 실패했을 때만 null.
-// legEstimated[i] — 그 구간이 실API 값인지(false) 근사치 폴백인지(true)를 명시적으로 표시한다.
-// (예전엔 legPaths[i]가 채워져 있는지로 지도의 실선/점선을 판정했는데, 폴백도 항상
-// [출발점,도착점] 2점짜리 배열을 채워 넣어서 실측처럼 항상 실선으로 보이던 버그가 있었다 — 이제
-// "이 구간이 추정인가"를 별도 값으로 명시해서 지도가 정확히 구분할 수 있게 한다.)
+// legMinutesEstimated[i]/legDistanceEstimated[i] — 그 구간의 시간·거리 각각이 실API 값인지(false)
+// 근사치 폴백인지(true)를 따로 표시한다. 왜 따로냐면: 대중교통(fetchTransit/odsay.js)은 시간은
+// 항상 실API로 주지만 distanceKm 필드 자체가 없어 거리는 항상 estimateKm() 폴백이다 — 이걸 한
+// 값으로 합쳐 버리면 대중교통 모드에서 "시간은 실측인데 거리는 매번 추정"인 사실을 표현할 수
+// 없다(리뷰 발견: 이 분리 전엔 leg.estimated가 undefined→false로 잡혀 대중교통 거리가 항상
+// "실측"으로 잘못 표시됐다). legEstimated(지도 실선/점선용)는 이 둘 중 하나라도 추정이면
+// true — 지도는 "이 구간 숫자에 하나라도 지어낸 값이 섞였나"만 보면 되기 때문이다.
 async function estimateLegByLeg(fetchLeg, points, travelMode) {
   const legs = []
   for (let i = 0; i < points.length - 1; i++) legs.push(fetchLeg(points[i], points[i + 1]))
@@ -101,19 +104,23 @@ async function estimateLegByLeg(fetchLeg, points, travelMode) {
   const legPaths = []
   const legDistancesKm = []
   const legMinutes = []
-  const legEstimated = []
+  const legMinutesEstimated = []
+  const legDistanceEstimated = []
   for (let i = 0; i < results.length; i++) {
     const leg = results[i]
     if (leg) {
-      const km = Number.isFinite(leg.distanceKm) ? leg.distanceKm : estimateKm(points[i], points[i + 1])
+      const distanceReal = Number.isFinite(leg.distanceKm)
+      const km = distanceReal ? leg.distanceKm : estimateKm(points[i], points[i + 1])
       totalMinutes += leg.minutes
       totalDistanceKm += km
       legDistancesKm.push(km)
       legMinutes.push(leg.minutes)
       legPaths.push(leg.path && leg.path.length > 0 ? leg.path : [points[i], points[i + 1]])
-      // leg.estimated — fetchDrivingWithSubstitute가 대체 지점을 써서 일부 구간을 어림값으로
-      // 채운 경우 true로 표시해 넘겨준다(리뷰 발견: 전엔 무조건 false=실측으로 하드코딩돼 있었음).
-      legEstimated.push(!!leg.estimated)
+      // leg.estimated — fetchDrivingWithSubstitute가 대체 지점을 써서 시간·거리 둘 다 일부
+      // 어림값을 섞은 경우 true. distanceReal이 false면(대중교통처럼 애초에 API가 거리를
+      // 안 주는 경우) leg.estimated와 무관하게 거리는 항상 추정이다.
+      legMinutesEstimated.push(!!leg.estimated)
+      legDistanceEstimated.push(!!leg.estimated || !distanceReal)
     } else {
       const min = travelMin(points[i], points[i + 1], travelMode)
       const km = estimateKm(points[i], points[i + 1])
@@ -122,10 +129,21 @@ async function estimateLegByLeg(fetchLeg, points, travelMode) {
       legDistancesKm.push(km)
       legMinutes.push(min)
       legPaths.push([points[i], points[i + 1]])
-      legEstimated.push(true)
+      legMinutesEstimated.push(true)
+      legDistanceEstimated.push(true)
     }
   }
-  return { totalMinutes, totalDistanceKm, legPaths, legDistancesKm, legMinutes, legEstimated }
+  const legEstimated = legMinutesEstimated.map((t, i) => t || legDistanceEstimated[i])
+  return {
+    totalMinutes,
+    totalDistanceKm,
+    legPaths,
+    legDistancesKm,
+    legMinutes,
+    legMinutesEstimated,
+    legDistanceEstimated,
+    legEstimated,
+  }
 }
 
 // CP6-4/CP11-4 — origin→stops 순서의 총 이동시간(분)·거리(km) + 구간별 실제 경로 좌표를 실API로
@@ -135,7 +153,8 @@ async function estimateLegByLeg(fetchLeg, points, travelMode) {
 // 겪음) 구간별 개별 호출(대체 지점 재시도 포함)로 폴백한다. 대중교통은 다중 경유지 API가 없어
 // 처음부터 구간별로 부른다. 전 구간이 다 실패했을 때만(키 미설정·인증 실패 등) null — 호출부가
 // 근사치로 폴백.
-// → { totalMinutes, totalDistanceKm, legPaths, legDistancesKm, legMinutes, legEstimated } | null
+// → { totalMinutes, totalDistanceKm, legPaths, legDistancesKm, legMinutes,
+//     legMinutesEstimated, legDistanceEstimated, legEstimated } | null
 export async function estimateActualRoute(origin, orderedStops, travelMode) {
   if (orderedStops.length === 0) return null
   const points = [origin, ...orderedStops]
@@ -150,8 +169,13 @@ export async function estimateActualRoute(origin, orderedStops, travelMode) {
         legDistancesKm: multi.legDistancesKm,
         legMinutes: multi.legMinutes,
         // multi.legEstimated — section별 distance/duration이 없어 총계를 비례 분배한 구간은
-        // 여기서도 true로 온다(리뷰 발견: 전엔 다중경유지 성공이면 무조건 false로 하드코딩해서,
-        // 비례 분배한 근사값 구간까지 실측처럼 지도에 실선으로 그려졌음).
+        // 여기서도 true로 온다(전엔 다중경유지 성공이면 무조건 false로 하드코딩해서, 비례
+        // 분배한 근사값 구간까지 실측처럼 지도에 실선으로 그려졌음). 카카오 다중경유지 API는
+        // 시간·거리를 항상 같은 방식(section 필드 or 비례분배)으로 같이 주므로 자동차 경로는
+        // 시간/거리 추정 여부가 항상 같이 움직인다 — 대중교통(estimateLegByLeg 쪽)만 둘이
+        // 갈라진다.
+        legMinutesEstimated: multi.legEstimated,
+        legDistanceEstimated: multi.legEstimated,
         legEstimated: multi.legEstimated,
       }
     }
