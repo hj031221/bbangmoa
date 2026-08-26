@@ -484,7 +484,9 @@ a{ color:var(--accent-text); }
   .result-quiz .result-body{ grid-template-columns:1fr; padding:12px; }
   .result-quiz .result-map{ order:1; }
   .result-quiz .result-detail-col{ order:2; }
-  .result-quiz .result-list-col{ order:3; }
+  /* 리스트 자체 높이를 뷰포트 기준으로 다시 줘야 위(479행)의 overflow-y:auto가 실제로 작동한다 —
+     안 주면 부모(.result-body)가 height:auto라 리스트가 내용만큼 늘어나며 페이지 전체가 스크롤된다. */
+  .result-quiz .result-list-col{ order:3; max-height:60vh; overflow-y:auto; }
 }
 
 /* 빵집 지도(BakeryMapPage) 전용: 같은 시안 스타일의 카드 — 골드 헤더 + 지도/리스트/상세 3열.
@@ -504,7 +506,7 @@ a{ color:var(--accent-text); }
   .result-browse .result-body{ grid-template-columns:1fr; padding:12px; }
   .result-browse .result-map{ order:1; }
   .result-browse .result-detail-col{ order:2; }
-  .result-browse .result-list-col{ order:3; }
+  .result-browse .result-list-col{ order:3; max-height:60vh; overflow-y:auto; }
 }
 
 /* 오늘의 빵은... (설문 → 지도 사이 리빌 화면) */
