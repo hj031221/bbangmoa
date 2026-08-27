@@ -43,7 +43,7 @@ export default function MapResult({ onRetake }) {
   const inRegion = isWithinBbox(coords, region.bbox)
 
   // 관광지 좌표만 추림(이름·좌표). 빵집별 최근접 1곳 계산에 재사용.
-  const { raw: attractionsRaw } = useAttractions()
+  const { raw: attractionsRaw, loading: attractionsLoading } = useAttractions()
   const tourSpots = useMemo(
     () => attractionsRaw.filter((t) => Number.isFinite(t.lat) && Number.isFinite(t.lng)),
     [attractionsRaw],
@@ -57,16 +57,31 @@ export default function MapResult({ onRetake }) {
   const filteredBakeries = breadResult ? matchBakeries(bakeries, breadResult.bread, 10) : bakeries
 
   // 빵집별 거리: 설문서 고른 origin 우선, 없으면 현재 위치/역 폴백
+  // 리뷰 발견: 관광지 데이터가 실시간 API 로딩 중일 땐 tourSpots가 빈 배열이라 모든 빵집의
+  // nearSpot이 null로 계산됐다가, 로딩이 끝나면 리스트 전체에 "근처 관광지" 배지가 한꺼번에
+  // 나타나는 깜빡임이 있었다(옛 정적 JSON 방식 대비 회귀). attractionsLoading 중엔 아예
+  // 계산을 건너뛰어(nearSpot: null) "아직 못 구했다"는 상태를 명시적으로 표현한다 — 최종
+  // 화면 결과 자체는 로딩 전후로 동일하지만(어차피 null이면 배지가 안 뜨는 건 같음), 의미상
+  // "관광지 없음"과 "아직 로딩 중"을 코드에서 구분해둔다.
   const bakeriesWithDist = useMemo(
     () =>
       filteredBakeries.map((b) => ({
         ...b,
         distInfo: getBakeryDistanceInfo(b, { origin, coords, bbox: region.bbox }),
-        nearSpot: nearestAttraction(b, tourSpots),
+        nearSpot: attractionsLoading ? null : nearestAttraction(b, tourSpots),
         breadType: breadResult?.bread?.name,
         breadTypeEmoji: breadResult?.bread?.emoji,
       })),
-    [filteredBakeries, origin, coords, region, tourSpots, breadResult?.bread?.name, breadResult?.bread?.emoji],
+    [
+      filteredBakeries,
+      origin,
+      coords,
+      region,
+      tourSpots,
+      attractionsLoading,
+      breadResult?.bread?.name,
+      breadResult?.bread?.emoji,
+    ],
   )
   const selected =
     bakeriesWithDist.find((b) => b.id === selectedBakeryId) || bakeriesWithDist[0]

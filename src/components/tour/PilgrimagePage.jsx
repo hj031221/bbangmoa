@@ -7,7 +7,7 @@ import { pickBreadResult, matchBakeries } from '../../lib/breadRecommend'
 import { getTourRecommendation, isTourSurveyComplete } from '../../lib/tourRecommend'
 import { buildRoute, recalcRoute, summarizeOrder } from '../../lib/routePlan'
 import { estimateActualRoute } from '../../lib/travelTime'
-import { formatDistance, midpointOf } from '../../lib/distance'
+import { formatDistance, midpointOf, hasValidCoords } from '../../lib/distance'
 import { supabase } from '../../lib/supabase'
 import { useAttractions } from '../../hooks/useAttractions'
 import { useSavedCourses } from '../../hooks/useSavedCourses'
@@ -112,10 +112,16 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
       setPendingCourseLoad(null)
       return
     }
+    // 옛 스키마 등으로 좌표가 없는 stop은 여기서 걸러낸다 — customStops에 한 번 들어가면
+    // route.stops(hasValidCoords로 필터됨)엔 안 보이는데 excludeIds(customStops 기준)엔 계속
+    // 남아서, 사용자 눈엔 안 보이고 지울 수도 없는데 "추가하기"에서 재추가도 막히는 유령 슬롯이
+    // 됐다(리뷰 발견). 애초에 customStops에 못 들어오게 막는 게 근본 해결 — 이후 로직들은
+    // "customStops 안엔 항상 유효 좌표만 있다"는 전제를 그대로 믿어도 된다.
+    const validStops = pendingCourseLoad.stops.filter(hasValidCoords)
     loadedFromSavedRef.current = true
     setGateBypassed(true)
-    setCustomStops(pendingCourseLoad.stops)
-    setManualOrderIds(pendingCourseLoad.stops.map((s) => s.id))
+    setCustomStops(validStops)
+    setManualOrderIds(validStops.map((s) => s.id))
     setTravelMode(pendingCourseLoad.travel_mode || 'car')
     if (!origin && pendingCourseLoad.origin) setOrigin(pendingCourseLoad.origin)
     setPendingCourseLoad(null)
@@ -245,14 +251,19 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
   // 탭이 항상 무효였다(리뷰 발견) — 그냥 "이 index로 고정"만 하도록 단순화해서 탭도 동작하게 함.
   const [highlightIndex, setHighlightIndex] = useState(null)
 
+  // 리뷰 발견: 경유지를 지우거나(removeStop) 추가하거나(addStop) 드래그로 순서를 바꾸면
+  // (handlePointerUp) 배열이 재인덱싱되는데 highlightIndex는 그대로 남아있어서, 조작 이후엔
+  // 엉뚱한 구간이 지도에 강조 표시됐다 — 셋 다 하이라이트를 초기화한다.
   const removeStop = (id) => {
     setCustomStops((prev) => (prev || []).filter((s) => s.id !== id))
     setManualOrderIds((prev) => (prev ? prev.filter((i) => i !== id) : prev))
+    setHighlightIndex(null)
   }
   const addStop = (stop) => {
     setCustomStops((prev) => [...(prev || []), stop])
     setManualOrderIds((prev) => (prev ? [...prev, stop.id] : prev))
     setAddOpen(false)
+    setHighlightIndex(null)
   }
 
   // 햄버거 핸들을 눌러 드래그 → 리스트 순서를 손으로 바꾼다. 이후엔 그리디 재정렬 대신
@@ -292,6 +303,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
     const [moved] = ids.splice(from, 1)
     ids.splice(to, 0, moved)
     setManualOrderIds(ids)
+    setHighlightIndex(null)
   }
 
   const handleSave = async () => {

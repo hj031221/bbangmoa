@@ -3,19 +3,11 @@
 //     breadResult: pickBreadResult(answers) 결과에 matchBakeries() 결과를 bakeries 로 얹은 것
 //     tourResult:  getTourRecommendation(tourAnswers, attractions) 결과
 //   routeResult = { stops, totalDistanceKm, totalMinutes, travelMode }
-import { haversineKm } from './distance.js'
+import { haversineKm, hasValidCoords } from './distance.js'
 import { travelMin, estimateKm } from './travelTime.js'
 
 const ATTRACTION_COUNT = 2
 const BAKERY_COUNT = 3
-
-// 좌표가 유효한지(NaN/null/undefined 아닌지). "찜한 코스 불러오기"(옛 스키마 잔여 데이터 등)로
-// lat/lng가 없는 stop이 들어올 수 있어, haversineKm에 그대로 넘기기 전에 걸러야 한다 — 안 그러면
-// null이 산술 연산에서 0으로 강제 형변환되며 적도/그리니치 기준 수천km짜리 거리로 조용히
-// 틀어진다(다른 좌표 소비처인 bakeryDistance.js, AddStopModal.jsx는 이미 이렇게 검증한다).
-function hasValidCoords(p) {
-  return Number.isFinite(p?.lat) && Number.isFinite(p?.lng)
-}
 
 function toAttractionStop({ attraction }) {
   return { type: 'attraction', id: attraction.id, name: attraction.name, lat: attraction.lat, lng: attraction.lng }
