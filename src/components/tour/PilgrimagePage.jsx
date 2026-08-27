@@ -7,7 +7,7 @@ import { pickBreadResult, matchBakeries } from '../../lib/breadRecommend'
 import { getTourRecommendation, isTourSurveyComplete } from '../../lib/tourRecommend'
 import { buildRoute, recalcRoute, summarizeOrder } from '../../lib/routePlan'
 import { estimateActualRoute } from '../../lib/travelTime'
-import { formatDistance } from '../../lib/distance'
+import { formatDistance, midpointOf } from '../../lib/distance'
 import { supabase } from '../../lib/supabase'
 import { useAttractions } from '../../hooks/useAttractions'
 import { useSavedCourses } from '../../hooks/useSavedCourses'
@@ -409,7 +409,15 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
                 ☰
               </span>
               <span className="pil-stop-num">{stop.order}</span>
-              <span
+              {/* 리뷰 발견: 이전엔 마우스 전용 <span>이라 키보드/스크린리더로는 이 화면의 핵심
+                  인터랙션(리스트→지도 하이라이트)에 접근할 방법이 자체가 없었다. <button>으로
+                  바꾸면 tabIndex/role/Enter·Space 활성화가 전부 브라우저 기본 동작으로 딸려온다
+                  (직접 onKeyDown을 짜서 흉내내는 것보다 안전). 클릭은 마우스든 터치든 키보드든
+                  전부 이 하나의 onClick으로 들어온다 — 예전에 onClick과 onMouseEnter가 터치에서
+                  충돌하던 문제(§CP11-4)도 이 구조에선 재발하지 않는다: 버튼 클릭은 호버 상태와
+                  무관하게 항상 같은 index로 고정하는 동작이라 순서가 꼬일 여지가 없다. */}
+              <button
+                type="button"
                 className="pil-stop-info"
                 onMouseEnter={() => setHighlightIndex(index)}
                 onMouseLeave={() => setHighlightIndex(null)}
@@ -422,7 +430,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
                     <> · 이전 경유지에서 {formatDistance(legDistancesKm[index]) ?? '-'} · {legMinutes[index] ?? '-'}분</>
                   )}
                 </span>
-              </span>
+              </button>
               <button
                 type="button"
                 className="pil-stop-remove"
@@ -505,22 +513,9 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
   )
 }
 
-// 경로 좌표 배열의 중점. legPoints[Math.floor(length/2)]로 인덱스만 고르면, 2점짜리(직선 폴백)
-// 배열에선 index 1 = 도착점이라 라벨이 중점이 아니라 목적지 핀 위에 겹쳐 그려지는 버그가 있었다
-// (리뷰 발견, 하필 새로 만든 '추정 구간' 하이라이트 케이스에서 발생). 짝수 길이면 가운데 두 점의
-// 실제 좌표 평균을 쓴다.
-function midpointOf(points) {
-  if (points.length === 1) return points[0]
-  const half = Math.floor(points.length / 2)
-  if (points.length % 2 === 0) {
-    const a = points[half - 1]
-    const b = points[half]
-    return { lat: (a.lat + b.lat) / 2, lng: (a.lng + b.lng) / 2 }
-  }
-  return points[half]
-}
-
 // origin + 순번 매겨진 stops → 카카오맵에 번호 핀 + 경로선. PilgrimagePage 전용이라 여기에 둔다.
+// midpointOf()는 lib/distance.js에 있다(node --test로 유닛테스트하려면 JSX 없는 순수 .js
+// 파일에 있어야 해서 — 리뷰 발견: 컴포넌트 파일 안에 있으면 테스트 러너가 못 불러온다).
 // legEstimated[i]가 false면(CP11-4 실API 응답) 실선, true면(실API 실패로 보정계수 어림값을 쓴
 // 구간) 점선으로 그려 "이건 추정치"라는 걸 시각적으로도 알려준다.
 // (예전엔 legPaths[i]가 채워져 있는지로 판정했는데, 어림값 구간도 항상 [출발점,도착점] 2점짜리
@@ -603,6 +598,18 @@ function RouteMap({ origin, stops, legPaths, legDistancesKm, legMinutes, legEsti
     })
 
     if (points.length > 0) map.setBounds(bounds)
+
+    // 리뷰 발견(PLAUSIBLE): 언마운트 시 폴리라인/오버레이를 정리하는 cleanup이 없었다 — 카카오
+    // SDK가 map 인스턴스를 어떻게 회수하는지와 별개로, 이 컴포넌트가 만든 오버레이들은 최소한
+    // 명시적으로 setMap(null) 해서 정리한다.
+    return () => {
+      overlaysRef.current.forEach((o) => o.setMap(null))
+      polylinesRef.current.forEach((p) => p.setMap(null))
+      if (highlightOverlayRef.current) {
+        highlightOverlayRef.current.setMap(null)
+        highlightOverlayRef.current = null
+      }
+    }
   }, [loaded, origin, stops, legPaths, legEstimated])
 
   // 하이라이트 갱신 전용 — 위 effect가 이미 만들어둔 폴리라인의 스타일만 바꾸고, 강조된 구간에만
@@ -646,6 +653,13 @@ function RouteMap({ origin, stops, legPaths, legDistancesKm, legMinutes, legEsti
         content: `<div class="pil-leg-label">${formatDistance(legDistancesKm[highlightIndex]) ?? '-'} · ${legMinutes[highlightIndex] ?? '-'}분</div>`,
         yAnchor: 1.4,
       })
+    }
+
+    return () => {
+      if (highlightOverlayRef.current) {
+        highlightOverlayRef.current.setMap(null)
+        highlightOverlayRef.current = null
+      }
     }
   }, [highlightIndex, origin, stops, legPaths, legDistancesKm, legMinutes, legEstimated])
 

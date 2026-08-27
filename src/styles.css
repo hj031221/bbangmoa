@@ -633,7 +633,11 @@ a{ color:var(--accent-text); }
 .pil-stop-num{ width:22px; height:22px; border-radius:50%; color:#fff; font-size:.75rem; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
 .pil-stop.attraction .pil-stop-num{ background:var(--green); }
 .pil-stop.bakery .pil-stop-num{ background:var(--accent); }
-.pil-stop-info{ flex:1; min-width:0; cursor:pointer; border-radius:6px; }
+/* 리뷰 발견: <span>이라 키보드로 접근 불가능했음 — <button>으로 바꾸면서 기본 버튼 크롬(테두리/
+   배경/패딩/가운데정렬)을 지우고 예전 <span> 외관 그대로 유지, 포커스 링만 새로 추가. */
+.pil-stop-info{ flex:1; min-width:0; cursor:pointer; border-radius:6px; border:none; background:none;
+  padding:2px 4px; margin:0; font:inherit; color:inherit; text-align:left; }
+.pil-stop-info:focus-visible{ outline:2px solid var(--accent); outline-offset:1px; }
 .pil-stop.leg-highlight .pil-stop-info{ background:var(--card2); }
 .pil-stop-name{ display:block; font-weight:700; color:var(--ink); font-size:.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .pil-stop-type{ font-size:.72rem; color:var(--muted); word-break:keep-all; }
