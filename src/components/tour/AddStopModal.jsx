@@ -8,9 +8,21 @@ const TABS = [
 
 // 전체 지도(설문 후보 풀 밖 포함)에서 빵집/관광지를 검색해 코스에 추가하는 모달.
 // §07 확정사항: 개수 상한 없음, 후보 풀 밖도 허용.
-export default function AddStopModal({ bakeries, attractions, excludeIds, onAdd, onClose }) {
+export default function AddStopModal({
+  bakeries,
+  attractions,
+  excludeIds,
+  suggestedBakeryIds,
+  suggestedAttractionIds,
+  onAdd,
+  onClose,
+}) {
   const [tab, setTab] = useState('bakery')
   const [query, setQuery] = useState('')
+  // CP11-4 — 설문에서 이미 후보로 나왔는데 지금 코스엔 없는 것들(취향 후보). 찜한 빵집을 검색
+  // 결과 위로 올리던 기존 패턴(isSaved 정렬 + 아이콘)과 동일한 방식으로, 새 섹션을 따로 만들지
+  // 않고 그 위에 우선순위 한 단계만 얹는다.
+  const suggestedIds = tab === 'bakery' ? suggestedBakeryIds : suggestedAttractionIds
   // 찜한 빵집을 검색 결과 위쪽에 먼저 보여준다(피드백 추가요청) — 관광지는 찜 기능 자체가
   // 없어서 대상이 없다(범위 제외 확정).
   const { isSaved } = useSavedBakeries()
@@ -28,10 +40,11 @@ export default function AddStopModal({ bakeries, attractions, excludeIds, onAdd,
     .filter((p) => !query.trim() || p.name.includes(query.trim()))
   const addable = queried.filter((p) => !excludeIds.has(p.id))
   const already = queried.filter((p) => excludeIds.has(p.id))
-  const sortedAddable =
-    tab === 'bakery'
-      ? [...addable].sort((a, b) => Number(isSaved(b.id)) - Number(isSaved(a.id)))
-      : addable
+  const sortedAddable = [...addable].sort((a, b) => {
+    const suggestedDiff = Number(!!suggestedIds?.has(b.id)) - Number(!!suggestedIds?.has(a.id))
+    if (suggestedDiff !== 0) return suggestedDiff
+    return tab === 'bakery' ? Number(isSaved(b.id)) - Number(isSaved(a.id)) : 0
+  })
   const filtered = [...sortedAddable.slice(0, 30), ...already]
 
   return (
@@ -79,6 +92,7 @@ export default function AddStopModal({ bakeries, attractions, excludeIds, onAdd,
                 <span>
                   {tab === 'bakery' && isSaved(p.id) && <span aria-hidden="true">❤️ </span>}
                   {p.name}
+                  {suggestedIds?.has(p.id) && <span className="pil-modal-suggested-tag">취향 후보</span>}
                 </span>
                 <span className="pil-modal-plus">{added ? '이미 추가됨' : '+'}</span>
               </button>

@@ -72,6 +72,10 @@ export default function TourReveal({ answers, onRetake, onOpenHub, breadDone, on
         </button>
       </div>
 
+      <p className="tour-reveal-footnote">
+        ※ 대전한바퀴 코스에는 출발지에서 가까운 후보 위주로 담겨요
+      </p>
+
       {breadDone && onGoToPilgrimage ? (
         <div className="reveal-crosslink">
           <button type="button" className="ghost-btn" onClick={onGoToPilgrimage}>

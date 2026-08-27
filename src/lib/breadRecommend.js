@@ -74,6 +74,12 @@ function breakTie(tiedCandidates, branch) {
 // bakeries 를 안 주거나 아직 로딩 전(빈 배열)이면 필터를 건너뛴다 — 호출부는 로딩이 끝난 뒤에
 // 불러야 이 필터가 실제로 적용된다(그 전엔 빵집 데이터 자체가 없어 전부 걸러질 수 있어서).
 export function pickBreadResult(answers, bakeries) {
+  // 이슈 #37/CP11-9 — Q1만 답하고 Q2~Q5를 건너뛰면(미답변 문항은 fitness 0으로 계산돼) 전부
+  // 0점 동점인 채로 여기까지 왔었다. getTourRecommendation()(tourRecommend.js)은 이미 이 체크를
+  // 하고 있어 두 파일 로직이 어긋나 있었다 — 여기도 똑같이 완료 여부부터 확인한다. 이 결과를
+  // 직접 쓰는 PilgrimagePage의 breadDone 게이트도 이걸로 함께 바로잡힌다(미완료 설문으로 코스가
+  // 만들어지는 것 방지).
+  if (!isSurveyComplete(answers)) return null
   const branchId = resolveBranch(answers)
   if (!branchId) return null
   const branch = BRANCHES[branchId]

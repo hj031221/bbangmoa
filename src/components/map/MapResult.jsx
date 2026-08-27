@@ -43,7 +43,7 @@ export default function MapResult({ onRetake }) {
   const inRegion = isWithinBbox(coords, region.bbox)
 
   // 관광지 좌표만 추림(이름·좌표). 빵집별 최근접 1곳 계산에 재사용.
-  const { raw: attractionsRaw } = useAttractions()
+  const { raw: attractionsRaw, loading: attractionsLoading } = useAttractions()
   const tourSpots = useMemo(
     () => attractionsRaw.filter((t) => Number.isFinite(t.lat) && Number.isFinite(t.lng)),
     [attractionsRaw],
@@ -62,7 +62,7 @@ export default function MapResult({ onRetake }) {
       filteredBakeries.map((b) => ({
         ...b,
         distInfo: getBakeryDistanceInfo(b, { origin, coords, bbox: region.bbox }),
-        nearSpot: nearestAttraction(b, tourSpots),
+        nearSpot: attractionsLoading ? null : nearestAttraction(b, tourSpots),
         breadType: breadResult?.bread?.name,
         breadTypeEmoji: breadResult?.bread?.emoji,
         breadTypeIllustration: breadResult?.bread?.illustration,
@@ -73,11 +73,22 @@ export default function MapResult({ onRetake }) {
       coords,
       region,
       tourSpots,
+      attractionsLoading,
       breadResult?.bread?.name,
       breadResult?.bread?.emoji,
       breadResult?.bread?.illustration,
     ],
   )
+
+  // 재검증 발견: attractionsLoading을 nearSpot 계산에만 반영했더니, 로딩 중이든 아니든
+  // tourSpots가 빈 배열이라 nearestAttraction()이 어차피 null을 반환해서 렌더링 결과가
+  // 이전과 100% 동일했다 — "고쳤다"는 주장이 틀렸었다. 실제로 화면이 달라지는 지점은
+  // "빵집은 이미 로딩 끝났는데 관광지만 아직 로딩 중"인 구간에서 리스트가 먼저 그려지고
+  // 그 뒤에 근처 관광지 배지가 기존 줄에 나중에 추가되는 것 — 그래서 리스트 자체를
+  // attractionsLoading이 끝날 때까지 같이 미룬다(기존 "불러오는 중…" 배너 패턴 재사용).
+  // 대가: 목록이 뜨는 시점이 근소하게 늦어지지만(빵집 로딩만 끝났을 때 대신 관광지까지
+  // 끝난 뒤), 한 번 뜨면 완성된 상태로 뜨고 이후에 항목이 튀지 않는다.
+  const listReady = !loading && !attractionsLoading
   const selected =
     bakeriesWithDist.find((b) => b.id === selectedBakeryId) || bakeriesWithDist[0]
 
@@ -123,8 +134,8 @@ export default function MapResult({ onRetake }) {
       </header>
 
       {error && <div className="banner error">데이터 오류: {String(error.message)}</div>}
-      {loading && <div className="banner">불러오는 중…</div>}
-      {!loading && breadResult && bakeriesWithDist.length === 0 && (
+      {!listReady && <div className="banner">불러오는 중…</div>}
+      {listReady && breadResult && bakeriesWithDist.length === 0 && (
         <div className="banner">이 지역엔 아직 추천할 {breadResult.bread.name} 맛집 정보가 없어요.</div>
       )}
 
@@ -141,7 +152,7 @@ export default function MapResult({ onRetake }) {
 
         <aside className="result-list-col">
           <ol className="rec-list">
-            {bakeriesWithDist.map((b, i) => (
+            {listReady && bakeriesWithDist.map((b, i) => (
               <li
                 key={b.id}
                 className={'rec-list-item' + (b.id === selected?.id ? ' active' : '')}
