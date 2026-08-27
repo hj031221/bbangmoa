@@ -240,6 +240,9 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
   // CP11-4 — 리스트에서 경유지를 호버/탭하면 지도의 해당 구간(그 경유지로 들어오는 leg)이
   // 강조된다. points=[origin,...stops] 기준으로 stop의 배열 index가 곧 그 stop으로 들어오는
   // leg의 index와 같다(leg i는 points[i]→points[i+1], stop[index]는 points[index+1]).
+  // onClick을 토글(같은 곳 다시 클릭하면 null)로 뒀었는데, 터치 기기는 탭할 때 mouseenter→click이
+  // 같은 제스처 안에서 순서대로 발생해 mouseenter가 세팅한 값을 click이 바로 도로 지워버려
+  // 탭이 항상 무효였다(리뷰 발견) — 그냥 "이 index로 고정"만 하도록 단순화해서 탭도 동작하게 함.
   const [highlightIndex, setHighlightIndex] = useState(null)
 
   const removeStop = (id) => {
@@ -410,13 +413,13 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
                 className="pil-stop-info"
                 onMouseEnter={() => setHighlightIndex(index)}
                 onMouseLeave={() => setHighlightIndex(null)}
-                onClick={() => setHighlightIndex((p) => (p === index ? null : index))}
+                onClick={() => setHighlightIndex(index)}
               >
                 <span className="pil-stop-name">{stop.name}</span>
                 <span className="pil-stop-type">
                   {stop.type === 'attraction' ? '📍 관광지' : '🥐 빵집'}
                   {legDistancesKm && legMinutes && (
-                    <> · 이전 경유지에서 {formatDistance(legDistancesKm[index]) ?? '-'} · {legMinutes[index]}분</>
+                    <> · 이전 경유지에서 {formatDistance(legDistancesKm[index]) ?? '-'} · {legMinutes[index] ?? '-'}분</>
                   )}
                 </span>
               </span>
@@ -528,12 +531,15 @@ function RouteMap({ origin, stops, legPaths, legDistancesKm, legMinutes, legEsti
   const { loaded, error } = useKakaoLoader()
   const containerRef = useRef(null)
   const mapRef = useRef(null)
-  const overlaysRef = useRef([])
+  const overlaysRef = useRef([]) // 출발/경유지 번호 핀만 — 하이라이트 라벨은 별도 ref로 관리
   const polylinesRef = useRef([])
+  const highlightOverlayRef = useRef(null)
 
-  // 지도 생성과 핀/경로선 그리기를 하나의 effect로 묶는다 — 따로 두면 "핀을 그릴 stops는
-  // 이미 준비됐는데 지도(SDK 로딩)가 아직 안 끝난" 순서로 실행될 때 핀 effect가 조용히
-  // 아무것도 안 그리고 끝나버리고, 그 뒤로 stops/origin이 안 바뀌면 다시 안 그려지는 문제가 있었다.
+  // 지도 생성 + 핀/기본 경로선 그리기. highlightIndex는 여기서 안 본다 — 예전엔 이 effect가
+  // highlightIndex에도 반응해서, 리스트를 호버할 때마다 전체를 지웠다 다시 그리고
+  // map.setBounds()까지 매번 다시 불러 사용자가 확대/이동해둔 뷰가 계속 전체 경로 범위로
+  // 튕기고 선이 깜빡이는 버그가 있었다(리뷰 발견). 하이라이트는 아래 두 번째 effect가 이미
+  // 그려진 폴리라인 스타일만 바꾸는 방식으로 분리했다.
   useEffect(() => {
     if (!loaded || !containerRef.current || !origin) return
     const { kakao } = window
@@ -550,6 +556,10 @@ function RouteMap({ origin, stops, legPaths, legDistancesKm, legMinutes, legEsti
     overlaysRef.current = []
     polylinesRef.current.forEach((p) => p.setMap(null))
     polylinesRef.current = []
+    if (highlightOverlayRef.current) {
+      highlightOverlayRef.current.setMap(null)
+      highlightOverlayRef.current = null
+    }
 
     const points = [origin, ...stops]
     const bounds = new kakao.maps.LatLngBounds()
@@ -558,31 +568,18 @@ function RouteMap({ origin, stops, legPaths, legDistancesKm, legMinutes, legEsti
       const legPoints = legPaths?.[i]?.length > 0 ? legPaths[i] : [points[i], points[i + 1]]
       const path = legPoints.map((p) => new kakao.maps.LatLng(p.lat, p.lng))
       path.forEach((ll) => bounds.extend(ll))
-      const isHighlighted = i === highlightIndex
       const isEstimated = legEstimated ? legEstimated[i] : legPaths?.[i]?.length > 0 ? false : true
       polylinesRef.current.push(
         new kakao.maps.Polyline({
           map,
           path,
-          strokeWeight: isHighlighted ? 7 : 4,
-          strokeColor: isHighlighted ? '#D9591A' : '#F2814A',
+          strokeWeight: 4,
+          strokeColor: '#F2814A',
           strokeOpacity: 0.85,
           // 실API로 구한 구간이면 실선, 보정계수 어림값이면 점선으로 구분.
           strokeStyle: isEstimated ? 'shortdash' : 'solid',
         }),
       )
-
-      if (isHighlighted && legDistancesKm && legMinutes) {
-        const mid = midpointOf(legPoints)
-        overlaysRef.current.push(
-          new kakao.maps.CustomOverlay({
-            map,
-            position: new kakao.maps.LatLng(mid.lat, mid.lng),
-            content: `<div class="pil-leg-label">${formatDistance(legDistancesKm[i]) ?? '-'} · ${legMinutes[i]}분</div>`,
-            yAnchor: 1.4,
-          }),
-        )
-      }
     }
 
     const originOverlay = new kakao.maps.CustomOverlay({
@@ -606,7 +603,51 @@ function RouteMap({ origin, stops, legPaths, legDistancesKm, legMinutes, legEsti
     })
 
     if (points.length > 0) map.setBounds(bounds)
-  }, [loaded, origin, stops, legPaths, legDistancesKm, legMinutes, legEstimated, highlightIndex])
+  }, [loaded, origin, stops, legPaths, legEstimated])
+
+  // 하이라이트 갱신 전용 — 위 effect가 이미 만들어둔 폴리라인의 스타일만 바꾸고, 강조된 구간에만
+  // 라벨 오버레이를 추가/제거한다. bounds/핀/기본 선을 다시 안 그려서 사용자가 확대·이동해둔
+  // 뷰가 안 튕긴다.
+  useEffect(() => {
+    if (!mapRef.current || polylinesRef.current.length === 0) return
+    const { kakao } = window
+    const map = mapRef.current
+    const points = [origin, ...stops]
+
+    polylinesRef.current.forEach((polyline, i) => {
+      const isHighlighted = i === highlightIndex
+      const isEstimated = legEstimated ? legEstimated[i] : false
+      polyline.setOptions({
+        strokeWeight: isHighlighted ? 7 : 4,
+        strokeColor: isHighlighted ? '#D9591A' : '#F2814A',
+        strokeStyle: isEstimated ? 'shortdash' : 'solid',
+      })
+    })
+
+    if (highlightOverlayRef.current) {
+      highlightOverlayRef.current.setMap(null)
+      highlightOverlayRef.current = null
+    }
+    if (
+      highlightIndex != null &&
+      legDistancesKm &&
+      legMinutes &&
+      points[highlightIndex] &&
+      points[highlightIndex + 1]
+    ) {
+      const legPoints =
+        legPaths?.[highlightIndex]?.length > 0
+          ? legPaths[highlightIndex]
+          : [points[highlightIndex], points[highlightIndex + 1]]
+      const mid = midpointOf(legPoints)
+      highlightOverlayRef.current = new kakao.maps.CustomOverlay({
+        map,
+        position: new kakao.maps.LatLng(mid.lat, mid.lng),
+        content: `<div class="pil-leg-label">${formatDistance(legDistancesKm[highlightIndex]) ?? '-'} · ${legMinutes[highlightIndex] ?? '-'}분</div>`,
+        yAnchor: 1.4,
+      })
+    }
+  }, [highlightIndex, origin, stops, legPaths, legDistancesKm, legMinutes, legEstimated])
 
   return (
     <div className="map-wrap">

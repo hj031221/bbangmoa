@@ -1,7 +1,23 @@
 // CP6-4a — 카카오모빌리티 자동차 길찾기 실API.
 // 무료 쿼터(일 10,000건) 내에서는 별도 제휴 없이 기존 REST 키 그대로 쓴다(확인됨).
 // 실패하면 null을 반환 — 호출부가 근사치(travelMin)로 폴백한다.
+import { haversineKm } from '../lib/distance.js'
+
 const REST_KEY = import.meta.env.VITE_KAKAO_REST_KEY
+
+// 각 값을 반올림하되 합계가 정확히 targetSum이 되도록 보정한다(최대 나머지법). 구간별로 각자
+// Math.round 하면 합이 총계(헤더 표시값)와 어긋날 수 있다(예: 11+11+11=33분인데 헤더는
+// 반올림된 32분 — 리뷰 발견). 나머지가 큰 항목부터 하나씩 올림해 합을 맞춘다.
+function roundToSum(values, targetSum) {
+  const floors = values.map(Math.floor)
+  const remainder = targetSum - floors.reduce((a, b) => a + b, 0)
+  const order = values
+    .map((v, i) => ({ i, frac: v - Math.floor(v) }))
+    .sort((a, b) => b.frac - a.frac)
+  const result = [...floors]
+  for (let k = 0; k < remainder && k < order.length; k++) result[order[k].i] += 1
+  return result
+}
 
 // 두 좌표({lat,lng}) 사이 실제 자동차 이동시간(분) + 실거리(km) + 실제 도로를 따라가는 경로 좌표.
 // → { minutes, distanceKm, path: [{lat,lng}, ...] } | null
@@ -85,23 +101,36 @@ export async function fetchDrivingMultiWaypoint(points) {
     })
     if (legPaths.length !== points.length - 1) return null // 구간 수가 안 맞으면 신뢰 안 함
 
-    // CP11-4: section 자체가 구간별 distance/duration을 주면 그대로 쓰고, 응답에 없으면(카카오
-    // 필드 유무 미확인 — section.roads[].vertexes 개수 비례로 근사 분배(총계는 실측 유지, 구간
-    // 배분만 근사).
+    // CP11-4: section 자체가 구간별 distance/duration을 주면 그대로 쓴다 — 실측 확인함(카카오
+    // waypoints/directions 응답의 sections[]는 매번 distance/duration 필드를 포함했다). 다만
+    // API가 이 필드를 안 줄 이론적 가능성까지 배제할 순 없어 방어적으로 폴백은 남겨둔다: 그럴 땐
+    // 꼭짓점 개수가 아니라 각 구간 폴리라인의 실제 좌표 길이(haversine 합) 비례로 총계를 분배한다
+    // — 꼭짓점 개수는 거리와 무관해서(직선 고속도로 구간은 꼭짓점이 적고, 짧고 구불구불한 구간은
+    // 많다) 그걸로 가중치를 삼으면 구간별 숫자가 크게 틀어질 수 있었다(리뷰 발견).
     const hasSectionMetrics = sections.every(
       (s) => Number.isFinite(s.distance) && Number.isFinite(s.duration),
     )
     let legDistancesKm, legMinutes
     if (hasSectionMetrics) {
       legDistancesKm = sections.map((s) => s.distance / 1000)
-      legMinutes = sections.map((s) => Math.round(s.duration / 60))
+      legMinutes = roundToSum(
+        sections.map((s) => s.duration / 60),
+        Math.round(duration / 60),
+      )
     } else {
-      const weights = legPaths.map((p) => Math.max(p.length, 1))
+      const weights = legPaths.map((p) => {
+        let km = 0
+        for (let i = 0; i + 1 < p.length; i++) km += haversineKm(p[i], p[i + 1])
+        return Math.max(km, 0.01) // 좌표가 1개뿐이라 길이가 0인 구간도 최소 가중치는 주도록
+      })
       const totalWeight = weights.reduce((a, b) => a + b, 0)
       legDistancesKm = weights.map((w) =>
         Number.isFinite(distance) ? (distance / 1000) * (w / totalWeight) : null,
       )
-      legMinutes = weights.map((w) => Math.round((duration / 60) * (w / totalWeight)))
+      legMinutes = roundToSum(
+        weights.map((w) => (duration / 60) * (w / totalWeight)),
+        Math.round(duration / 60),
+      )
     }
 
     return {
