@@ -7,7 +7,7 @@ import { pickBreadResult, matchBakeries } from '../../lib/breadRecommend'
 import { getTourRecommendation, isTourSurveyComplete } from '../../lib/tourRecommend'
 import { buildRoute, recalcRoute, summarizeOrder } from '../../lib/routePlan'
 import { estimateActualRoute } from '../../lib/travelTime'
-import { formatDistance } from '../../lib/distance'
+import { formatDistance, midpointOf, hasValidCoords } from '../../lib/distance'
 import { supabase } from '../../lib/supabase'
 import { useAttractions } from '../../hooks/useAttractions'
 import { useSavedCourses } from '../../hooks/useSavedCourses'
@@ -34,6 +34,16 @@ function formatMinutes(min) {
   const h = Math.floor(min / 60)
   const m = min % 60
   return m === 0 ? `${h}시간` : `${h}시간 ${m}분`
+}
+
+// CP11-4 — 이 값이 실API로 구한 실측인지, 실API가 없어서/실패해서 보정계수로 어림한 값인지를
+// 항상 명시한다(전엔 실측일 때만 조용히 "(실시간)"이 붙고 어림값일 땐 아무 표시가 없었다).
+function PrecisionTag({ precise }) {
+  return (
+    <span className={'pil-precision-tag' + (precise ? ' measured' : ' estimated')}>
+      {precise ? '실측' : '추정'}
+    </span>
+  )
 }
 
 // CP6-3 — 대전한바퀴: 관광모아 + 빵모아 결과를 합친 기본 코스 화면.
@@ -102,10 +112,16 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
       setPendingCourseLoad(null)
       return
     }
+    // 옛 스키마 등으로 좌표가 없는 stop은 여기서 걸러낸다 — customStops에 한 번 들어가면
+    // route.stops(hasValidCoords로 필터됨)엔 안 보이는데 excludeIds(customStops 기준)엔 계속
+    // 남아서, 사용자 눈엔 안 보이고 지울 수도 없는데 "추가하기"에서 재추가도 막히는 유령 슬롯이
+    // 됐다(리뷰 발견). 애초에 customStops에 못 들어오게 막는 게 근본 해결 — 이후 로직들은
+    // "customStops 안엔 항상 유효 좌표만 있다"는 전제를 그대로 믿어도 된다.
+    const validStops = pendingCourseLoad.stops.filter(hasValidCoords)
     loadedFromSavedRef.current = true
     setGateBypassed(true)
-    setCustomStops(pendingCourseLoad.stops)
-    setManualOrderIds(pendingCourseLoad.stops.map((s) => s.id))
+    setCustomStops(validStops)
+    setManualOrderIds(validStops.map((s) => s.id))
     setTravelMode(pendingCourseLoad.travel_mode || 'car')
     if (!origin && pendingCourseLoad.origin) setOrigin(pendingCourseLoad.origin)
     setPendingCourseLoad(null)
@@ -149,6 +165,23 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
 
   const excludeIds = useMemo(() => new Set((customStops || []).map((s) => s.id)), [customStops])
 
+  // "추가하기" 모달에서, 설문에서 이미 후보로 나왔는데 지금 코스엔 없는 것들을 상단으로 올려
+  // 보여주기 위한 id 집합. excludeIds가 바뀔 때마다(추가/제거) 자동으로 다시 계산된다.
+  const suggestedBakeryIds = useMemo(
+    () => new Set((breadResult?.bakeries || []).filter((b) => !excludeIds.has(b.id)).map((b) => b.id)),
+    [breadResult, excludeIds],
+  )
+  const suggestedAttractionIds = useMemo(
+    () =>
+      new Set(
+        (tourResult?.results || [])
+          .map((r) => r.attraction)
+          .filter((a) => !excludeIds.has(a.id))
+          .map((a) => a.id),
+      ),
+    [tourResult, excludeIds],
+  )
+
   // 지금 화면의 코스(경유지+순서+이동수단)가 이미 저장된 것과 같은지 — 같으면 저장 버튼을 막는다
   // (§CP10-7). DB 조회분(savedCourses) + 이 화면에서 방금 저장한 것(justSaved) 둘 다 본다.
   const isDuplicateOfSaved = useMemo(() => {
@@ -164,33 +197,73 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
     setSaveState('idle')
   }, [route, travelMode])
 
-  // CP6-4: route가 정해지면 실API로 정밀 이동시간 + 구간별 실제 경로 좌표를 한 번 더 구한다.
-  // 실패/도보 모드면 null 유지 — 그럴 땐 route.totalMinutes(근사치) + 직선 경로를 그대로 쓴다.
+  // CP6-4/CP11-4: route가 정해지면 실API로 정밀 이동시간·거리 + 구간별 실제 경로 좌표를 한 번 더
+  // 구한다. 실패/도보 모드면 null 유지 — 그럴 땐 route.totalMinutes/totalDistanceKm(근사치) +
+  // 직선 경로를 그대로 쓴다.
   const [preciseMinutes, setPreciseMinutes] = useState(null)
+  const [preciseDistanceKm, setPreciseDistanceKm] = useState(null)
   const [legPaths, setLegPaths] = useState(null)
+  const [legDistancesKm, setLegDistancesKm] = useState(null)
+  const [legMinutes, setLegMinutes] = useState(null)
+  const [legEstimated, setLegEstimated] = useState(null)
+  const [legMinutesEstimated, setLegMinutesEstimated] = useState(null)
+  const [legDistanceEstimated, setLegDistanceEstimated] = useState(null)
   useEffect(() => {
     setPreciseMinutes(null)
+    setPreciseDistanceKm(null)
     setLegPaths(null)
+    setLegDistancesKm(null)
+    setLegMinutes(null)
+    setLegEstimated(null)
+    setLegMinutesEstimated(null)
+    setLegDistanceEstimated(null)
     if (!route || route.stops.length === 0) return
     let alive = true
-    estimateActualRoute(origin, route.stops, travelMode).then((result) => {
-      if (!alive) return
-      setPreciseMinutes(result?.totalMinutes ?? null)
-      setLegPaths(result?.legPaths ?? null)
-    })
+    estimateActualRoute(origin, route.stops, travelMode)
+      .then((result) => {
+        if (!alive) return
+        setPreciseMinutes(result?.totalMinutes ?? null)
+        setPreciseDistanceKm(result?.totalDistanceKm ?? null)
+        setLegPaths(result?.legPaths ?? null)
+        setLegDistancesKm(result?.legDistancesKm ?? null)
+        setLegMinutes(result?.legMinutes ?? null)
+        setLegEstimated(result?.legEstimated ?? null)
+        setLegMinutesEstimated(result?.legMinutesEstimated ?? null)
+        setLegDistanceEstimated(result?.legDistanceEstimated ?? null)
+      })
+      // 리뷰 발견: estimateActualRoute 내부 어딘가(특히 findNearbyParking)가 던지면 여기 .catch()가
+      // 없어 unhandled rejection이 나고, 화면은 아무 에러 표시 없이 preciseMinutes=null(근사치)
+      // 상태로 조용히 멈춰 있었다. travelTime.js 쪽에서 이미 흡수하도록 고쳤지만, 이 화면도
+      // "실패하면 근사치를 그대로 쓴다"는 기존 원칙대로 방어적으로 한 번 더 잡는다.
+      .catch((e) => {
+        console.error('[대전한바퀴] 실API 이동시간/거리 계산 실패 — 근사치로 대체', e)
+      })
     return () => {
       alive = false
     }
   }, [route, travelMode, origin])
 
+  // CP11-4 — 리스트에서 경유지를 호버/탭하면 지도의 해당 구간(그 경유지로 들어오는 leg)이
+  // 강조된다. points=[origin,...stops] 기준으로 stop의 배열 index가 곧 그 stop으로 들어오는
+  // leg의 index와 같다(leg i는 points[i]→points[i+1], stop[index]는 points[index+1]).
+  // onClick을 토글(같은 곳 다시 클릭하면 null)로 뒀었는데, 터치 기기는 탭할 때 mouseenter→click이
+  // 같은 제스처 안에서 순서대로 발생해 mouseenter가 세팅한 값을 click이 바로 도로 지워버려
+  // 탭이 항상 무효였다(리뷰 발견) — 그냥 "이 index로 고정"만 하도록 단순화해서 탭도 동작하게 함.
+  const [highlightIndex, setHighlightIndex] = useState(null)
+
+  // 리뷰 발견: 경유지를 지우거나(removeStop) 추가하거나(addStop) 드래그로 순서를 바꾸면
+  // (handlePointerUp) 배열이 재인덱싱되는데 highlightIndex는 그대로 남아있어서, 조작 이후엔
+  // 엉뚱한 구간이 지도에 강조 표시됐다 — 셋 다 하이라이트를 초기화한다.
   const removeStop = (id) => {
     setCustomStops((prev) => (prev || []).filter((s) => s.id !== id))
     setManualOrderIds((prev) => (prev ? prev.filter((i) => i !== id) : prev))
+    setHighlightIndex(null)
   }
   const addStop = (stop) => {
     setCustomStops((prev) => [...(prev || []), stop])
     setManualOrderIds((prev) => (prev ? [...prev, stop.id] : prev))
     setAddOpen(false)
+    setHighlightIndex(null)
   }
 
   // 햄버거 핸들을 눌러 드래그 → 리스트 순서를 손으로 바꾼다. 이후엔 그리디 재정렬 대신
@@ -230,6 +303,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
     const [moved] = ids.splice(from, 1)
     ids.splice(to, 0, moved)
     setManualOrderIds(ids)
+    setHighlightIndex(null)
   }
 
   const handleSave = async () => {
@@ -289,6 +363,15 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
     return <div className="banner">코스를 준비하는 중…</div>
   }
 
+  // 상단 요약 배지 — "계산 자체가 성공했나"(preciseMinutes/preciseDistanceKm != null)만 보면
+  // 구간 5개 중 1개만 추정으로 채워져도(예: 대중교통은 거리가 항상 추정, 자동차도 대체 지점
+  // 폴백을 탄 구간이 섞이면) 전체를 "실측"으로 잘못 표시한다(리뷰 발견) — 구간 배열이 하나라도
+  // 추정이면 전체도 추정으로 내린다.
+  const minutesFullyMeasured =
+    preciseMinutes != null && (!legMinutesEstimated || legMinutesEstimated.every((e) => !e))
+  const distanceFullyMeasured =
+    preciseDistanceKm != null && (!legDistanceEstimated || legDistanceEstimated.every((e) => !e))
+
   return (
     <div className="pil-page">
       <div className="pil-panel">
@@ -300,11 +383,15 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
           <div className="pil-summary">
             <div>
               <b>{formatMinutes(preciseMinutes ?? route.totalMinutes)}</b>
-              <span>{preciseMinutes != null ? '예상 소요 (실시간)' : '예상 소요'}</span>
+              <span>
+                예상 소요 <PrecisionTag precise={minutesFullyMeasured} />
+              </span>
             </div>
             <div>
-              <b>{formatDistance(route.totalDistanceKm)}</b>
-              <span>총 거리</span>
+              <b>{formatDistance(preciseDistanceKm ?? route.totalDistanceKm)}</b>
+              <span>
+                이동 거리(편도) <PrecisionTag precise={distanceFullyMeasured} />
+              </span>
             </div>
             <div>
               <b>{route.stops.length}곳</b>
@@ -320,7 +407,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
             <li
               key={stop.id}
               data-index={index}
-              className={`pil-stop ${stop.type}${dragOverIndex === index ? ' drag-over' : ''}`}
+              className={`pil-stop ${stop.type}${dragOverIndex === index ? ' drag-over' : ''}${highlightIndex === index ? ' leg-highlight' : ''}`}
             >
               <span
                 className="pil-stop-handle"
@@ -334,10 +421,28 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
                 ☰
               </span>
               <span className="pil-stop-num">{stop.order}</span>
-              <span className="pil-stop-info">
+              {/* 리뷰 발견: 이전엔 마우스 전용 <span>이라 키보드/스크린리더로는 이 화면의 핵심
+                  인터랙션(리스트→지도 하이라이트)에 접근할 방법이 자체가 없었다. <button>으로
+                  바꾸면 tabIndex/role/Enter·Space 활성화가 전부 브라우저 기본 동작으로 딸려온다
+                  (직접 onKeyDown을 짜서 흉내내는 것보다 안전). 클릭은 마우스든 터치든 키보드든
+                  전부 이 하나의 onClick으로 들어온다 — 예전에 onClick과 onMouseEnter가 터치에서
+                  충돌하던 문제(§CP11-4)도 이 구조에선 재발하지 않는다: 버튼 클릭은 호버 상태와
+                  무관하게 항상 같은 index로 고정하는 동작이라 순서가 꼬일 여지가 없다. */}
+              <button
+                type="button"
+                className="pil-stop-info"
+                onMouseEnter={() => setHighlightIndex(index)}
+                onMouseLeave={() => setHighlightIndex(null)}
+                onClick={() => setHighlightIndex(index)}
+              >
                 <span className="pil-stop-name">{stop.name}</span>
-                <span className="pil-stop-type">{stop.type === 'attraction' ? '📍 관광지' : '🥐 빵집'}</span>
-              </span>
+                <span className="pil-stop-type">
+                  {stop.type === 'attraction' ? '📍 관광지' : '🥐 빵집'}
+                  {legDistancesKm && legMinutes && (
+                    <> · 이전 경유지에서 {formatDistance(legDistancesKm[index]) ?? '-'} · {legMinutes[index] ?? '-'}분</>
+                  )}
+                </span>
+              </button>
               <button
                 type="button"
                 className="pil-stop-remove"
@@ -394,7 +499,15 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
       </div>
 
       <div className="pil-map">
-        <RouteMap origin={origin} stops={route?.stops || []} legPaths={legPaths} />
+        <RouteMap
+          origin={origin}
+          stops={route?.stops || []}
+          legPaths={legPaths}
+          legDistancesKm={legDistancesKm}
+          legMinutes={legMinutes}
+          legEstimated={legEstimated}
+          highlightIndex={highlightIndex}
+        />
       </div>
 
       {addOpen && (
@@ -402,6 +515,8 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
           bakeries={allBakeries}
           attractions={attractions}
           excludeIds={excludeIds}
+          suggestedBakeryIds={suggestedBakeryIds}
+          suggestedAttractionIds={suggestedAttractionIds}
           onAdd={addStop}
           onClose={() => setAddOpen(false)}
         />
@@ -411,18 +526,27 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
 }
 
 // origin + 순번 매겨진 stops → 카카오맵에 번호 핀 + 경로선. PilgrimagePage 전용이라 여기에 둔다.
-// legPaths가 있으면(CP6-4 실API 응답) 구간마다 실제 도로/경유지 좌표로 그리고, 없으면(도보이거나
-// 실API 실패) 직선으로 그린다 — 실선/점선으로 구분해서 "이건 추정치"라는 걸 시각적으로도 알려준다.
-function RouteMap({ origin, stops, legPaths }) {
+// midpointOf()는 lib/distance.js에 있다(node --test로 유닛테스트하려면 JSX 없는 순수 .js
+// 파일에 있어야 해서 — 리뷰 발견: 컴포넌트 파일 안에 있으면 테스트 러너가 못 불러온다).
+// legEstimated[i]가 false면(CP11-4 실API 응답) 실선, true면(실API 실패로 보정계수 어림값을 쓴
+// 구간) 점선으로 그려 "이건 추정치"라는 걸 시각적으로도 알려준다.
+// (예전엔 legPaths[i]가 채워져 있는지로 판정했는데, 어림값 구간도 항상 [출발점,도착점] 2점짜리
+// 배열을 채워 넣어서 실측처럼 늘 실선으로 보이던 버그가 있었다 — legEstimated로 명시적으로 구분.)
+// highlightIndex가 가리키는 구간은 리스트에서 그 경유지를 호버/탭했을 때 굵은 선 + 거리·시간
+// 라벨로 강조된다.
+function RouteMap({ origin, stops, legPaths, legDistancesKm, legMinutes, legEstimated, highlightIndex }) {
   const { loaded, error } = useKakaoLoader()
   const containerRef = useRef(null)
   const mapRef = useRef(null)
-  const overlaysRef = useRef([])
+  const overlaysRef = useRef([]) // 출발/경유지 번호 핀만 — 하이라이트 라벨은 별도 ref로 관리
   const polylinesRef = useRef([])
+  const highlightOverlayRef = useRef(null)
 
-  // 지도 생성과 핀/경로선 그리기를 하나의 effect로 묶는다 — 따로 두면 "핀을 그릴 stops는
-  // 이미 준비됐는데 지도(SDK 로딩)가 아직 안 끝난" 순서로 실행될 때 핀 effect가 조용히
-  // 아무것도 안 그리고 끝나버리고, 그 뒤로 stops/origin이 안 바뀌면 다시 안 그려지는 문제가 있었다.
+  // 지도 생성 + 핀/기본 경로선 그리기. highlightIndex는 여기서 안 본다 — 예전엔 이 effect가
+  // highlightIndex에도 반응해서, 리스트를 호버할 때마다 전체를 지웠다 다시 그리고
+  // map.setBounds()까지 매번 다시 불러 사용자가 확대/이동해둔 뷰가 계속 전체 경로 범위로
+  // 튕기고 선이 깜빡이는 버그가 있었다(리뷰 발견). 하이라이트는 아래 두 번째 effect가 이미
+  // 그려진 폴리라인 스타일만 바꾸는 방식으로 분리했다.
   useEffect(() => {
     if (!loaded || !containerRef.current || !origin) return
     const { kakao } = window
@@ -439,6 +563,10 @@ function RouteMap({ origin, stops, legPaths }) {
     overlaysRef.current = []
     polylinesRef.current.forEach((p) => p.setMap(null))
     polylinesRef.current = []
+    if (highlightOverlayRef.current) {
+      highlightOverlayRef.current.setMap(null)
+      highlightOverlayRef.current = null
+    }
 
     const points = [origin, ...stops]
     const bounds = new kakao.maps.LatLngBounds()
@@ -447,6 +575,7 @@ function RouteMap({ origin, stops, legPaths }) {
       const legPoints = legPaths?.[i]?.length > 0 ? legPaths[i] : [points[i], points[i + 1]]
       const path = legPoints.map((p) => new kakao.maps.LatLng(p.lat, p.lng))
       path.forEach((ll) => bounds.extend(ll))
+      const isEstimated = legEstimated ? legEstimated[i] : legPaths?.[i]?.length > 0 ? false : true
       polylinesRef.current.push(
         new kakao.maps.Polyline({
           map,
@@ -454,8 +583,8 @@ function RouteMap({ origin, stops, legPaths }) {
           strokeWeight: 4,
           strokeColor: '#F2814A',
           strokeOpacity: 0.85,
-          // 실제 경로가 있으면 실선(정확한 경로), 없으면 점선(직선 추정)으로 구분.
-          strokeStyle: legPaths?.[i]?.length > 0 ? 'solid' : 'shortdash',
+          // 실API로 구한 구간이면 실선, 보정계수 어림값이면 점선으로 구분.
+          strokeStyle: isEstimated ? 'shortdash' : 'solid',
         }),
       )
     }
@@ -481,7 +610,70 @@ function RouteMap({ origin, stops, legPaths }) {
     })
 
     if (points.length > 0) map.setBounds(bounds)
-  }, [loaded, origin, stops, legPaths])
+
+    // 리뷰 발견(PLAUSIBLE): 언마운트 시 폴리라인/오버레이를 정리하는 cleanup이 없었다 — 카카오
+    // SDK가 map 인스턴스를 어떻게 회수하는지와 별개로, 이 컴포넌트가 만든 오버레이들은 최소한
+    // 명시적으로 setMap(null) 해서 정리한다.
+    return () => {
+      overlaysRef.current.forEach((o) => o.setMap(null))
+      polylinesRef.current.forEach((p) => p.setMap(null))
+      if (highlightOverlayRef.current) {
+        highlightOverlayRef.current.setMap(null)
+        highlightOverlayRef.current = null
+      }
+    }
+  }, [loaded, origin, stops, legPaths, legEstimated])
+
+  // 하이라이트 갱신 전용 — 위 effect가 이미 만들어둔 폴리라인의 스타일만 바꾸고, 강조된 구간에만
+  // 라벨 오버레이를 추가/제거한다. bounds/핀/기본 선을 다시 안 그려서 사용자가 확대·이동해둔
+  // 뷰가 안 튕긴다.
+  useEffect(() => {
+    if (!mapRef.current || polylinesRef.current.length === 0) return
+    const { kakao } = window
+    const map = mapRef.current
+    const points = [origin, ...stops]
+
+    polylinesRef.current.forEach((polyline, i) => {
+      const isHighlighted = i === highlightIndex
+      const isEstimated = legEstimated ? legEstimated[i] : false
+      polyline.setOptions({
+        strokeWeight: isHighlighted ? 7 : 4,
+        strokeColor: isHighlighted ? '#D9591A' : '#F2814A',
+        strokeStyle: isEstimated ? 'shortdash' : 'solid',
+      })
+    })
+
+    if (highlightOverlayRef.current) {
+      highlightOverlayRef.current.setMap(null)
+      highlightOverlayRef.current = null
+    }
+    if (
+      highlightIndex != null &&
+      legDistancesKm &&
+      legMinutes &&
+      points[highlightIndex] &&
+      points[highlightIndex + 1]
+    ) {
+      const legPoints =
+        legPaths?.[highlightIndex]?.length > 0
+          ? legPaths[highlightIndex]
+          : [points[highlightIndex], points[highlightIndex + 1]]
+      const mid = midpointOf(legPoints)
+      highlightOverlayRef.current = new kakao.maps.CustomOverlay({
+        map,
+        position: new kakao.maps.LatLng(mid.lat, mid.lng),
+        content: `<div class="pil-leg-label">${formatDistance(legDistancesKm[highlightIndex]) ?? '-'} · ${legMinutes[highlightIndex] ?? '-'}분</div>`,
+        yAnchor: 1.4,
+      })
+    }
+
+    return () => {
+      if (highlightOverlayRef.current) {
+        highlightOverlayRef.current.setMap(null)
+        highlightOverlayRef.current = null
+      }
+    }
+  }, [highlightIndex, origin, stops, legPaths, legDistancesKm, legMinutes, legEstimated])
 
   return (
     <div className="map-wrap">

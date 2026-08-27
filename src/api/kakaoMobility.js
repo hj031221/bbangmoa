@@ -1,10 +1,13 @@
 // CP6-4a — 카카오모빌리티 자동차 길찾기 실API.
 // 무료 쿼터(일 10,000건) 내에서는 별도 제휴 없이 기존 REST 키 그대로 쓴다(확인됨).
 // 실패하면 null을 반환 — 호출부가 근사치(travelMin)로 폴백한다.
+import { pathLengthKm } from '../lib/distance.js'
+import { roundToSum } from '../lib/rounding.js'
+
 const REST_KEY = import.meta.env.VITE_KAKAO_REST_KEY
 
-// 두 좌표({lat,lng}) 사이 실제 자동차 이동시간(분) + 실제 도로를 따라가는 경로 좌표.
-// → { minutes, path: [{lat,lng}, ...] } | null
+// 두 좌표({lat,lng}) 사이 실제 자동차 이동시간(분) + 실거리(km) + 실제 도로를 따라가는 경로 좌표.
+// → { minutes, distanceKm, path: [{lat,lng}, ...] } | null
 export async function fetchDriving(a, b) {
   if (!REST_KEY) return null
   const origin = `${a.lng},${a.lat}`
@@ -18,6 +21,7 @@ export async function fetchDriving(a, b) {
     const data = await res.json()
     const route = data?.routes?.[0]
     const duration = route?.summary?.duration // 초
+    const distance = route?.summary?.distance // 미터 — CP11-4: 이전엔 여기서 안 꺼내고 버렸음
     if (!Number.isFinite(duration)) return null
 
     // sections[].roads[].vertexes: [lng, lat, lng, lat, ...] 평탄화된 배열 — 실제 도로 좌표.
@@ -28,7 +32,11 @@ export async function fetchDriving(a, b) {
         for (let i = 0; i + 1 < v.length; i += 2) path.push({ lat: v[i + 1], lng: v[i] })
       }
     }
-    return { minutes: Math.round(duration / 60), path: path.length > 0 ? path : null }
+    return {
+      minutes: Math.round(duration / 60),
+      distanceKm: Number.isFinite(distance) ? distance / 1000 : null,
+      path: path.length > 0 ? path : null,
+    }
   } catch {
     return null
   }
@@ -41,7 +49,8 @@ export async function fetchDriving(a, b) {
 // 그래서 호출부는 이게 null이면 구간별 fetchDriving()으로 폴백해야 한다.
 // points: [{lat,lng}, ...] 최소 2개(출발+도착). name 필드는 한글을 넣으면 400이 나서(원인 불명,
 // 재현 확인함) 아예 안 보낸다 — 우리는 안내문구를 안 쓰므로 없어도 된다.
-// → { minutes, legPaths: [[{lat,lng}, ...], ...] } | null  (legPaths.length === points.length - 1)
+// → { minutes, distanceKm, legPaths, legDistancesKm, legMinutes, legEstimated } | null
+//   (legPaths/legDistancesKm/legMinutes/legEstimated.length === points.length - 1, 인덱스 1:1 대응)
 export async function fetchDrivingMultiWaypoint(points) {
   if (!REST_KEY || points.length < 2) return null
   const [origin, ...rest] = points
@@ -64,10 +73,12 @@ export async function fetchDrivingMultiWaypoint(points) {
     const route = data?.routes?.[0]
     if (route?.result_code !== 0) return null // 예: 103 = 경유지 중 하나 근처 도로망 탐색 불가
     const duration = route?.summary?.duration
+    const distance = route?.summary?.distance
     if (!Number.isFinite(duration)) return null
 
     // sections[i] = origin/waypoint[i-1] → waypoint[i]/destination 구간. points와 1:1 대응.
-    const legPaths = (route.sections || []).map((section) => {
+    const sections = route.sections || []
+    const legPaths = sections.map((section) => {
       const path = []
       for (const road of section.roads || []) {
         const v = road.vertexes || []
@@ -77,7 +88,45 @@ export async function fetchDrivingMultiWaypoint(points) {
     })
     if (legPaths.length !== points.length - 1) return null // 구간 수가 안 맞으면 신뢰 안 함
 
-    return { minutes: Math.round(duration / 60), legPaths }
+    // CP11-4: section 자체가 구간별 distance/duration을 주면 그대로 쓴다 — 실측 확인함(카카오
+    // waypoints/directions 응답의 sections[]는 매번 distance/duration 필드를 포함했다). 다만
+    // API가 이 필드를 안 줄 이론적 가능성까지 배제할 순 없어 방어적으로 폴백은 남겨둔다: 그럴 땐
+    // 꼭짓점 개수가 아니라 각 구간 폴리라인의 실제 좌표 길이(haversine 합) 비례로 총계를 분배한다
+    // — 꼭짓점 개수는 거리와 무관해서(직선 고속도로 구간은 꼭짓점이 적고, 짧고 구불구불한 구간은
+    // 많다) 그걸로 가중치를 삼으면 구간별 숫자가 크게 틀어질 수 있었다(리뷰 발견).
+    const hasSectionMetrics = sections.every(
+      (s) => Number.isFinite(s.distance) && Number.isFinite(s.duration),
+    )
+    let legDistancesKm, legMinutes
+    if (hasSectionMetrics) {
+      legDistancesKm = sections.map((s) => s.distance / 1000)
+      legMinutes = roundToSum(
+        sections.map((s) => s.duration / 60),
+        Math.round(duration / 60),
+      )
+    } else {
+      const weights = legPaths.map((p) => Math.max(pathLengthKm(p), 0.01)) // 0 방지용 최소 가중치
+      const totalWeight = weights.reduce((a, b) => a + b, 0)
+      legDistancesKm = weights.map((w) =>
+        Number.isFinite(distance) ? (distance / 1000) * (w / totalWeight) : null,
+      )
+      legMinutes = roundToSum(
+        weights.map((w) => (duration / 60) * (w / totalWeight)),
+        Math.round(duration / 60),
+      )
+    }
+
+    return {
+      minutes: Math.round(duration / 60),
+      distanceKm: Number.isFinite(distance) ? distance / 1000 : null,
+      legPaths,
+      legDistancesKm,
+      legMinutes,
+      // hasSectionMetrics가 false면 legDistancesKm/legMinutes가 실측이 아니라 총계를 비례
+      // 분배한 근사값이다 — 호출부(travelTime.js)가 legEstimated로 그대로 넘겨써서 지도에
+      // 정확히 실선/점선을 구분하게 한다(리뷰 발견: 전엔 이 구분 없이 항상 실측 취급했음).
+      legEstimated: legPaths.map(() => !hasSectionMetrics),
+    }
   } catch {
     return null
   }

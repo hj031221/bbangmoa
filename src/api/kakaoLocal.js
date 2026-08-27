@@ -11,8 +11,29 @@ const REST_KEY = import.meta.env.VITE_KAKAO_REST_KEY
 const ENDPOINT = 'https://dapi.kakao.com/v2/local/search/keyword.json'
 const REGIONCODE_ENDPOINT = 'https://dapi.kakao.com/v2/local/geo/coord2regioncode.json'
 const COORD2ADDR_ENDPOINT = 'https://dapi.kakao.com/v2/local/geo/coord2address.json'
+const CATEGORY_ENDPOINT = 'https://dapi.kakao.com/v2/local/search/category.json'
 
 export const kakaoLocalEnabled = () => hasKey(REST_KEY)
+
+// CP11-4 — 좌표 근처(기본 반경 1.5km) 주차장 1곳을 찾는다. 카카오 자동차 길찾기가 도로망을 못
+// 찾는 지점(대청호 같은 호수/공원 초입 등, result_code 103)에 실제로 차로 갈 수 있는 대체
+// 목적지를 마련해 재요청할 때 쓴다 — 대체 지점부터 실제 목적지까지 마지막 구간은 여전히 추정치로
+// 남지만, 통째로 직선거리로 어림하는 것보다 훨씬 정확하다.
+// → { lat, lng } | null
+export async function findNearbyParking(lat, lng, radiusM = 1500) {
+  if (!kakaoLocalEnabled()) return null
+  const headers = { Authorization: `KakaoAK ${REST_KEY}` }
+  const data = await getJson(CATEGORY_ENDPOINT, {
+    params: { category_group_code: 'PK6', x: lng, y: lat, radius: radiusM, sort: 'distance' },
+    headers,
+  })
+  const doc = data?.documents?.[0]
+  if (!doc) return null
+  const plat = parseFloat(doc.y)
+  const plng = parseFloat(doc.x)
+  if (!Number.isFinite(plat) || !Number.isFinite(plng)) return null
+  return { lat: plat, lng: plng }
+}
 
 // 좌표 → 행정구역명 (예: "대전광역시 유성구"). GPS 로 얻은 좌표가 어디쯤인지 사용자에게 보여줄 때 사용.
 export async function reverseGeocode(lat, lng) {
