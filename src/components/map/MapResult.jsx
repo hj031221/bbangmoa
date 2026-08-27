@@ -57,12 +57,6 @@ export default function MapResult({ onRetake }) {
   const filteredBakeries = breadResult ? matchBakeries(bakeries, breadResult.bread, 10) : bakeries
 
   // 빵집별 거리: 설문서 고른 origin 우선, 없으면 현재 위치/역 폴백
-  // 리뷰 발견: 관광지 데이터가 실시간 API 로딩 중일 땐 tourSpots가 빈 배열이라 모든 빵집의
-  // nearSpot이 null로 계산됐다가, 로딩이 끝나면 리스트 전체에 "근처 관광지" 배지가 한꺼번에
-  // 나타나는 깜빡임이 있었다(옛 정적 JSON 방식 대비 회귀). attractionsLoading 중엔 아예
-  // 계산을 건너뛰어(nearSpot: null) "아직 못 구했다"는 상태를 명시적으로 표현한다 — 최종
-  // 화면 결과 자체는 로딩 전후로 동일하지만(어차피 null이면 배지가 안 뜨는 건 같음), 의미상
-  // "관광지 없음"과 "아직 로딩 중"을 코드에서 구분해둔다.
   const bakeriesWithDist = useMemo(
     () =>
       filteredBakeries.map((b) => ({
@@ -83,6 +77,16 @@ export default function MapResult({ onRetake }) {
       breadResult?.bread?.emoji,
     ],
   )
+
+  // 재검증 발견: attractionsLoading을 nearSpot 계산에만 반영했더니, 로딩 중이든 아니든
+  // tourSpots가 빈 배열이라 nearestAttraction()이 어차피 null을 반환해서 렌더링 결과가
+  // 이전과 100% 동일했다 — "고쳤다"는 주장이 틀렸었다. 실제로 화면이 달라지는 지점은
+  // "빵집은 이미 로딩 끝났는데 관광지만 아직 로딩 중"인 구간에서 리스트가 먼저 그려지고
+  // 그 뒤에 근처 관광지 배지가 기존 줄에 나중에 추가되는 것 — 그래서 리스트 자체를
+  // attractionsLoading이 끝날 때까지 같이 미룬다(기존 "불러오는 중…" 배너 패턴 재사용).
+  // 대가: 목록이 뜨는 시점이 근소하게 늦어지지만(빵집 로딩만 끝났을 때 대신 관광지까지
+  // 끝난 뒤), 한 번 뜨면 완성된 상태로 뜨고 이후에 항목이 튀지 않는다.
+  const listReady = !loading && !attractionsLoading
   const selected =
     bakeriesWithDist.find((b) => b.id === selectedBakeryId) || bakeriesWithDist[0]
 
@@ -128,8 +132,8 @@ export default function MapResult({ onRetake }) {
       </header>
 
       {error && <div className="banner error">데이터 오류: {String(error.message)}</div>}
-      {loading && <div className="banner">불러오는 중…</div>}
-      {!loading && breadResult && bakeriesWithDist.length === 0 && (
+      {!listReady && <div className="banner">불러오는 중…</div>}
+      {listReady && breadResult && bakeriesWithDist.length === 0 && (
         <div className="banner">이 지역엔 아직 추천할 {breadResult.bread.name} 맛집 정보가 없어요.</div>
       )}
 
@@ -146,7 +150,7 @@ export default function MapResult({ onRetake }) {
 
         <aside className="result-list-col">
           <ol className="rec-list">
-            {bakeriesWithDist.map((b, i) => (
+            {listReady && bakeriesWithDist.map((b, i) => (
               <li
                 key={b.id}
                 className={'rec-list-item' + (b.id === selected?.id ? ' active' : '')}
