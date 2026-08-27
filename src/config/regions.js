@@ -26,14 +26,15 @@ export const REGIONS = {
     districtKeywords: ['빵집', '베이커리'],
     specialtyQueries: ['대전 성심당', '대전 유명 빵집'],
     tourKeywords: ['대전 빵', '대전 베이커리', '대전 제과', '대전 디저트'],
-    // 출발 위치 프리셋 (설문 0단계). name = origin.label 로 저장, label = 화면 표기(이모지).
+    // 출발 위치 프리셋 (설문 0단계). name = origin.label 로 저장, icon = LocationIcons.jsx의
+    // LOCATION_ICONS 키(화면 표기용 — 이모지 대신 브랜드 톤 SVG 픽토그램).
     origins: [
-      { id: 'daejeon-st', label: '🚉 대전역', name: '대전역', lat: 36.33184, lng: 127.43417 },
-      { id: 'seodaejeon-st', label: '🚉 서대전역', name: '서대전역', lat: 36.31984, lng: 127.40287 },
-      { id: 'terminal', label: '🚌 복합터미널', name: '복합터미널', lat: 36.3505, lng: 127.4348 },
-      { id: 'yuseong-terminal', label: '🚌 유성터미널', name: '유성터미널', lat: 36.354, lng: 127.341 },
-      { id: 'cityhall', label: '🏛️ 시청', name: '시청', lat: 36.3504, lng: 127.3845 },
-      { id: 'dunsan', label: '🏙️ 둔산', name: '둔산', lat: 36.3515, lng: 127.3776 },
+      { id: 'daejeon-st', icon: 'train', name: '대전역', lat: 36.33184, lng: 127.43417 },
+      { id: 'seodaejeon-st', icon: 'train', name: '서대전역', lat: 36.31984, lng: 127.40287 },
+      { id: 'terminal', icon: 'bus', name: '복합터미널', lat: 36.3505, lng: 127.4348 },
+      { id: 'yuseong-terminal', icon: 'bus', name: '유성터미널', lat: 36.354, lng: 127.341 },
+      { id: 'cityhall', icon: 'cityhall', name: '시청', lat: 36.3504, lng: 127.3845 },
+      { id: 'dunsan', icon: 'skyline', name: '둔산', lat: 36.3515, lng: 127.3776 },
     ],
   },
 }
