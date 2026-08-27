@@ -143,6 +143,28 @@ test('buildAttractionReason: 사용자 상위 태그와 관광지 태그가 겹�
   assert.match(reason, /활동성/)
 })
 
+test('buildAttractionReason: 후보군에서 이 장소만 특정 성향이 두드러지면 문장이 구분된다', () => {
+  const userVec = { walk: 5, rest: 5, scenery: 3, exploration: 0, immersion: 0, appreciation: 0, sightseeing: 0, experience: 0, knowledge: 0, uniqueness: 0, activity: 0 }
+  const same = { walk: 5, rest: 5 }
+  const a = mockAttraction('a', '중구', ['nature'], same)
+  const b = mockAttraction('b', '중구', ['nature'], same)
+  const c = mockAttraction('c', '중구', ['nature'], { ...same, exploration: 5 })
+
+  const reasonA = buildAttractionReason(userVec, a, [a, b, c])
+  const reasonB = buildAttractionReason(userVec, b, [a, b, c])
+  const reasonC = buildAttractionReason(userVec, c, [a, b, c])
+
+  assert.equal(reasonA, reasonB) // 진짜로 벡터가 동일하면 문장도 동일 — 태깅 데이터 문제이지 코드로 더 구분할 정보가 없음
+  assert.notEqual(reasonA, reasonC)
+  assert.match(reasonC, /탐방/)
+})
+
+test('buildAttractionReason: peers를 안 넘기면(기존 호출부) 기존 동작 그대로 유지된다', () => {
+  const userVec = { walk: 1, rest: 1, scenery: 1, exploration: 1, immersion: 1, appreciation: 1, sightseeing: 1, experience: 1, knowledge: 1, uniqueness: 5, activity: 5 }
+  const attraction = mockAttraction('x', '중구', ['etc'], { uniqueness: 5, activity: 5 })
+  assert.equal(buildAttractionReason(userVec, attraction), buildAttractionReason(userVec, attraction, []))
+})
+
 test('getTourRecommendation: 전체 파이프라인이 district/branch/theme/results를 반환한다', () => {
   const answers = sampleAnswers('B', [0, 0, 2, 0], '중구')
   const attractions = [

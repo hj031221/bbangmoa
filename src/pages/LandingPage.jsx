@@ -187,16 +187,12 @@ export default function LandingPage() {
     resetAnswers()
     setStage('survey')
   }
-  // 빵집 찾기 설문을 막 끝냈을 때, 관광모아도 이미 끝나 있으면 이 설문의 리빌 화면 대신
-  // 바로 대전한바퀴 최적 코스로 보낸다(피드백2). 아니면 지금처럼 리빌 화면부터 보여준다.
-  const handleSurveyComplete = () => {
-    if (tourSurveyDone) openPilgrimage()
-    else setStage('reveal')
-  }
-  const handleTourSurveyComplete = () => {
-    if (surveyDone) openPilgrimage()
-    else setTourStage('reveal')
-  }
+  // 설문을 막 끝내면 항상 이 설문의 리빌 화면부터 보여준다. 관광모아도 이미 끝나 있으면(반대도
+  // 마찬가지) 리빌 화면을 스킵하고 바로 대전한바퀴로 보내던 동작(피드백2)은, 두 번째 설문 결과를
+  // 사용자가 한 프레임도 못 보고 넘어가는 문제가 있어 제거함 — 대신 리빌 화면의 교차 링크가
+  // "다른 설문하러 가기" 대신 "대전한바퀴로 코스 보기"로 바뀌어 같은 목적지로 가되, 결과는 보여준다.
+  const handleSurveyComplete = () => setStage('reveal')
+  const handleTourSurveyComplete = () => setTourStage('reveal')
 
   return (
     <div className={`bm-landing${isHome ? ' is-home' : ''}`}>
@@ -255,6 +251,7 @@ export default function LandingPage() {
               onOpenHub={openTourHub}
               breadDone={surveyDone}
               onGoToBread={startTest}
+              onGoToPilgrimage={openPilgrimage}
             />
           )}
           {tourStage === 'hub' && (
@@ -288,6 +285,7 @@ export default function LandingPage() {
               onShowMap={() => setStage('map')}
               tourDone={tourSurveyDone}
               onGoToTour={openTour}
+              onGoToPilgrimage={openPilgrimage}
             />
           )}
           {stage === 'map' && <MapResult onRetake={retakeSurvey} />}

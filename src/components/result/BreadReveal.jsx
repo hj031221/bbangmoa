@@ -7,7 +7,7 @@ import { hoursBadgeText } from '../../lib/hours'
 
 // 설문 완료 직후 리빌 화면: 오늘의 빵 + 취향 적합도 + 추천 이유 + 취향 키워드 + 대표 빵집 최대 5곳.
 // "지도에서 보기" 를 누르면 같은 지역/응답으로 지도(MapResult) 로 넘어간다.
-export default function BreadReveal({ onRetake, onShowMap, tourDone, onGoToTour }) {
+export default function BreadReveal({ onRetake, onShowMap, tourDone, onGoToTour, onGoToPilgrimage }) {
   const regionId = useAppStore((s) => s.regionId)
   const origin = useAppStore((s) => s.origin)
   const answers = useAppStore((s) => s.answers)
@@ -98,12 +98,20 @@ export default function BreadReveal({ onRetake, onShowMap, tourDone, onGoToTour 
         </button>
       </div>
 
-      {!tourDone && onGoToTour && (
+      {tourDone && onGoToPilgrimage ? (
         <div className="reveal-crosslink">
-          <button type="button" className="ghost-btn" onClick={onGoToTour}>
-            관광모아 설문하러 가기 →
+          <button type="button" className="ghost-btn" onClick={onGoToPilgrimage}>
+            대전한바퀴로 코스 보기 →
           </button>
         </div>
+      ) : (
+        !tourDone && onGoToTour && (
+          <div className="reveal-crosslink">
+            <button type="button" className="ghost-btn" onClick={onGoToTour}>
+              관광모아 설문하러 가기 →
+            </button>
+          </div>
+        )
       )}
     </div>
   )
