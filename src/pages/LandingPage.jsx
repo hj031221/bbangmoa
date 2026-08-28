@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState } from 'react'
+import { useLayoutEffect, useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { isSurveyComplete } from '../lib/breadRecommend'
 import SurveyFlow from '../components/survey/SurveyFlow'
@@ -47,7 +47,7 @@ export default function LandingPage() {
   const isHome = !showInfo && !showMap && !showTour && !showPilgrimage && !showMyPage && !featureOpen
 
   // 서비스 소개처럼 스크롤 가능한 화면에서 새로고침하면 브라우저가 이전 scrollY를 복원한다.
-  // 앱 상태는 홈으로 초기화되므로, 아래 스크롤 잠금이 걸리기 전에 반드시 홈 상단으로 되돌린다.
+  // 앱 상태는 홈으로 초기화되므로 홈에 들어올 때 항상 상단으로 되돌린다.
   useLayoutEffect(() => {
     if (!isHome) return undefined
 
@@ -64,23 +64,12 @@ export default function LandingPage() {
     }
   }, [isHome])
 
-  // 메인 화면(홈)에서는 마우스 휠/스크롤이 필요 없게 — 다른 화면으로 전환되면 원래대로 복원.
-  // overflow:hidden 만으로는 휠 스크롤이 안 막혀서, 휠/터치 이벤트 자체를 막는다.
-  useEffect(() => {
-    document.documentElement.style.overflow = isHome ? 'hidden' : ''
-    document.body.style.overflow = isHome ? 'hidden' : ''
-    if (!isHome) return undefined
-
-    const preventScroll = (e) => e.preventDefault()
-    window.addEventListener('wheel', preventScroll, { passive: false })
-    window.addEventListener('touchmove', preventScroll, { passive: false })
-    return () => {
-      document.documentElement.style.overflow = ''
-      document.body.style.overflow = ''
-      window.removeEventListener('wheel', preventScroll)
-      window.removeEventListener('touchmove', preventScroll)
-    }
-  }, [isHome])
+  // 홈을 "한 화면"으로 고정하는 건 이제 전적으로 CSS(.bm-landing.is-home)가 담당한다:
+  // 데스크톱(≥1100px)에서만 position:fixed + overflow:hidden 로 가두고, 그 미만에서는 스크롤 허용.
+  // 예전엔 여기서 window 의 wheel/touchmove 를 preventDefault 로 막았는데, 그게 Ctrl+휠(브라우저
+  // 확대/축소)과 트랙패드 핀치까지 같이 죽였고, 지도 화면을 다녀온 뒤 홈으로 돌아오면 그 잠금이
+  // 다시 걸려 "확대·축소·드래그가 안 되는" 증상이 났다. position:fixed 컨테이너면 body 에 스크롤
+  // 될 게 없어서 JS 잠금 없이도 한 화면이 유지된다.
 
   const startTest = () => {
     setFeatureOpen(true)

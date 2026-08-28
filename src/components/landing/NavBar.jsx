@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import AuthMenu from '../auth/AuthMenu'
 import logo from '../../assets/logo-typeA-full.png'
 
@@ -14,6 +14,30 @@ export default function NavBar({
   onOpenMyPage,
 }) {
   const [navOpen, setNavOpen] = useState(false)
+  const menuRef = useRef(null)
+  const toggleRef = useRef(null)
+
+  // 모바일 메뉴가 열려 있을 때: 메뉴 바깥을 누르거나 Esc를 누르면 닫는다.
+  // (기존엔 각 메뉴 항목이나 햄버거 버튼을 다시 눌러야만 닫혔다.)
+  useEffect(() => {
+    if (!navOpen) return undefined
+    const onPointerDown = (e) => {
+      if (menuRef.current?.contains(e.target) || toggleRef.current?.contains(e.target)) return
+      setNavOpen(false)
+    }
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setNavOpen(false)
+        toggleRef.current?.focus()
+      }
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [navOpen])
 
   return (
     <nav className="bm-nav">
@@ -54,6 +78,7 @@ export default function NavBar({
             <AuthMenu onSignOut={onGoHome} />
           </div>
           <button
+            ref={toggleRef}
             type="button"
             className="bm-nav-toggle"
             aria-label={navOpen ? '메뉴 닫기' : '메뉴 열기'}
@@ -66,7 +91,7 @@ export default function NavBar({
           </button>
         </div>
         {navOpen && (
-          <div className="bm-nav-mobile-menu">
+          <div className="bm-nav-mobile-menu" ref={menuRef}>
             <button
               type="button"
               onClick={() => {
