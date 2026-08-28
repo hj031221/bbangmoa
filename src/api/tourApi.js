@@ -1,7 +1,7 @@
 // 한국관광공사 KorService2 래퍼.
 // 매뉴얼 v4.4 기준 엔드포인트: areaBasedList2 / detailCommon2 / detailIntro2
 // base 는 dev proxy(`/tourapi`) 를 통해 https://apis.data.go.kr 로 전달된다 (CORS 우회).
-import { getJson, hasKey } from './http'
+import { getJson, hasKey, toHttps } from './http'
 import { getRegion } from '../config/regions'
 
 const BASE = '/tourapi/B551011/KorService2'
@@ -28,7 +28,9 @@ export async function getDetail(contentId) {
   const json = await getJson(`${BASE}/detailCommon2`, {
     params: { ...COMMON, contentId, numOfRows: 1, pageNo: 1 },
   })
-  return extractItems(json)[0] || null
+  const item = extractItems(json)[0] || null
+  if (item?.firstimage) item.firstimage = toHttps(item.firstimage) // CP11-6
+  return item
 }
 
 // 지역 + 신분류(제과 FD030100)로 관광공사 빵집을 가져온다.
@@ -64,7 +66,7 @@ function normalizeAttraction(item, contentTypeId, typeLabel) {
     type: typeLabel,
     lat: Number.isFinite(lat) ? lat : null,
     lng: Number.isFinite(lng) ? lng : null,
-    image: item.firstimage || '',
+    image: toHttps(item.firstimage) || '', // CP11-6
     addr: item.addr1 || '',
     cat: item.cat3 || item.cat2 || '',
   }
