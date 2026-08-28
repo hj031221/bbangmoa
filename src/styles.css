@@ -280,7 +280,9 @@ a{ color:var(--accent-text); }
 .bm-mhero-search{ display:flex; align-items:center; gap:8px; width:100%; max-width:420px;
   background:var(--bm-card); border:1.5px solid var(--bm-gold); border-radius:var(--bm-radius-pill);
   padding:6px 8px 6px 20px; box-shadow:var(--bm-shadow-sm); }
-.bm-mhero-search input{ flex:1; min-width:0; border:none; outline:none; background:none; font:inherit; font-size:var(--bm-fs-body-sm); color:var(--bm-ink); }
+/* 16px 미만이면 iOS Safari 가 포커스 시 페이지를 자동 확대하고(viewport 에 maximum-scale
+   이 없어서) 검색 후에도 확대된 채로 남는다 — 그래서 16px 고정(이슈 #46). */
+.bm-mhero-search input{ flex:1; min-width:0; border:none; outline:none; background:none; font:inherit; font-size:16px; color:var(--bm-ink); }
 .bm-mhero-search input::placeholder{ color:var(--bm-muted); }
 .bm-mhero-search button{ flex:0 0 auto; width:38px; height:38px; border:none; border-radius:50%; background:var(--bm-gold); color:#fff; font-size:15px; display:flex; align-items:center; justify-content:center; }
 .bm-mhero-search button svg{ width:18px; height:18px; fill:none; stroke:#fff; stroke-width:3.5; stroke-linecap:round; stroke-linejoin:round; }
@@ -304,7 +306,8 @@ a{ color:var(--accent-text); }
   .bm-tour-showcase-frame{ position:relative; }
   /* 넘기는 아이콘(이전/다음)만 글래스모피즘 — 반투명 + 블러로 배경 이미지가 비쳐 보이게.
      화살표 모양은 빵 지도 헤더의 뒤로가기 아이콘(.result-back)과 동일한 쉐브론. */
-  .bm-tour-showcase-nav{ position:absolute; top:50%; transform:translateY(-50%); z-index:2;
+  /* 세로 중앙에서 아주 살짝만 위로 — 좌하단 카피와 숨 쉴 틈을 준다(이슈 #46). */
+  .bm-tour-showcase-nav{ position:absolute; top:46%; transform:translateY(-50%); z-index:2;
     width:26px; height:26px; display:flex; align-items:center; justify-content:center;
     border:1px solid rgba(255,255,255,.4); border-radius:50%;
     background:rgba(255,255,255,.16); color:#fff;
@@ -317,10 +320,13 @@ a{ color:var(--accent-text); }
   .bm-tour-showcase-nav.next{ right:8px; }
   .bm-tour-showcase-card::after{ content:''; position:absolute; inset:0;
     background:linear-gradient(90deg, rgba(48,30,8,.78) 0%, rgba(48,30,8,.4) 58%, rgba(48,30,8,.08) 100%); }
-  .bm-tour-showcase-copy{ position:absolute; z-index:1; left:16px; right:16px; bottom:16px;
+  /* 카피 전체를 카드 하단으로 더 내려, 세로 중앙에 있는 넘김 화살표
+     (.bm-tour-showcase-nav)와 첫 줄이 겹치지 않게 한다(이슈 #46). */
+  .bm-tour-showcase-copy{ position:absolute; z-index:1; left:16px; right:16px; bottom:8px;
     display:flex; flex-direction:column; align-items:flex-start; gap:2px; }
   .bm-tour-showcase-copy small{ font-size:11px; font-weight:700; color:#FFE2A5; }
-  .bm-tour-showcase-copy strong{ font-size:18px; line-height:1.25; }
+  .bm-tour-showcase-copy strong{ font-size:18px; line-height:1.25; max-width:100%;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .bm-tour-showcase-copy > span{ max-width:75%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
     font-size:12px; color:rgba(255,255,255,.88); }
   .bm-tour-showcase-more{ position:absolute; z-index:1; right:14px; top:14px; padding:6px 9px;
@@ -346,7 +352,7 @@ a{ color:var(--accent-text); }
   .bm-mhero-actions .bm-btn-ghost{ padding:12px 15px; font-size:14px; white-space:nowrap; }
   .bm-tour-showcase{ margin-top:12px; transform:translateY(8px); }
   .bm-tour-showcase-card{ height:132px; }
-  .bm-tour-showcase-copy{ left:12px; right:12px; bottom:12px; }
+  .bm-tour-showcase-copy{ left:12px; right:12px; bottom:8px; }
 }
 @media (max-width:359px), (max-width:390px) and (max-height:700px){
   .bm-mhero .bm-mhero-illustration{ display:none; }
@@ -536,13 +542,20 @@ a{ color:var(--accent-text); }
 
 @media (max-width:820px){
   .result-quiz{ overflow:visible; }
+  /* 모바일에선 .result-quiz 가 overflow:visible(sticky 지도 때문) 이라 카드 radius 가 헤더를
+     못 깎아서 골드 헤더 윗모서리가 각져 보인다 — .result-browse 와 동일하게 헤더에 직접 radius. */
+  .result-quiz .result-header{ border-radius:24px 24px 0 0; }
   .result-quiz .result-body{ grid-template-columns:1fr; padding:12px; }
   /* 고정(sticky) 지도 높이를 살짝 줄인다. */
   .result-quiz .result-map{ order:1; height:44vh; }
   .result-quiz .result-detail-col{ order:2; }
-  /* 리스트 자체 높이를 뷰포트 기준으로 다시 줘야 위(479행)의 overflow-y:auto가 실제로 작동한다 —
-     안 주면 부모(.result-body)가 height:auto라 리스트가 내용만큼 늘어나며 페이지 전체가 스크롤된다. */
-  .result-quiz .result-list-col{ order:3; max-height:60vh; overflow-y:auto; }
+  /* 추천 리스트(최대 10곳)를 자체 스크롤 박스로 두지 않고 페이지 흐름에 맡긴다 —
+     max-height:60vh + overflow-y:auto 로 두면 위의 sticky 지도(z-index:20, 44vh)가
+     리스트 위를 덮어, 남는 좁은 영역에서만 휠이 먹고 하위 순위(예: 8곳 중 8번째)에
+     닿지 못한다(재현 확인, 이슈 #46). 페이지 스크롤이면 모든 항목에 도달 가능.
+     (BakeryMapPage 의 .result-browse 는 "전체" 모드에서 목록이 수백 곳이라 같은 변경을
+      하면 페이지가 과도하게 길어져서 손대지 않음.) */
+  .result-quiz .result-list-col{ order:3; padding-bottom:24px; }
 }
 
 /* 빵집 지도(BakeryMapPage) 전용: 같은 시안 스타일의 카드 — 골드 헤더 + 지도/리스트/상세 3열.
