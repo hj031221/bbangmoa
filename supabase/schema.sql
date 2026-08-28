@@ -251,6 +251,11 @@ alter table profiles add column if not exists avatar_url text;
 revoke update on profiles from authenticated;
 grant update (nickname, avatar_url) on profiles to authenticated;
 
+-- avatar_url 은 우리 Supabase Storage public 경로만 허용 — 친구 브라우저가 임의 호스트를 <img> 로 로드하지 않도록.
+alter table profiles drop constraint if exists profiles_avatar_url_origin;
+alter table profiles add constraint profiles_avatar_url_origin
+  check (avatar_url is null or avatar_url ~ '^https://[a-z0-9]+\.supabase\.co/storage/v1/object/public/avatars/');
+
 -- 아바타 저장용 public 버킷. MIME/용량은 버킷 레벨에서 강제(클라이언트 검증은 UX 용).
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('avatars', 'avatars', true, 1048576, array['image/jpeg'])
@@ -260,11 +265,19 @@ on conflict (id) do update
       allowed_mime_types = array['image/jpeg'];
 
 -- 유저당 "정확히 한 경로"({uid}/avatar.jpg)만 허용. 폴더 prefix 가 아니라 name 전체를 고정한다.
--- select 정책은 두지 않는다 — public 버킷이라 public CDN URL 로 누구나 읽는다(프로필 사진은 공개 정보).
+-- 공개 CDN URL 로 바이트를 읽는 익명 경로엔 정책이 필요 없다(프로필 사진은 공개 정보 — §9).
+-- 아래 avatars_select_own 은 authenticated API 경로(upsert/remove 의 RETURNING)에만 적용된다.
 drop policy if exists "avatars_insert_own" on storage.objects;
 create policy "avatars_insert_own" on storage.objects
   for insert to authenticated
   with check (bucket_id = 'avatars' and name = auth.uid()::text || '/avatar.jpg');
+
+-- upload(upsert) / remove() 는 RETURNING 을 쓰므로 본인 파일에 대한 select 정책이 필요하다
+-- (public 버킷의 바이트 공개 범위(§9)는 그대로 — 이건 authenticated API 경로에만 적용).
+drop policy if exists "avatars_select_own" on storage.objects;
+create policy "avatars_select_own" on storage.objects
+  for select to authenticated
+  using (bucket_id = 'avatars' and name = auth.uid()::text || '/avatar.jpg');
 
 -- upsert:true 재업로드는 insert 가 아니라 update 경로를 타므로 이 정책이 필요하다.
 drop policy if exists "avatars_update_own" on storage.objects;
