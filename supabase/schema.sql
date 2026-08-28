@@ -374,3 +374,24 @@ create policy "diary_comments_insert_own" on diary_comments
 drop policy if exists "diary_comments_delete_own" on diary_comments;
 create policy "diary_comments_delete_own" on diary_comments
   for delete using (auth.uid() = user_id);
+
+-- 재검증 반영: 댓글 작성자가 "글 주인의 친구"이지만 "보는 사람의 친구"는 아닐 수 있다
+-- (예: A 글에 A의 친구 C가 댓글을 달고, A의 다른 친구 B가 그 글을 봄 — B 와 C는 서로 친구가 아님).
+-- 이 경우 diary_comments 자체는 can_see_entry 로 B 에게 보이지만, 기존 profiles RLS(직접 친구
+-- 관계만)가 C 의 닉네임/아바타 조회를 막아 '이름 없음' + 빈 아바타로만 보였다.
+-- 댓글 작성자 프로필은 "그 댓글이 달린 entry 를 볼 수 있는 사람"에게 추가로 공개한다.
+drop policy if exists "profiles_select_self_or_related" on profiles;
+create policy "profiles_select_self_or_related" on profiles
+  for select using (
+    auth.uid() = user_id
+    or exists (
+      select 1 from friend_requests
+      where (requester_id = auth.uid() and addressee_id = profiles.user_id)
+         or (requester_id = profiles.user_id and addressee_id = auth.uid())
+    )
+    or exists (
+      select 1 from diary_comments
+      where diary_comments.user_id = profiles.user_id
+        and can_see_entry(diary_comments.entry_id)
+    )
+  );

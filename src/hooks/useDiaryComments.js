@@ -13,7 +13,11 @@ export function useDiaryComments(entryId) {
   const [comments, setComments] = useState([])
   const [loading, setLoading] = useState(false)
 
-  const reload = () => {
+  // reload 는 effect(entry 전환)에서도, add/remove 이후에도 직접 호출된다.
+  // effect 쪽 호출만 alive 가드로 stale 응답을 무시한다 — 없으면 entry 를 빠르게 옮겨다닐 때
+  // 이전 entry 의 댓글(작성자 프로필 조회까지 포함된 2단계 응답)이 늦게 도착해 지금 보고 있는
+  // entry 의 댓글 목록을 덮어쓸 수 있다(useDiaryEntries.js 와 동일한 패턴).
+  const reload = (alive = { current: true }) => {
     if (!entryId) {
       setComments([])
       return
@@ -26,6 +30,7 @@ export function useDiaryComments(entryId) {
       .order('created_at', { ascending: true })
       .then(async ({ data, error }) => {
         if (error) {
+          if (!alive.current) return
           console.error('[기록장] 댓글 조회 실패', error)
           setLoading(false)
           return
@@ -44,6 +49,7 @@ export function useDiaryComments(entryId) {
             (profiles ?? []).map((p) => [p.user_id, buildProfileAvatarUrl(supabase, p)])
           )
         }
+        if (!alive.current) return
         setLoading(false)
         setComments(
           data.map((c) => ({
@@ -56,7 +62,11 @@ export function useDiaryComments(entryId) {
   }
 
   useEffect(() => {
-    reload()
+    const alive = { current: true }
+    reload(alive)
+    return () => {
+      alive.current = false
+    }
   }, [entryId])
 
   const add = async (text) => {
@@ -79,7 +89,11 @@ export function useDiaryComments(entryId) {
       .from('diary_comments')
       .delete()
       .eq('id', id)
-      .then(({ error }) => error && console.error('[기록장] 댓글 삭제 실패', error))
+      .then(({ error }) => {
+        if (!error) return
+        console.error('[기록장] 댓글 삭제 실패', error)
+        reload() // 낙관적으로 지운 걸 되돌린다 — 실패했는데도 화면에서만 사라진 채로 남지 않도록.
+      })
   }
 
   return { comments, loading, add, remove }
