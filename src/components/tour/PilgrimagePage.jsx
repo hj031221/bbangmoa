@@ -19,6 +19,22 @@ const MODES = [
   { id: 'walk', label: '🚶 도보' },
 ]
 
+function CompletionMark() {
+  return (
+    <svg className="pil-completion-mark" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" fill="#E8F1F5" stroke="#5C839A" strokeWidth="1.7" />
+      <path
+        d="m7.4 12.2 3.05 3.05 6.4-6.55"
+        fill="none"
+        stroke="#416D86"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 // 코스의 "정체성" — 경유지 타입+id를 순서대로 이어붙인 키. 순서가 바뀌면 다른 코스로 본다
 // (§CP10-7 — "똑같은 코스 저장 방지" 요청 대응). lat/lng/name/order 등은 무시한다(같은 id면
 // 항상 같은 값이라 중복이라 비교할 이유가 없다). origin·이동수단은 여기 포함하지 않는다 —
@@ -337,7 +353,10 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
         <p>관광모아와 빵집 찾기 설문을 모두 마치면, 취향에 맞는 기본 코스를 짜드려요.</p>
         <div className="pil-gate-cards">
           <div className={`pil-gate-card${breadDone ? ' done' : ''}`}>
-            <b>{breadDone ? '✅ 빵집 찾기 완료' : '빵집 찾기'}</b>
+            <b>
+              {breadDone && <CompletionMark />}
+              {breadDone ? '빵집 찾기 완료' : '빵집 찾기'}
+            </b>
             {!breadDone && (
               <button type="button" className="primary-btn" onClick={onStartBreadSurvey}>
                 설문하러 가기
@@ -345,7 +364,10 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
             )}
           </div>
           <div className={`pil-gate-card${tourDone ? ' done' : ''}`}>
-            <b>{tourDone ? '✅ 관광모아 완료' : '관광모아'}</b>
+            <b>
+              {tourDone && <CompletionMark />}
+              {tourDone ? '관광모아 완료' : '관광모아'}
+            </b>
             {!tourDone && (
               <button type="button" className="primary-btn" onClick={onStartTourSurvey}>
                 설문하러 가기

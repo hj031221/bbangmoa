@@ -65,6 +65,7 @@ export default function MapResult({ onRetake }) {
         nearSpot: attractionsLoading ? null : nearestAttraction(b, tourSpots),
         breadType: breadResult?.bread?.name,
         breadTypeEmoji: breadResult?.bread?.emoji,
+        breadTypeIllustration: breadResult?.bread?.illustration,
       })),
     [
       filteredBakeries,
@@ -75,6 +76,7 @@ export default function MapResult({ onRetake }) {
       attractionsLoading,
       breadResult?.bread?.name,
       breadResult?.bread?.emoji,
+      breadResult?.bread?.illustration,
     ],
   )
 

@@ -51,7 +51,9 @@ export default function BreadReveal({ onRetake, onShowMap, tourDone, onGoToTour,
   return (
     <div className="bread-reveal">
       <p className="bread-reveal-eyebrow">오늘의 빵은...</p>
-      <div className="bread-reveal-icon">{bread.emoji}</div>
+      <div className="bread-reveal-icon">
+        <img src={bread.illustration} alt={`${bread.name} 일러스트`} />
+      </div>
       <h2 className="bread-reveal-title">&lt; {bread.name} &gt;</h2>
       <p className="bread-reveal-desc">{bread.description}</p>
       <p className="bread-reveal-score">취향 적합도 {score}%</p>

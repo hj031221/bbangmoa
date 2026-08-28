@@ -6,6 +6,7 @@ import { haversineKm, formatDistance } from '../../lib/distance'
 import MapView from './MapView'
 import RecommendCard from './RecommendCard'
 import MapSelectionSummary from './MapSelectionSummary'
+import { SaveHeartIcon } from '../mypage/PreviewIcons'
 
 const DISTRICTS = getRegion().districts
 const NEARBY_LIMIT = 10
@@ -149,7 +150,11 @@ export default function BakeryMapPage({ origin = null, onClearOrigin, initialSea
               >
                 <span className="rl-name">
                   {nearbyMode ? `${i + 1}. ` : ''}
-                  {!nearbyMode && isSaved(b.id) && <span aria-hidden="true">❤️ </span>}
+                  {!nearbyMode && isSaved(b.id) && (
+                    <span className="rl-saved-heart" aria-hidden="true">
+                      <SaveHeartIcon filled />
+                    </span>
+                  )}
                   {b.name}
                 </span>
                 {nearbyMode ? (

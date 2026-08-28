@@ -12,6 +12,29 @@ export function HeartIcon() {
   )
 }
 
+export function SaveHeartIcon({ filled = false }) {
+  return (
+    <svg className="save-heart-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M12 20.4 4.35 13.3C.2 9.45 2.15 3.2 7.4 3.2c1.9 0 3.55.95 4.6 2.4 1.05-1.45 2.7-2.4 4.6-2.4 5.25 0 7.2 6.25 3.05 10.1L12 20.4Z"
+        fill={filled ? '#F29A38' : '#FFF4E2'}
+        stroke="#E8842D"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      {filled && (
+        <path
+          d="M7.1 6.5c1.05-.7 2.35-.45 3.05.35"
+          fill="none"
+          stroke="#FFD59D"
+          strokeWidth="1.35"
+          strokeLinecap="round"
+        />
+      )}
+    </svg>
+  )
+}
+
 export function PinIcon() {
   return (
     <svg viewBox="0 0 100.7 124.3" width="14" height="17" aria-hidden="true">

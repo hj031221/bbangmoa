@@ -5,6 +5,7 @@ import { useSavedBakeries } from '../../hooks/useSavedBakeries'
 import { useAuth } from '../../hooks/useAuth'
 import { useDiaryEntries } from '../../hooks/useDiaryEntries'
 import DiaryEntryModal from '../mypage/DiaryEntryModal'
+import { SaveHeartIcon } from '../mypage/PreviewIcons'
 import { formatDistance } from '../../lib/distance'
 
 // 선택된 빵집 상세 카드.
@@ -46,7 +47,8 @@ export default function RecommendCard({ bakery }) {
           className={'save-btn' + (saved ? ' saved' : '')}
           onClick={() => toggleSave(bakery)}
         >
-          {saved ? '❤️ 찜함' : '🤍 찜하기'}
+          <SaveHeartIcon filled={saved} />
+          {saved ? '찜함' : '찜하기'}
         </button>
       </div>
       {user && (

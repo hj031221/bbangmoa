@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useKakaoLoader } from '../../hooks/useKakaoLoader'
 import { getRegion } from '../../config/regions'
 import { useAppStore } from '../../store/useAppStore'
+import { LOCATION_ICONS, MapPickIcon } from './LocationIcons'
 
 // 설문 0단계 — 출발 위치 선택 (① 프리셋 ② GPS ③ 지도에서 직접 찍기).
 // 여기서 고른 정밀 origin 이 결과(거리·정렬)로 흐른다. 선택 즉시 onDone 으로 다음 단계.
@@ -53,20 +54,35 @@ export default function LocationStep({ onDone }) {
 
       <div className="loc-or">또는 출발지 선택</div>
       <div className="loc-chips">
-        {region.origins.map((o) => (
-          <button
-            key={o.id}
-            type="button"
-            className="loc-chip"
-            onClick={() => choose({ lat: o.lat, lng: o.lng, label: o.name, source: 'preset' })}
-          >
-            {o.label}
-          </button>
-        ))}
+        {region.origins.map((o) => {
+          const Icon = LOCATION_ICONS[o.icon]
+          return (
+            <button
+              key={o.id}
+              type="button"
+              className="loc-chip"
+              onClick={() => choose({ lat: o.lat, lng: o.lng, label: o.name, source: 'preset' })}
+            >
+              <span className="loc-chip-icon">
+                <Icon />
+              </span>
+              {o.name}
+            </button>
+          )
+        })}
       </div>
 
-      <button type="button" className="loc-pick-toggle" onClick={() => setPickOpen((v) => !v)}>
-        🗺️ {pickOpen ? '지도 접기' : '지도에서 직접 찍기'}
+      <button
+        type="button"
+        className={`loc-pick-toggle${pickOpen ? ' is-open' : ''}`}
+        aria-expanded={pickOpen}
+        onClick={() => setPickOpen((v) => !v)}
+      >
+        <span className="loc-pick-toggle-icon"><MapPickIcon /></span>
+        <span>{pickOpen ? '지도 접기' : '지도에서 직접 찍기'}</span>
+        <svg className="loc-pick-toggle-chevron" viewBox="0 0 20 20" aria-hidden="true">
+          <path d="M5,7.5 L10,12.5 L15,7.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
       </button>
       {pickOpen && (
         <PickMap
