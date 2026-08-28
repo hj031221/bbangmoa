@@ -249,7 +249,7 @@ URL이 있으면 `<img>`, 없으면 기존 이니셜 `<span>`. 이니셜 로직�
 - **"사진 바꾸기"**: 숨긴 `<input type="file" accept="image/*">` 트리거 → `onChange`에서 `pendingFile` 설정, `pendingRemove=false`, 이전 `previewUrl` revoke 후 새로 생성. (여기서는 네트워크 호출 없음)
 - **"사진 제거"**: 현재 아바타가 있거나 `pendingFile`이 있을 때만 노출. `pendingRemove=true`, `pendingFile=null`, `previewUrl` revoke.
 - **"저장"(`submit`)** 순서:
-  1. 닉네임 검증: `trimmed = draft.trim()`. 비어 있으면 중단(기존 동작), 아무것도 커밋 안 함.
+  1. 닉네임 검증: `trimmed = draft.trim()`. **이미 닉네임이 있는 사용자**(`user.user_metadata?.nickname`)가 비운 경우에만 인라인 에러로 중단하고 아무것도 커밋 안 함. 닉네임 없는 계정은 `trimmed`가 비어도 사진만 저장 가능(닉네임 단계 건너뜀).
   2. `setSaving(true)`.
   3. **사진 단계** (`pendingFile` 또는 `pendingRemove`일 때만): `pendingFile`이면 `updateAvatar(pendingFile)`, 아니면 `removeAvatar()`.
      - 에러(`res.error` 있고 `res.partial !== 'mirror'`): `formError` 표시, **편집 모드 유지**, pending 상태 보존(재시도 가능), 닉네임 단계로 진행하지 않음, `setSaving(false)`.

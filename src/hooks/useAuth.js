@@ -66,7 +66,9 @@ export function useAuth() {
   }
 
   // 프로필 아바타 업로드. avatars 버킷 {uid}/avatar.jpg 에 upsert 하고
-  // user_metadata.avatar_url(자기 화면 원본) → profiles.avatar_url(친구 화면 미러) 순으로 저장한다.
+  // user_metadata.custom_avatar_url(자기 화면 원본) → profiles.avatar_url(친구 화면 미러) 순으로 저장한다.
+  // (avatar_url 이 아니라 custom_avatar_url 인 이유: GoTrue 가 매 로그인마다 OAuth 제공자 사진을
+  //  user_metadata.avatar_url 로 재병합하므로 우리 업로드 URL 이 덮어써진다.)
   // 미러 단계만 실패하면 { ...result, error, partial: 'mirror' } 로 신호한다(비치명적).
   const updateAvatar = async (file) => {
     if (!supabase) return { error: new Error('로그인이 필요해요.') }
@@ -99,7 +101,7 @@ export function useAuth() {
     const url = `${pub.publicUrl}?v=${Date.now()}` // 고정 경로라 캐시버스터 필수
 
     // 2) 원본(자기 화면). 실패면 롤백 없이 에러 반환.
-    const result = await supabase.auth.updateUser({ data: { avatar_url: url } })
+    const result = await supabase.auth.updateUser({ data: { custom_avatar_url: url } })
     if (result.error) {
       console.error('[프로필] 아바타 저장 실패', result.error)
       return result
@@ -125,7 +127,7 @@ export function useAuth() {
     const { data: { user: current } } = await supabase.auth.getUser()
     if (!current) return { error: new Error('로그인이 필요해요.') }
 
-    const result = await supabase.auth.updateUser({ data: { avatar_url: null } })
+    const result = await supabase.auth.updateUser({ data: { custom_avatar_url: null } })
     if (result.error) {
       console.error('[프로필] 아바타 제거 실패', result.error)
       return result
@@ -146,13 +148,13 @@ export function useAuth() {
     return result
   }
 
-  // partial:'mirror' 재시도용 — 현재 원본(user_metadata.avatar_url) 값을 profiles 미러에 다시 쓴다.
+  // partial:'mirror' 재시도용 — 현재 원본(user_metadata.custom_avatar_url) 값을 profiles 미러에 다시 쓴다.
   // 설정/제거 양쪽 커버(제거면 값이 null). Storage 객체는 update/removeAvatar 가 이미 처리했다.
   const syncAvatarMirror = async () => {
     if (!supabase) return { error: new Error('로그인이 필요해요.') }
     const { data: { user: current } } = await supabase.auth.getUser()
     if (!current) return { error: new Error('로그인이 필요해요.') }
-    const url = current.user_metadata?.avatar_url ?? null
+    const url = current.user_metadata?.custom_avatar_url ?? null
     const { error } = await supabase
       .from('profiles')
       .update({ avatar_url: url })

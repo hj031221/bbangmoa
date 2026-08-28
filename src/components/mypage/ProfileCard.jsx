@@ -6,7 +6,7 @@ import { getAvatarUrl } from '../../lib/avatarUrl'
 import { buildInviteLink } from '../../lib/inviteLink'
 
 // 마이페이지 왼쪽 프로필 카드. 아바타 이미지 업로드(갤러리/파일) + 닉네임 편집.
-// 아바타는 avatars 버킷 {uid}/avatar.jpg 에 저장되고 user_metadata.avatar_url(자기 화면 원본) +
+// 아바타는 avatars 버킷 {uid}/avatar.jpg 에 저장되고 user_metadata.custom_avatar_url(자기 화면 원본) +
 // profiles.avatar_url(친구 화면 미러) 에 URL 이 미러링된다. getAvatarUrl 이 최우선으로 읽는다.
 // 사진/닉네임 변경은 편집 모드에서 임시 상태로만 두고 "저장" 버튼에서 함께 커밋한다.
 export default function ProfileCard() {
@@ -66,7 +66,6 @@ export default function ProfileCard() {
   const startEdit = () => {
     setDraft(name === '내 계정' ? '' : name)
     setFormError('')
-    setMirrorWarning(false)
     clearPending()
     setEditing(true)
   }
@@ -114,6 +113,12 @@ export default function ProfileCard() {
     const trimmed = draft.trim()
     const nickChanged = !!trimmed && trimmed !== name
     const photoChanged = !!pendingFile || pendingRemove
+    // 닉네임이 이미 있는 사용자는 빈 값으로 지울 수 없다(폼이 조용히 닫히며 초안이 버려지는 것 방지).
+    // 닉네임 없는 계정은 닉네임 입력 없이 사진만 저장할 수 있다(닉네임 단계 건너뜀).
+    if (!trimmed && user?.user_metadata?.nickname) {
+      setFormError('닉네임은 비울 수 없어요.')
+      return
+    }
     if (!nickChanged && !photoChanged) {
       setEditing(false)
       return
@@ -125,8 +130,9 @@ export default function ProfileCard() {
     if (photoChanged) {
       const res = pendingFile ? await updateAvatar(pendingFile) : await removeAvatar()
       if (res?.error && res.partial !== 'mirror') {
+        console.error('[프로필] 사진 저장 실패', res.error)
         setSaving(false)
-        setFormError(res.error.message || '사진을 저장하지 못했어요.')
+        setFormError('사진을 저장하지 못했어요. 잠시 후 다시 시도해주세요.')
         return // pending 유지 → 재시도 가능
       }
       clearPending()
@@ -137,6 +143,7 @@ export default function ProfileCard() {
     if (nickChanged) {
       const { error } = await updateNickname(trimmed)
       if (error) {
+        console.error('[프로필] 닉네임 변경 실패', error)
         setSaving(false)
         setFormError('닉네임을 저장하지 못했어요.')
         return
