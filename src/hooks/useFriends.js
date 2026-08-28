@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from './useAuth'
 import { supabase } from '../lib/supabase'
 import { normalizeFriendCode } from '../lib/friendCode'
+import { buildProfileAvatarUrl } from '../lib/avatarUrl'
 
 // 상호 수락 기반 친구 요청/목록. friend_requests 한 테이블로 pending→accepted 를 관리하고,
 // 닉네임은 profiles 테이블에서 별도로 조회해 합친다(PostgREST 로 같은 테이블을 requester/addressee
@@ -72,12 +73,7 @@ export function useFriends() {
       // avatar_version 을 캐시버스터로 붙인다 — 없으면 Storage SDK 기본 캐시(3600초) 동안 친구 화면에
       // 옛 사진이 남을 수 있다.
       avatarById = Object.fromEntries(
-        (profiles ?? []).map((p) => [
-          p.user_id,
-          p.avatar_url
-            ? `${supabase.storage.from('avatars').getPublicUrl(p.avatar_url).data.publicUrl}?v=${p.avatar_version ?? 0}`
-            : null,
-        ])
+        (profiles ?? []).map((p) => [p.user_id, buildProfileAvatarUrl(supabase, p)])
       )
     }
 

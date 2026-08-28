@@ -131,16 +131,21 @@ export default function DiaryPanel({ onBack, targetUserId, readOnly = false }) {
             <div className="diary-comments">
               {comments.map((c) => (
                 <div key={c.id} className="diary-comment">
-                  <div className="diary-comment-meta">
-                    <span className="diary-comment-nickname">{c.nickname}</span>
-                    <span className="diary-comment-time">{formatDiaryDateTime(c.created_at)}</span>
+                  <span className="friend-avatar friend-avatar-sm diary-comment-avatar" aria-hidden="true">
+                    {c.avatarUrl ? <img src={c.avatarUrl} alt="" /> : (c.nickname?.[0] || '?')}
+                  </span>
+                  <div className="diary-comment-body">
+                    <div className="diary-comment-meta">
+                      <span className="diary-comment-nickname">{c.nickname}</span>
+                      <span className="diary-comment-time">{formatDiaryDateTime(c.created_at)}</span>
+                    </div>
+                    <p className="diary-comment-text">{c.text}</p>
+                    {user?.id === c.user_id && (
+                      <button type="button" className="diary-comment-delete" onClick={() => removeComment(c.id)}>
+                        삭제
+                      </button>
+                    )}
                   </div>
-                  <p className="diary-comment-text">{c.text}</p>
-                  {user?.id === c.user_id && (
-                    <button type="button" className="diary-comment-delete" onClick={() => removeComment(c.id)}>
-                      삭제
-                    </button>
-                  )}
                 </div>
               ))}
             </div>

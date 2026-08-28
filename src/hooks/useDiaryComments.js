@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from './useAuth'
 import { supabase } from '../lib/supabase'
+import { buildProfileAvatarUrl } from '../lib/avatarUrl'
 
 // 기록장 댓글. entryId 가 바뀌면(다른 기록 열기) 다시 조회한다.
-// 댓글 자체엔 작성자 닉네임이 없어 profiles 조회로 합친다(useFriends 와 동일한 2단계 패턴).
+// 댓글 자체엔 작성자 닉네임/아바타가 없어 profiles 조회로 합친다(useFriends 와 동일한 2단계 패턴).
+// avatar_url 은 storage 객체 경로만 저장하므로(schema.sql CHECK) 공개 URL 을 여기서 조립한다 —
+// avatar_version 을 캐시버스터로 붙인다(경로가 {uid}/avatar.jpg 로 고정이라 없으면 스토리지 기본
+// 캐시(3600초) 동안 사진을 바꿔도 예전 아바타가 남을 수 있다).
 export function useDiaryComments(entryId) {
   const { user } = useAuth()
   const [comments, setComments] = useState([])
@@ -28,16 +32,26 @@ export function useDiaryComments(entryId) {
         }
         const userIds = [...new Set(data.map((c) => c.user_id))]
         let nicknameById = {}
+        let avatarUrlById = {}
         if (userIds.length > 0) {
           const { data: profiles, error: profilesError } = await supabase
             .from('profiles')
-            .select('user_id, nickname')
+            .select('user_id, nickname, avatar_url, avatar_version')
             .in('user_id', userIds)
           if (profilesError) console.error('[기록장] 댓글 작성자 조회 실패', profilesError)
           nicknameById = Object.fromEntries((profiles ?? []).map((p) => [p.user_id, p.nickname]))
+          avatarUrlById = Object.fromEntries(
+            (profiles ?? []).map((p) => [p.user_id, buildProfileAvatarUrl(supabase, p)])
+          )
         }
         setLoading(false)
-        setComments(data.map((c) => ({ ...c, nickname: nicknameById[c.user_id] || '이름 없음' })))
+        setComments(
+          data.map((c) => ({
+            ...c,
+            nickname: nicknameById[c.user_id] || '이름 없음',
+            avatarUrl: avatarUrlById[c.user_id] ?? null,
+          }))
+        )
       })
   }
 
