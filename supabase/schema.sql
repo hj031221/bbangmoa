@@ -241,3 +241,39 @@ alter function generate_friend_code() set search_path = public, pg_temp;
 alter function handle_new_user_profile() set search_path = public, pg_temp;
 alter function is_friends_with(uuid) set search_path = public, pg_temp;
 alter function find_user_by_friend_code(text) set search_path = public, pg_temp;
+
+-- ===== 이슈 #50: 마이페이지 프로필 아바타 =====
+-- 아래 storage.* 문장은 소유자 권한이 필요하다 — 반드시 Supabase 대시보드 SQL Editor 에서 실행할 것.
+
+alter table profiles add column if not exists avatar_url text;
+
+-- 기존엔 update 권한이 nickname 컬럼으로만 제한돼 있었다. avatar_url 을 추가한다.
+revoke update on profiles from authenticated;
+grant update (nickname, avatar_url) on profiles to authenticated;
+
+-- 아바타 저장용 public 버킷. MIME/용량은 버킷 레벨에서 강제(클라이언트 검증은 UX 용).
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('avatars', 'avatars', true, 1048576, array['image/jpeg'])
+on conflict (id) do update
+  set public = true,
+      file_size_limit = 1048576,           -- 1 MiB (리사이즈 결과는 보통 ~100KB)
+      allowed_mime_types = array['image/jpeg'];
+
+-- 유저당 "정확히 한 경로"({uid}/avatar.jpg)만 허용. 폴더 prefix 가 아니라 name 전체를 고정한다.
+-- select 정책은 두지 않는다 — public 버킷이라 public CDN URL 로 누구나 읽는다(프로필 사진은 공개 정보).
+drop policy if exists "avatars_insert_own" on storage.objects;
+create policy "avatars_insert_own" on storage.objects
+  for insert to authenticated
+  with check (bucket_id = 'avatars' and name = auth.uid()::text || '/avatar.jpg');
+
+-- upsert:true 재업로드는 insert 가 아니라 update 경로를 타므로 이 정책이 필요하다.
+drop policy if exists "avatars_update_own" on storage.objects;
+create policy "avatars_update_own" on storage.objects
+  for update to authenticated
+  using      (bucket_id = 'avatars' and name = auth.uid()::text || '/avatar.jpg')
+  with check (bucket_id = 'avatars' and name = auth.uid()::text || '/avatar.jpg');
+
+drop policy if exists "avatars_delete_own" on storage.objects;
+create policy "avatars_delete_own" on storage.objects
+  for delete to authenticated
+  using (bucket_id = 'avatars' and name = auth.uid()::text || '/avatar.jpg');
