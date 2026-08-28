@@ -11,6 +11,7 @@ export default function BreadReveal({ onRetake, onShowMap, tourDone, onGoToTour,
   const regionId = useAppStore((s) => s.regionId)
   const origin = useAppStore((s) => s.origin)
   const answers = useAppStore((s) => s.answers)
+  const selectBakery = useAppStore((s) => s.selectBakery)
   // answers 는 일부러 넘기지 않는다 — 이 화면의 빵집 목록은 아래 matchBakeries(빵 keywords 기반)로만
   // 정하고, 옛 태그-가중치 정렬(recommend.js)은 관여하지 않는다(빵 취향 점수와 빵집 정보 분리 원칙).
   // limit: Infinity — useBakeries 의 기본 limit(10)은 "출발지 근처 10곳"까지만 남기고 잘라버려서,
@@ -76,7 +77,15 @@ export default function BreadReveal({ onRetake, onShowMap, tourDone, onGoToTour,
           const distInfo = getBakeryDistanceInfo(b, { origin })
           const hoursText = hoursBadgeText(b.hours)
           return (
-            <div key={b.id} className="bakery-mini-card">
+            <button
+              type="button"
+              key={b.id}
+              className="bakery-mini-card"
+              onClick={() => {
+                selectBakery(b.id)
+                onShowMap()
+              }}
+            >
               <div className="bakery-mini-name">{b.name}</div>
               {b.address && <div className="bakery-mini-addr">📍 {b.address}</div>}
               {distInfo && (
@@ -84,7 +93,7 @@ export default function BreadReveal({ onRetake, onShowMap, tourDone, onGoToTour,
               )}
               {hoursText && <div className="bakery-mini-hours">🕒 {hoursText}</div>}
               {b.phone && <div className="bakery-mini-tel">📞 {b.phone}</div>}
-            </div>
+            </button>
           )
         })}
       </div>

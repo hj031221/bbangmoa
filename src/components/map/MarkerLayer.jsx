@@ -94,6 +94,16 @@ export default function MarkerLayer({ map, bakeries, selectedId, onSelect, clust
     }
   }, [map, bakeries, onSelect, clusterer])
 
+  // 지도의 빈 영역(마커·오버레이가 아닌 곳)을 클릭하면 선택 해제. 카카오에서 마커 click 은
+  // map click 으로 전파되지 않으므로 마커 선택과 충돌하지 않는다.
+  useEffect(() => {
+    const { kakao } = window
+    if (!kakao || !map) return
+    const handleMapClick = () => onSelect?.(null)
+    kakao.maps.event.addListener(map, 'click', handleMapClick)
+    return () => kakao.maps.event.removeListener(map, 'click', handleMapClick)
+  }, [map, onSelect])
+
   // 선택 동작: 줌인 + 포커스 + 나머지 흐리게
   useEffect(() => {
     const { kakao } = window
@@ -101,11 +111,11 @@ export default function MarkerLayer({ map, bakeries, selectedId, onSelect, clust
 
     const sel = markersRef.current.find((m) => m.id === selectedId)
 
-    // 선택 없으면 전부 또렷, 선택 있으면 선택만 또렷 + 나머지 딤. 선택된 점은 더 크게.
+    // 선택 없으면 전부 또렷, 선택 있으면 선택만 또렷 + 나머지는 살짝 딤(너무 흐리면 안 보여서 0.45).
     markersRef.current.forEach((m) => {
       const isSel = m.id === selectedId
       const lit = !selectedId || isSel
-      m.marker.setOpacity(lit ? 1 : 0.25)
+      m.marker.setOpacity(lit ? 1 : 0.45)
       m.marker.setZIndex(isSel ? 10 : 1)
       if (imagesRef.current) {
         m.marker.setImage(isSel ? imagesRef.current.selected : imagesRef.current.normal)

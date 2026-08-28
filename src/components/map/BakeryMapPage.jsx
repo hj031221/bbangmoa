@@ -16,9 +16,15 @@ const NEARBY_LIMIT = 10
 //
 // origin 이 주어지면(관광지 상세의 "근처 빵집 보기") 구 필터 대신 origin 기준 거리순
 // 상위 NEARBY_LIMIT 곳만 보여주는 "근처 빵집" 모드로 전환된다.
-export default function BakeryMapPage({ origin = null, onClearOrigin, initialSearch = '', onBack }) {
+export default function BakeryMapPage({
+  origin = null,
+  onClearOrigin,
+  initialSearch = '',
+  initialSelectedId = null,
+  onBack,
+}) {
   const [district, setDistrict] = useState(null) // null = 전체
-  const [selectedId, setSelectedId] = useState(null)
+  const [selectedId, setSelectedId] = useState(initialSelectedId)
   const [search, setSearch] = useState(initialSearch.trim())
   const { bakeries, loading, error, source } = useBakeries({
     regionId: undefined,

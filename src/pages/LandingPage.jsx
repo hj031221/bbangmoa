@@ -33,8 +33,10 @@ export default function LandingPage() {
   const [showPilgrimage, setShowPilgrimage] = useState(false)
   const [tourStage, setTourStage] = useState('survey') // 'survey' | 'reveal' | 'hub'
   const [tourSelectedId, setTourSelectedId] = useState(null) // hub 진입 시 바로 선택할 관광지
+  const [tourHubFromReveal, setTourHubFromReveal] = useState(false) // 결과 카드 → 상세로 진입했는가(뒤로가기 목적지 판단)
   const [nearbyOrigin, setNearbyOrigin] = useState(null) // 관광지 "근처 빵집 보기" 로 진입 시 { name, lat, lng }
   const [mapSearch, setMapSearch] = useState('') // 랜딩 히어로 검색창에서 넘어온 빵집 이름 검색어
+  const [mapSelectId, setMapSelectId] = useState(null) // 빵 지도 진입 시 미리 선택할 빵집 id (찜 목록 등에서)
   const answers = useAppStore((s) => s.answers)
   const origin = useAppStore((s) => s.origin)
   const resetAnswers = useAppStore((s) => s.resetAnswers)
@@ -71,14 +73,22 @@ export default function LandingPage() {
   // 다시 걸려 "확대·축소·드래그가 안 되는" 증상이 났다. position:fixed 컨테이너면 body 에 스크롤
   // 될 게 없어서 JS 잠금 없이도 한 화면이 유지된다.
 
-  const startTest = () => {
+  const enterBreadFlow = (nextStage) => {
     setFeatureOpen(true)
     setShowMyPage(false)
     setShowInfo(false)
     setShowMap(false)
     setShowTour(false)
     setShowPilgrimage(false)
-    setStage(surveyDone ? 'reveal' : 'survey')
+    setStage(nextStage)
+  }
+  // 홈 히어로 CTA·교차 링크 등: 진행 중이던 결과가 있으면 그 리빌부터 이어 본다.
+  // (onClick 핸들러로 직접 넘겨 이벤트 객체가 인자로 들어와도 안전하도록 인자를 받지 않는다.)
+  const startTest = () => enterBreadFlow(surveyDone ? 'reveal' : 'survey')
+  // 메뉴바에서 "빵집 찾기"를 다시 고른 경우: 이전 결과를 버리고 설문 처음부터.
+  const startTestFromNav = () => {
+    resetAnswers()
+    enterBreadFlow('survey')
   }
   const openMyPage = () => {
     setShowMyPage(true)
@@ -102,6 +112,7 @@ export default function LandingPage() {
       Number.isFinite(attraction?.lat) && Number.isFinite(attraction?.lng) ? attraction : null,
     )
     setMapSearch('')
+    setMapSelectId(null)
     setShowMap(true)
     setFeatureOpen(false)
     setShowMyPage(false)
@@ -113,6 +124,7 @@ export default function LandingPage() {
   const searchBakeryMap = (query) => {
     setNearbyOrigin(null)
     setMapSearch(query)
+    setMapSelectId(null)
     setShowMap(true)
     setFeatureOpen(false)
     setShowMyPage(false)
@@ -120,28 +132,51 @@ export default function LandingPage() {
     setShowTour(false)
     setShowPilgrimage(false)
   }
-  const openTour = () => {
+  const enterTourFlow = (nextStage) => {
     setShowTour(true)
-    setTourStage(tourSurveyDone ? 'reveal' : 'survey')
     setTourSelectedId(null)
+    setTourHubFromReveal(false)
     setFeatureOpen(false)
     setShowMyPage(false)
     setShowInfo(false)
     setShowMap(false)
     setShowPilgrimage(false)
+    setTourStage(nextStage)
   }
+  const openTour = () => enterTourFlow(tourSurveyDone ? 'reveal' : 'survey')
+  // 메뉴바에서 "관광모아"를 다시 고른 경우: 이전 결과를 버리고 설문 처음부터.
+  const openTourFromNav = () => {
+    resetTourAnswers()
+    enterTourFlow('survey')
+  }
+  // selectedId 가 있으면(관광모아 결과 카드에서 진입) 상세에서 "뒤로가기" 시 허브 그리드가
+  // 아니라 결과 화면(reveal)으로 돌아가야 한다 — 그 출처를 tourHubFromReveal 로 기억한다.
   const openTourHub = (selectedId = null) => {
     setTourSelectedId(selectedId)
+    setTourHubFromReveal(selectedId != null)
     setTourStage('hub')
   }
   const openTourAttraction = (selectedId) => {
     setShowTour(true)
     setTourStage('hub')
     setTourSelectedId(selectedId)
+    setTourHubFromReveal(false) // 홈 위젯에서 진입 — 상세 뒤로가기는 허브 그리드로
     setFeatureOpen(false)
     setShowMyPage(false)
     setShowInfo(false)
     setShowMap(false)
+    setShowPilgrimage(false)
+  }
+  // 마이페이지 찜한 빵 목록에서 항목을 누르면 그 빵집이 선택된 상태로 빵 지도를 연다.
+  const viewBakeryOnMap = (bakery) => {
+    setNearbyOrigin(null)
+    setMapSearch(bakery.name || '') // 검색 필터에 포함시켜 목록/지도에 뜨게
+    setMapSelectId(bakery.id ?? null)
+    setShowMap(true)
+    setFeatureOpen(false)
+    setShowMyPage(false)
+    setShowInfo(false)
+    setShowTour(false)
     setShowPilgrimage(false)
   }
   const openPilgrimage = () => {
@@ -188,9 +223,9 @@ export default function LandingPage() {
       <NavBar
         onGoHome={goHome}
         onOpenInfo={openInfo}
-        onStartTest={startTest}
+        onStartTest={startTestFromNav}
         onOpenMap={openBakeryMap}
-        onOpenTour={openTour}
+        onOpenTour={openTourFromNav}
         onOpenPilgrimage={openPilgrimage}
         onOpenMyPage={openMyPage}
       />
@@ -220,6 +255,7 @@ export default function LandingPage() {
             origin={nearbyOrigin}
             onClearOrigin={() => setNearbyOrigin(null)}
             initialSearch={mapSearch}
+            initialSelectedId={mapSelectId}
             onBack={goHome}
           />
         </div>
@@ -248,6 +284,8 @@ export default function LandingPage() {
               onShowBakeryMap={openBakeryMap}
               initialDistrict={tourAnswers ? resolveDistrict(tourAnswers) : null}
               initialSelectedId={tourSelectedId}
+              cameFromReveal={tourHubFromReveal}
+              onExitToReveal={() => setTourStage('reveal')}
             />
           )}
         </div>
@@ -261,7 +299,7 @@ export default function LandingPage() {
 
       {showMyPage && (
         <div className="page">
-          <MyPage onLoadCourse={loadCourseIntoPilgrimage} />
+          <MyPage onLoadCourse={loadCourseIntoPilgrimage} onViewBakeryOnMap={viewBakeryOnMap} />
         </div>
       )}
 

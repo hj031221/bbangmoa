@@ -179,11 +179,13 @@ export default function MapView({
     setMap(m)
   }, [loaded, map, region])
 
-  // 선택된 빵집이 없으면(구 필터를 바꿔서 이전 선택이 사라진 경우 포함) 대전 전체 시점으로 복귀.
+  // 대전 전체 시점으로 복귀하는 건 "구 필터가 바뀐" 경우만. 지도 빈 영역을 눌러 선택만
+  // 해제한 경우(selectedId → null)에는 카메라를 건드리지 않고 직전 화면(현재 위치/줌)을 유지한다
+  // — 핑 고정·이름 말풍선만 사라진다(MarkerLayer 가 처리). selectedId 는 의존성에서 뺀다.
   useEffect(() => {
     if (!map || !boundsRef.current || selectedId) return
     map.setBounds(boundsRef.current)
-  }, [map, selectedId, highlightDistrict])
+  }, [map, highlightDistrict])
 
   // 구 필터 색칠: highlightDistrict 가 있으면 그 구의 경계를 채워 그리고, 없으면 지운다.
   useEffect(() => {
