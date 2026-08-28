@@ -111,7 +111,7 @@ export default function AuthMenu({ compact = false, onSignOut }) {
   return (
     <div className={className}>
       <button type="button" className="auth-btn login-toggle" onClick={() => setOpen(true)}>
-        로그인
+        <span className="login-toggle-shape">로그인</span>
       </button>
       {open && (
         <LoginModal

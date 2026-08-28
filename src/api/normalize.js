@@ -6,6 +6,7 @@
 //   category, thumbnail, url, contentId, contentTypeId, tags[]
 // }
 import { deriveTags } from '../data/tasteTags'
+import { toHttps } from './http'
 
 // 관광공사 KorService2 아이템 → Bakery
 export function normalizeTour(item) {
@@ -20,7 +21,7 @@ export function normalizeTour(item) {
     lat: Number.isFinite(lat) ? lat : null,
     lng: Number.isFinite(lng) ? lng : null,
     category: item.cat3 || item.lclsSystm3 || '',
-    thumbnail: item.firstimage || item.firstimage2 || null,
+    thumbnail: toHttps(item.firstimage || item.firstimage2) || null, // CP11-6
     url: null,
     contentId: item.contentid || null,
     contentTypeId: item.contenttypeid || null,
