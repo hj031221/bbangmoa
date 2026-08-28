@@ -76,14 +76,22 @@ export default function BreadReveal({ onRetake, onShowMap, tourDone, onGoToTour,
         {spotlight.map((b) => {
           const distInfo = getBakeryDistanceInfo(b, { origin })
           const hoursText = hoursBadgeText(b.hours)
+          const openOnMap = () => {
+            selectBakery(b.id)
+            onShowMap()
+          }
           return (
-            <button
-              type="button"
+            <div
               key={b.id}
               className="bakery-mini-card"
-              onClick={() => {
-                selectBakery(b.id)
-                onShowMap()
+              role="button"
+              tabIndex={0}
+              onClick={openOnMap}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  openOnMap()
+                }
               }}
             >
               <div className="bakery-mini-name">{b.name}</div>
@@ -93,7 +101,7 @@ export default function BreadReveal({ onRetake, onShowMap, tourDone, onGoToTour,
               )}
               {hoursText && <div className="bakery-mini-hours">🕒 {hoursText}</div>}
               {b.phone && <div className="bakery-mini-tel">📞 {b.phone}</div>}
-            </button>
+            </div>
           )
         })}
       </div>
