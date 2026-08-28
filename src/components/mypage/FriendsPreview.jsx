@@ -25,6 +25,7 @@ export default function FriendsPreview({ onExpand }) {
           <div className="mypage-preview-friend-chips">
             {friends.slice(0, 4).map((f) => (
               <span key={f.id} className="mypage-preview-friend-chip">
+                {f.avatarUrl && <img src={f.avatarUrl} alt="" />}
                 {f.nickname}
               </span>
             ))}

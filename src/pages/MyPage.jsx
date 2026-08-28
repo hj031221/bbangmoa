@@ -18,7 +18,7 @@ import FriendsPanel from '../components/mypage/FriendsPanel'
 export default function MyPage({ onLoadCourse }) {
   const { user, loading } = useAuth()
   const [panel, setPanel] = useState('home')
-  const [friend, setFriend] = useState(null) // { userId, nickname } | null
+  const [friend, setFriend] = useState(null) // { userId, nickname, avatarUrl } | null
 
   if (loading) return null
 
@@ -55,6 +55,9 @@ export default function MyPage({ onLoadCourse }) {
           <button type="button" className="mypage-back" onClick={backToFriendList}>
             ‹
           </button>
+          <span className="friend-avatar friend-avatar-sm" aria-hidden="true">
+            {friend.avatarUrl ? <img src={friend.avatarUrl} alt="" /> : (friend.nickname?.[0] || '?')}
+          </span>
           <h3>{friend.nickname}님의 마이페이지</h3>
         </div>
         <div className="friend-detail-menu">
