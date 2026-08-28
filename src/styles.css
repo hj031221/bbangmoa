@@ -859,7 +859,7 @@ a{ color:var(--accent-text); }
 .diary-like-btn:hover{ border-color:var(--accent); }
 .diary-like-btn-active{ border-color:var(--accent-deep); color:var(--accent-deep); }
 .diary-comments{ display:flex; flex-direction:column; gap:10px; }
-.diary-comment{ display:flex; gap:8px; padding:10px 12px; border-radius:12px; background:var(--card); }
+.diary-comment{ display:flex; gap:8px; padding:10px 12px; border:1px solid var(--line); border-radius:12px; background:var(--card); }
 .diary-comment-avatar{ margin-top:2px; }
 .diary-comment-body{ flex:1; min-width:0; }
 .diary-comment-meta{ display:flex; align-items:baseline; gap:8px; margin-bottom:4px; }
