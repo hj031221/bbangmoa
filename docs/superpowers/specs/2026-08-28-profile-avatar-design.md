@@ -13,17 +13,25 @@ Supabase Storage 버킷 신설 + `profiles` 스키마 변경이 포함된 신규
 ## 브레인스토밍으로 확정된 결정
 
 - **Storage provisioning**: `supabase/schema.sql`에 스크립트로 추가한다(기존 "SQL Editor에 붙여넣고 실행" 패턴 유지, 재현 가능). 버킷은 **public**.
-- **아바타 참조 저장 방식**: 고정 경로 `avatars/{user_id}/avatar.jpg` + `upsert`, public URL 뒤에 `?v=<timestamp>` 캐시버스터를 붙여 `user_metadata.avatar_url` 및 `profiles.avatar_url`에 저장한다. (유저당 객체 1개, 고아 파일 없음, resolver 단순)
+- **아바타 참조 저장 방식**: 고정 경로 `avatars/{user_id}/avatar.jpg` + `upsert`, public URL 뒤에 `?v=<timestamp>` 캐시버스터를 붙여 `user_metadata.avatar_url`(자기 화면 원본) 및 `profiles.avatar_url`(친구 화면 미러)에 저장한다. (유저당 객체 1개, 고아 파일 없음, resolver 단순)
 - **친구 아바타 노출 범위**: 친구 목록(`FriendsPanel`) + 친구 상세 헤더(`MyPage` friendDetail) + 홈 미리보기 칩(`FriendsPreview`) 전부.
 - **사진 제거 기능 포함**: 편집 모드에 "사진 제거" 액션 — `avatar_url`을 `null`로 미러링하고 Storage 객체 삭제, 이니셜로 되돌아간다.
-- **이미지 처리**: 클라이언트 canvas로 정사각 center-crop + 장변 512px 축소, `image/jpeg` 품질 0.85로 재인코딩. 입력 파일은 `image/*` 타입 + ≤2MB만 허용.
+- **이미지 처리**: 클라이언트에서 `createImageBitmap`(EXIF 방향 보정) → canvas 정사각 center-crop → `image/jpeg` 품질 0.85 재인코딩. 입력 파일은 `image/*` + ≤2MB만 허용(UX 조기 차단). 자세한 변환 규칙은 §2.2.
+
+## 검수 반영으로 확정된 결정
+
+- **Storage 서버 제한(§1.3)**: 정책 조건은 폴더 prefix가 아니라 **정확한 파일명** `name = auth.uid()::text || '/avatar.jpg'`. 버킷에 `allowed_mime_types = ['image/jpeg']`, `file_size_limit` 설정. 클라이언트 타입·크기 검증은 UX용이고, 서버 정책이 실제 강제선이다.
+- **원본(source of truth)과 부분 성공(§3)**: 닉네임과 동일한 모델 — `user_metadata.avatar_url`이 **자기 화면 원본**, `profiles.avatar_url`은 **친구 화면 미러**. 쓰기 순서 = Storage 업로드 → `updateUser`(원본) → `profiles` update(미러). 미러 단계만 실패하면 비치명적 경고를 노출하고 "재시도"로 미러만 다시 쓴다. 롤백은 하지 않는다(고정 경로 + upsert라 다음 성공 업로드가 고아 바이트를 덮어씀). 제거도 같은 순서·같은 기준.
+- **저장·취소 모델(§4.1)**: 사진 변경·제거도 **임시 상태로만 보관**하고, 편집 폼의 단일 "저장" 버튼에서 닉네임과 함께 커밋한다. "취소"는 로컬 미리보기와 제거 예약을 모두 폐기(네트워크 호출 없음). 저장 시 사진 단계를 먼저 처리하고 성공해야 닉네임 단계로 진행한다.
+- **화면 즉시 갱신(§3)**: `updateAvatar`/`removeAvatar`/`updateNickname` 성공 시 훅이 `setUser(result.data.user)`로 로컬 `user`를 즉시 갱신한다(`onAuthStateChange` 이벤트에 의존하지 않음).
 
 ## 제외 사항 (이슈 원문 + 이번 논의)
 
 - 이미지 크롭 UI(원형 마스크 드래그) — 중앙 크롭/축소만.
 - 기본 아바타 프리셋 선택.
-- signed URL 방식 — public 버킷으로 충분(아바타는 민감 정보 아님).
+- signed URL / private 버킷 방식 — public 버킷 유지(프라이버시 범위는 §9).
 - 여러 장 보관/이력 — 유저당 1장(`avatar.jpg`)만.
+- 부분 실패에 대한 자동 재동기화 큐/백그라운드 잡 — 수동 "재시도"만.
 
 ## 1. 데이터 모델 & 권한 (Supabase)
 
@@ -52,38 +60,37 @@ grant update (nickname, avatar_url) on profiles to authenticated;
 
 ### 1.3 Storage 버킷 + 정책
 
-```sql
-insert into storage.buckets (id, name, public)
-values ('avatars', 'avatars', true)
-on conflict (id) do update set public = true;
+버킷 레벨에서 MIME·용량을 강제하고, 정책은 **유저당 정확히 한 경로**(`{uid}/avatar.jpg`)만 허용한다. 클라이언트 검증(§3)은 UX용 조기 차단일 뿐 실제 강제선은 여기다.
 
+```sql
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('avatars', 'avatars', true, 1048576, array['image/jpeg'])
+on conflict (id) do update
+  set public = true,
+      file_size_limit = 1048576,           -- 1 MiB (리사이즈 결과는 보통 ~100KB, 넉넉한 상한)
+      allowed_mime_types = array['image/jpeg'];
+
+-- 정책 조건: bucket + "정확한 파일명"이 본인 것. 폴더 prefix 가 아니라 name 전체를 고정.
 drop policy if exists "avatars_insert_own" on storage.objects;
 create policy "avatars_insert_own" on storage.objects
   for insert to authenticated
-  with check (
-    bucket_id = 'avatars'
-    and (storage.foldername(name))[1] = auth.uid()::text
-  );
+  with check (bucket_id = 'avatars' and name = auth.uid()::text || '/avatar.jpg');
 
 drop policy if exists "avatars_update_own" on storage.objects;
 create policy "avatars_update_own" on storage.objects
   for update to authenticated
-  using (
-    bucket_id = 'avatars'
-    and (storage.foldername(name))[1] = auth.uid()::text
-  );
+  using      (bucket_id = 'avatars' and name = auth.uid()::text || '/avatar.jpg')
+  with check (bucket_id = 'avatars' and name = auth.uid()::text || '/avatar.jpg');
 
 drop policy if exists "avatars_delete_own" on storage.objects;
 create policy "avatars_delete_own" on storage.objects
   for delete to authenticated
-  using (
-    bucket_id = 'avatars'
-    and (storage.foldername(name))[1] = auth.uid()::text
-  );
+  using (bucket_id = 'avatars' and name = auth.uid()::text || '/avatar.jpg');
 ```
 
-- `select` 정책은 두지 않는다 — public 버킷이라 public CDN URL로 누구나 읽는다.
-- 본인 경로(`{uid}/...`)에만 insert/update/delete 가능 → 타인 파일 덮어쓰기 불가.
+- `select` 정책은 두지 않는다 — public 버킷이라 public CDN URL로 누구나 읽는다(§9).
+- 정확한 파일명 고정 → 임의 파일명(`{uid}/foo.png`, `{uid}/avatar.png` 등)·타인 경로 업로드는 정책에서 거부. JPEG 외 MIME·1MiB 초과는 버킷 설정에서 거부.
+- `upsert:true` 재업로드는 `insert` 가 아니라 `update` 경로를 타므로 `avatars_update_own` 이 필요하다.
 
 ## 2. 신규 모듈
 
@@ -103,46 +110,72 @@ export function getAvatarUrl(userOrProfile) {
 ### 2.2 `src/lib/avatarImage.js` — 클라이언트 리사이즈
 
 ```js
-// 파일을 정사각 center-crop + 장변 size(기본 512) 축소해서 image/jpeg Blob 으로 반환.
-export function resizeToSquareJpeg(file, size = 512) { /* Image + canvas, toBlob('image/jpeg', 0.85) */ }
+// 파일을 정사각 center-crop 후 image/jpeg Blob 으로 반환. maxSize(기본 512)보다 작으면 확대하지 않는다.
+export async function resizeToSquareJpeg(file, maxSize = 512) {
+  const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' }) // EXIF 방향 보정
+  const side = Math.min(bitmap.width, bitmap.height)          // 짧은 변 기준 정사각
+  const out  = Math.min(maxSize, side)                        // 업스케일 금지
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = out
+  const ctx = canvas.getContext('2d')
+  ctx.fillStyle = '#fff'                                      // 투명 PNG → 흰 배경
+  ctx.fillRect(0, 0, out, out)
+  ctx.drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, out, out)
+  bitmap.close()
+  const blob = await new Promise((res) => canvas.toBlob(res, 'image/jpeg', 0.85))
+  if (!blob) throw new Error('이미지 인코딩 실패')
+  return blob
+}
 ```
 
-- `URL.createObjectURL(file)` → `Image.onload` → 짧은 변 기준 정사각 crop → `canvas` `size x size` → `toBlob`.
-- 로드 실패(깨진 파일)·`toBlob` null → reject.
-- DOM/canvas 의존이라 node `--test` 대상에서 제외, `npm run build`와 수동 검증으로 커버.
+변환 규칙(검수 반영):
+
+- **업스케일 안 함** — 원본이 512px보다 작으면 그 정사각 크기 그대로. 항상 512×512로 확대하지 않는다.
+- **투명 영역** — JPEG는 알파를 못 담으므로 `drawImage` 전에 캔버스를 흰색(`#fff`)으로 채운다.
+- **EXIF 방향** — `createImageBitmap(file, { imageOrientation: 'from-image' })`로 모바일 회전 사진을 바로 세운다. (미지원 환경 대비 `<img>` + `URL.createObjectURL` 폴백은 선택 구현 — 주 타깃 브라우저는 지원)
+- **`createImageBitmap`은 Blob을 직접 받으므로 이 함수 안에서는 `createObjectURL`을 쓰지 않는다.** 미리보기용 `createObjectURL`은 `ProfileCard`에서만 쓰고 성공·실패·언마운트 모든 경로에서 `revokeObjectURL` (§4.1).
+- 깨진 파일 → `createImageBitmap` reject, `toBlob` null → throw. 호출부(`updateAvatar`)에서 catch해 인라인 에러.
+- DOM/canvas 의존이라 `npm test`(node) 대상에서 제외, `npm run build` + 수동 검증으로 커버.
 
 ## 3. `useAuth` — `updateAvatar` / `removeAvatar`
 
-`updateNickname`과 동일한 반환 규약(`{ data, error }` 또는 `{ error }`)을 따르고, `user`는 기존처럼 `onAuthStateChange`(USER_UPDATED)로 자동 갱신된다.
+`updateNickname`과 동일한 반환 규약(`{ data, error }` 또는 `{ error }`)을 따른다. **원본/미러**: `user_metadata.avatar_url` = 자기 화면 원본, `profiles.avatar_url` = 친구 화면 미러(닉네임과 동일). 쓰기 순서는 Storage → 원본(`updateUser`) → 미러(`profiles`). 성공한 `updateUser` 결과로 `setUser(result.data.user)`를 호출해 화면을 즉시 갱신한다(`onAuthStateChange`에 의존하지 않음).
 
 ```js
 const updateAvatar = async (file) => {
   if (!supabase) return { error: new Error('로그인이 필요해요.') }
+  // 클라이언트 검증은 UX 조기 차단 — 실제 강제선은 버킷 정책(allowed_mime_types / file_size_limit).
   if (!file?.type?.startsWith('image/')) return { error: new Error('이미지 파일만 올릴 수 있어요.') }
   if (file.size > 2 * 1024 * 1024) return { error: new Error('2MB 이하 이미지만 올릴 수 있어요.') }
 
   let blob
   try { blob = await resizeToSquareJpeg(file, 512) }
-  catch (e) { return { error: new Error('이미지를 처리하지 못했어요.') } }
+  catch (e) { console.error('[프로필] 이미지 처리 실패', e); return { error: new Error('이미지를 처리하지 못했어요.') } }
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: new Error('로그인이 필요해요.') }
   const path = `${user.id}/avatar.jpg`
 
+  // 1) Storage — 고정 경로 + upsert. 이 단계 실패면 이후 상태 변화 없음(고아 바이트도 다음 성공 업로드가 덮어씀).
   const { error: upErr } = await supabase.storage
-    .from('avatars')
-    .upload(path, blob, { upsert: true, contentType: 'image/jpeg' })
+    .from('avatars').upload(path, blob, { upsert: true, contentType: 'image/jpeg' })
   if (upErr) { console.error('[프로필] 아바타 업로드 실패', upErr); return { error: upErr } }
 
   const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path)
-  const url = `${pub.publicUrl}?v=${Date.now()}` // 고정 경로라 캐시버스터 필요
+  const url = `${pub.publicUrl}?v=${Date.now()}` // 고정 경로라 캐시버스터 필수
 
+  // 2) 원본(자기 화면). 실패면 롤백 없이 에러 반환 — 사용자에게 아직 아무것도 안 바뀐 것처럼 보임.
   const result = await supabase.auth.updateUser({ data: { avatar_url: url } })
-  if (result.error) return result
+  if (result.error) { console.error('[프로필] 아바타 저장 실패', result.error); return result }
+  setUser(result.data.user) // 즉시 반영
 
+  // 3) 미러(친구 화면). 실패해도 자기 화면은 정상 → 비치명적. 호출부에서 "재시도" 노출.
   const { error: profileError } = await supabase
     .from('profiles').update({ avatar_url: url }).eq('user_id', user.id)
-  if (profileError) { console.error('[프로필] 아바타 동기화 실패', profileError); return { ...result, error: profileError } }
+  if (profileError) {
+    console.error('[프로필] 아바타 친구용 동기화 실패', profileError)
+    return { ...result, error: profileError, partial: 'mirror' } // partial: 미러만 실패했음을 표시
+  }
   return result
 }
 
@@ -152,20 +185,26 @@ const removeAvatar = async () => {
   if (!user) return { error: new Error('로그인이 필요해요.') }
 
   const result = await supabase.auth.updateUser({ data: { avatar_url: null } })
-  if (result.error) return result
+  if (result.error) { console.error('[프로필] 아바타 제거 실패', result.error); return result }
+  setUser(result.data.user)
 
   const { error: profileError } = await supabase
     .from('profiles').update({ avatar_url: null }).eq('user_id', user.id)
-  if (profileError) { console.error('[프로필] 아바타 제거 동기화 실패', profileError); return { ...result, error: profileError } }
+  if (profileError) {
+    console.error('[프로필] 아바타 제거 동기화 실패', profileError)
+    return { ...result, error: profileError, partial: 'mirror' }
+  }
 
+  // Storage 객체 삭제는 best-effort — 참조는 이미 다 지워졌으므로 실패해도 치명적 아님(고아 바이트만 남음).
   const { error: rmErr } = await supabase.storage.from('avatars').remove([`${user.id}/avatar.jpg`])
-  if (rmErr) console.error('[프로필] 아바타 객체 삭제 실패(무시)', rmErr) // 참조는 이미 지워졌으므로 치명적 아님
+  if (rmErr) console.error('[프로필] 아바타 객체 삭제 실패(무시)', rmErr)
   return result
 }
 ```
 
-- 훅 반환 객체에 `updateAvatar`, `removeAvatar` 추가.
-- 훅 상단 주석의 반환 목록에 두 함수 추가.
+- 훅 반환 객체에 `updateAvatar`, `removeAvatar` 추가, 상단 주석 반환 목록에도 추가.
+- **일관성**: `updateNickname`도 성공 시 `setUser(result.data.user)`를 호출하도록 같이 수정한다(현재는 이벤트 의존). 위험 낮고 즉시 반영이 확실해짐.
+- 반환값의 `partial: 'mirror'`는 "원본은 저장됐고 친구용 미러만 실패" 신호 — `ProfileCard`가 이걸 보고 "친구에게 보이는 데 지연될 수 있어요. 재시도" 형태의 비치명적 안내를 띄운다.
 
 ## 4. 렌더링 지점
 
@@ -175,14 +214,36 @@ URL이 있으면 `<img>`, 없으면 기존 이니셜 `<span>`. 이니셜 로직�
 
 - 상단 주석의 "아바타는 이니셜 placeholder(이미지 업로드 없음)" 문구 갱신.
 - `useAuth()`에서 `updateAvatar`, `removeAvatar`도 구조분해.
-- `getAvatarUrl(user)` 결과가 있으면 `.mypage-avatar`에 `<img>` 렌더, 없으면 기존 이니셜.
-- 편집 모드(`editing`)에 아바타 영역 추가:
-  - `<input type="file" accept="image/*" ref>` (숨김) + "사진 바꾸기" 버튼으로 트리거 → 모바일에서 갤러리/카메라 시트 자동.
-  - 선택 즉시 로컬 미리보기(`URL.createObjectURL`), 저장 버튼 눌러야 실제 업로드. 또는 선택 즉시 업로드 + 로딩 표시 중 택1 — **선택 즉시 미리보기 → 저장 시 커밋**으로 통일(닉네임 저장 흐름과 일관).
-  - 현재 아바타가 있으면 "사진 제거" 버튼 → `removeAvatar()`.
-  - 업로드/제거 중 `avatarBusy` 상태로 버튼 disable + "올리는 중…" 표시.
-  - 에러는 닉네임과 동일하게 `console.error` + 인라인 메시지(`.friend-form-message` 재사용).
-- 언마운트 시 `createObjectURL` revoke.
+- 비편집 모드: `getAvatarUrl(user)` 있으면 `.mypage-avatar`에 `<img>`, 없으면 기존 이니셜.
+
+**편집 폼 상태 모델(검수 반영 — 사진도 임시 상태, 단일 저장 버튼에서 닉네임과 함께 커밋):**
+
+편집 모드 진입 시 로컬 상태:
+
+| 상태 | 의미 |
+|---|---|
+| `draft` (기존) | 닉네임 초안 |
+| `pendingFile: File \| null` | 새로 고른 사진(아직 업로드 안 함) |
+| `pendingRemove: boolean` | "사진 제거" 눌렀음 |
+| `previewUrl: string \| null` | `pendingFile`의 `URL.createObjectURL` (미리보기용) |
+| `saving`, `formError` | 저장 진행/에러 |
+
+- 아바타 미리보기 우선순위: `pendingFile`(→`previewUrl`) → `pendingRemove`(→이니셜) → 현재 `getAvatarUrl(user)` → 이니셜.
+- **"사진 바꾸기"**: 숨긴 `<input type="file" accept="image/*">` 트리거 → `onChange`에서 `pendingFile` 설정, `pendingRemove=false`, 이전 `previewUrl` revoke 후 새로 생성. (여기서는 네트워크 호출 없음)
+- **"사진 제거"**: 현재 아바타가 있거나 `pendingFile`이 있을 때만 노출. `pendingRemove=true`, `pendingFile=null`, `previewUrl` revoke.
+- **"저장"(`submit`)** 순서:
+  1. 닉네임 검증: `trimmed = draft.trim()`. 비어 있으면 중단(기존 동작), 아무것도 커밋 안 함.
+  2. `setSaving(true)`.
+  3. **사진 단계** (`pendingFile` 또는 `pendingRemove`일 때만): `pendingFile`이면 `updateAvatar(pendingFile)`, 아니면 `removeAvatar()`.
+     - 에러(`res.error` 있고 `res.partial !== 'mirror'`): `formError` 표시, **편집 모드 유지**, pending 상태 보존(재시도 가능), 닉네임 단계로 진행하지 않음, `setSaving(false)`.
+     - `res.partial === 'mirror'`: 원본은 저장됨 → pending 상태는 클리어(성공 처리)하되 "친구에게 보이는 데 지연될 수 있어요" 비치명적 안내 표시, 닉네임 단계는 계속.
+  4. **닉네임 단계** (`trimmed !== name`일 때만): `updateNickname(trimmed)`.
+     - 에러: `formError` 표시, 편집 모드 유지, `setSaving(false)`. (사진은 이미 커밋됐고 pending은 클리어된 상태 → 재시도 시 닉네임만 다시 시도)
+  5. 전부 성공: pending 상태 클리어, `previewUrl` revoke, `setEditing(false)`, `setSaving(false)`.
+- **"취소"**: `previewUrl` revoke, `pendingFile=null`, `pendingRemove=false`, `draft` 리셋, `setEditing(false)`. **네트워크 호출 없음, 아무것도 커밋 안 됨.**
+- 사진 단계 진행 중 버튼 disable + "저장 중…"(기존 문구 재사용).
+- 에러 인라인 메시지는 `.friend-form-message` 재사용.
+- `useEffect` cleanup에서 `previewUrl` revoke(언마운트·값 변경 모두 커버).
 
 ### 4.2 `src/hooks/useFriends.js`
 
@@ -219,7 +280,7 @@ URL이 있으면 `<img>`, 없으면 기존 이니셜 `<span>`. 이니셜 로직�
 
 | 파일 | 변경 |
 |---|---|
-| `supabase/schema.sql` | 이슈 #50 섹션: `avatar_url` 컬럼, grant 확장, `avatars` 버킷 + storage 정책 |
+| `supabase/schema.sql` | 이슈 #50 섹션: `avatar_url` 컬럼, update grant 확장, `avatars` public 버킷(MIME·용량 제한) + `storage.objects` 정책(정확 파일명) |
 | `src/lib/avatarUrl.js` | **신규** — `getAvatarUrl` resolver |
 | `src/lib/avatarUrl.test.js` | **신규** — resolver 단위 테스트 |
 | `src/lib/avatarImage.js` | **신규** — `resizeToSquareJpeg` canvas 리사이즈 |
@@ -234,20 +295,32 @@ URL이 있으면 `<img>`, 없으면 기존 이니셜 `<span>`. 이니셜 로직�
 ## 7. 테스트 / 검증
 
 - `npm run build` — 통과.
-- `node --test` — 기존 테스트 + 신규 `avatarUrl.test.js` 통과.
+- `npm test` (= `node --test "src/**/*.test.js"`) — 기존 테스트 + 신규 `avatarUrl.test.js` 통과.
 - Supabase(수동): `schema.sql` 재실행 후
   - 본인 업로드 → 즉시 반영, 새로고침 후에도 유지.
   - 사진 교체 → `?v=` 캐시버스터로 새 이미지 즉시 표시.
   - 사진 제거 → 이니셜로 복귀, Storage 객체 삭제 확인.
   - 친구가 내 아바타를 친구 목록/상세/미리보기에서 조회.
-  - 비친구는 `profiles.avatar_url` 조회 차단(RLS).
-  - 타인 경로(`{다른uid}/avatar.jpg`) 업로드 시도 → storage 정책으로 거부.
-  - `image/*` 아닌 파일 / 2MB 초과 → 인라인 에러, 업로드 안 됨.
-  - 모바일에서 파일 선택 시 갤러리/카메라 시트 노출.
+  - 비친구는 `profiles.avatar_url` 문자열 조회 차단(RLS). (이미지 바이트 자체는 public — §9)
+  - **Storage 정책 거부 케이스**: 타인 경로(`{다른uid}/avatar.jpg`), 임의 파일명(`{내uid}/foo.png`, `{내uid}/avatar.png`), 허용 안 된 MIME(`image/png`·`image/gif` 업로드), `file_size_limit` 초과 — 모두 거부되는지.
+  - 클라이언트: `image/*` 아닌 파일 / 2MB 초과 → 인라인 에러, 업로드 시도 안 함.
+  - 작은 이미지(예: 128×128) 업로드 → 확대되지 않고 128×128로 저장.
+  - 투명 PNG 업로드 → 흰 배경으로 채워져 저장.
+  - 회전 정보(EXIF orientation) 있는 모바일 사진 → 똑바로 표시.
+  - 저장·취소: 사진만 바꾸고 취소 → 아무 변화 없음 / 사진+닉네임 바꾸고 저장 → 둘 다 반영 / 닉네임 비우고 저장 → 사진도 커밋 안 됨.
+  - 모바일: 파일 선택기가 정상 호출되고 사진 선택·반영이 가능한지(갤러리/카메라 시트 노출 자체는 OS·브라우저 소관이라 검증 대상 아님).
 
 ## 8. 리스크 / 주의
 
-- **`storage.objects` 정책 생성 권한**: Supabase SQL Editor는 소유자 권한으로 실행되므로 `create policy on storage.objects`가 가능하다. 로컬 psql 등 다른 경로로 실행 시 권한 문제가 날 수 있음 — README/주석에 "SQL Editor에서 실행" 명시.
+- **`storage.objects` 정책·버킷 설정 권한**: Supabase SQL Editor는 소유자 권한으로 실행되므로 `create policy on storage.objects` 및 `storage.buckets` 갱신이 가능하다. 로컬 psql 등 다른 경로로 실행 시 권한 문제가 날 수 있음 — `schema.sql` 주석에 "SQL Editor에서 실행" 명시.
 - **캐시버스터 URL 길이**: `?v=<13자리>`만 붙으므로 `text` 컬럼에 문제 없음.
 - **기존 사용자 백필 불필요**: 아바타 없던 사용자는 `avatar_url = null` → 이니셜 폴백으로 기존과 동일.
-- **`onAuthStateChange` 미갱신 케이스**: `updateUser` 후 USER_UPDATED 이벤트가 오지 않는 드문 상황 대비, `updateAvatar`/`removeAvatar` 성공 시 `ProfileCard`가 반환값으로도 낙관적 갱신할지 여부는 구현 시 판단(닉네임 흐름과 동일하게 이벤트 의존이 기본).
+- **부분 성공(원본 OK / 미러 실패)**: `partial: 'mirror'`로 신호 → 비치명적 안내 + "재시도"(미러만 다시 쓰기). 자동 재동기화 큐는 범위 밖.
+- **`createImageBitmap` 미지원 브라우저**: 주 타깃(모던 크롬/사파리/파이어폭스)은 지원. 필요 시 `<img>`+`createObjectURL` 폴백은 후속.
+
+## 9. 프라이버시 범위 (public 버킷)
+
+- 프로필 사진은 **공개 가능한 정보**로 취급한다.
+- `profiles` RLS의 비친구 차단은 **`avatar_url` 문자열 값 조회**에만 적용된다.
+- 버킷이 public이므로, 이미지 URL을 알거나 경로(`avatars/{uid}/avatar.jpg`)를 추측할 수 있으면 이미지 파일 자체는 열람 가능하다. 파일명이 `{uid}/avatar.jpg`로 고정이라 상대 UUID를 아는 사용자는 URL을 구성할 수 있다(비친구에게 UUID가 노출되는 경로는 없지만, 난독화에 의존하지 않는다).
+- **이미지 바이트의 완전한 비공개는 보장하지 않는다.** 완전 비공개가 필요해지면 private 버킷 + signed URL로 전환해야 하며, 그 경우 친구 목록 렌더마다 서명 URL 발급 비용이 추가된다(현 범위 밖).
