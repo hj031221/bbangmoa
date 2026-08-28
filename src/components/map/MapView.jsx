@@ -179,7 +179,8 @@ export default function MapView({
     setMap(m)
   }, [loaded, map, region])
 
-  // 선택된 빵집이 없으면(구 필터를 바꿔서 이전 선택이 사라진 경우 포함) 대전 전체 시점으로 복귀.
+  // 선택이 해제되거나 구 필터가 바뀌면 대전 전체 시점으로 복귀한다.
+  // selectedId를 의존성에 둬야 빈 지도 클릭으로 선택을 풀었을 때도 카메라가 복귀한다.
   useEffect(() => {
     if (!map || !boundsRef.current || selectedId) return
     map.setBounds(boundsRef.current)

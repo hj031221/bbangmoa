@@ -18,7 +18,13 @@ function splitOverview(raw) {
 
 // "관광모아" 메뉴 전용 화면. 명소를 원형 사진 그리드로 둘러보다가(허브),
 // 하나를 고르면 같은 화면 안에서 상세 뷰로 전환된다(빵 지도의 selectedId 패턴과 동일).
-export default function TourPage({ onShowBakeryMap, initialDistrict = null, initialSelectedId = null }) {
+export default function TourPage({
+  onShowBakeryMap,
+  initialDistrict = null,
+  initialSelectedId = null,
+  cameFromReveal = false, // 관광모아 결과 카드에서 바로 상세로 들어온 경우
+  onExitToReveal, // 그 경우의 "뒤로가기" 목적지(허브 그리드가 아니라 결과 화면)
+}) {
   const { tagged: ATTRACTIONS, loading } = useAttractions()
   const [selectedId, setSelectedId] = useState(initialSelectedId)
   const [district, setDistrict] = useState(initialDistrict) // null = 전체
@@ -44,7 +50,11 @@ export default function TourPage({ onShowBakeryMap, initialDistrict = null, init
     return (
       <AttractionDetail
         attraction={selected}
-        onBack={() => setSelectedId(null)}
+        onBack={
+          cameFromReveal && selectedId === initialSelectedId
+            ? () => onExitToReveal?.()
+            : () => setSelectedId(null)
+        }
         onShowBakeryMap={onShowBakeryMap}
       />
     )

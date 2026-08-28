@@ -1,14 +1,5 @@
 import { useEffect, useRef } from 'react'
 
-// 외부 API(카카오/관광공사) 가게명을 CustomOverlay HTML 에 그대로 꽂아 넣으므로 이스케이프.
-function escapeHtml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
-
 // 빵모아 로고 마커 — 로고 원본 벡터 path 그대로 (코랄 물방울 핀 + 윗면 3-혹 흰 빵).
 const PIN_D =
   'M99.78 40.39C97.37 17.71 78.24 0.04 55 0.04 54.54 0.04 54.09 0.04 53.64 0.06 19.84 1.06-.01 38.81 17.47 67.86 26.11 82.23 40.17 105.61 48.41 119.3 51.4 124.28 58.6 124.28 61.59 119.3 70.34 104.75 85.67 79.27 94.08 65.27 98.58 57.8 100.7 49.07 99.78 40.39Z'
@@ -94,6 +85,16 @@ export default function MarkerLayer({ map, bakeries, selectedId, onSelect, clust
     }
   }, [map, bakeries, onSelect, clusterer])
 
+  // 지도의 빈 영역(마커·오버레이가 아닌 곳)을 클릭하면 선택 해제. 카카오에서 마커 click 은
+  // map click 으로 전파되지 않으므로 마커 선택과 충돌하지 않는다.
+  useEffect(() => {
+    const { kakao } = window
+    if (!kakao || !map) return
+    const handleMapClick = () => onSelect?.(null)
+    kakao.maps.event.addListener(map, 'click', handleMapClick)
+    return () => kakao.maps.event.removeListener(map, 'click', handleMapClick)
+  }, [map, onSelect])
+
   // 선택 동작: 줌인 + 포커스 + 나머지 흐리게
   useEffect(() => {
     const { kakao } = window
@@ -101,11 +102,11 @@ export default function MarkerLayer({ map, bakeries, selectedId, onSelect, clust
 
     const sel = markersRef.current.find((m) => m.id === selectedId)
 
-    // 선택 없으면 전부 또렷, 선택 있으면 선택만 또렷 + 나머지 딤. 선택된 점은 더 크게.
+    // 선택 없으면 전부 또렷, 선택 있으면 선택만 또렷 + 나머지는 살짝 딤(너무 흐리면 안 보여서 0.45).
     markersRef.current.forEach((m) => {
       const isSel = m.id === selectedId
       const lit = !selectedId || isSel
-      m.marker.setOpacity(lit ? 1 : 0.25)
+      m.marker.setOpacity(lit ? 1 : 0.45)
       m.marker.setZIndex(isSel ? 10 : 1)
       if (imagesRef.current) {
         m.marker.setImage(isSel ? imagesRef.current.selected : imagesRef.current.normal)
@@ -116,9 +117,17 @@ export default function MarkerLayer({ map, bakeries, selectedId, onSelect, clust
       map.setLevel(4) // 확대
       map.panTo(sel.pos) // 그 빵집으로 이동
       const name = bakeries.find((x) => x.id === selectedId)?.name || ''
-      infoRef.current.setContent(
-        `<div class="map-label"><span class="map-label-text">${escapeHtml(name)}</span></div>`,
-      )
+      const label = document.createElement('div')
+      label.className = 'map-label'
+      const labelText = document.createElement('span')
+      labelText.className = 'map-label-text'
+      labelText.textContent = name
+      label.appendChild(labelText)
+      // CustomOverlay DOM 이벤트는 지도까지 전파되므로 말풍선을 누른 것이
+      // "빈 지도 클릭"으로 처리되어 선택이 풀리지 않게 막는다.
+      label.addEventListener('mousedown', kakao.maps.event.preventMap)
+      label.addEventListener('touchstart', kakao.maps.event.preventMap)
+      infoRef.current.setContent(label)
       infoRef.current.setPosition(sel.pos)
       infoRef.current.setMap(map)
     } else if (infoRef.current) {

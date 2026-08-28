@@ -15,7 +15,7 @@ import FriendsPanel from '../components/mypage/FriendsPanel'
 // panel 이 'home' 이 아니면 해당 패널만 전체 화면으로 보여주고 '‹' 로 home 으로 돌아간다.
 // friend 가 설정돼 있으면 friendBakeries/friendCourses/friendDiary 패널이 그 친구 데이터를
 // 읽기 전용으로 보여준다(SavedBakeriesPanel 등을 targetUserId+readOnly 로 그대로 재사용).
-export default function MyPage({ onLoadCourse }) {
+export default function MyPage({ onLoadCourse, onViewBakeryOnMap }) {
   const { user, loading } = useAuth()
   const [panel, setPanel] = useState('home')
   const [friend, setFriend] = useState(null) // { userId, nickname } | null
@@ -90,6 +90,7 @@ export default function MyPage({ onLoadCourse }) {
         targetUserId={friend.userId}
         readOnly
         onBack={() => setPanel('friendDetail')}
+        onViewOnMap={onViewBakeryOnMap}
       />
     )
   }
@@ -110,7 +111,10 @@ export default function MyPage({ onLoadCourse }) {
     )
   }
 
-  if (panel === 'bakeries') return <SavedBakeriesPanel onBack={() => setPanel('home')} />
+  if (panel === 'bakeries')
+    return (
+      <SavedBakeriesPanel onBack={() => setPanel('home')} onViewOnMap={onViewBakeryOnMap} />
+    )
 
   if (panel === 'courses')
     return (

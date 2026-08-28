@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { supabaseEnabled } from '../../lib/supabase'
 import { getDisplayName } from '../../lib/displayName'
+import { HeartIcon } from '../mypage/PreviewIcons'
+import logo from '../../assets/logo-typeA-full.png'
 
 // 카카오 "비즈 앱 전환 + 이메일 동의항목" 심사 통과 전까지 임시 비활성화.
 // Supabase 가 Kakao OAuth 요청에 account_email 스코프를 강제 포함해서 심사 전엔 KOE205 로 막힌다.
@@ -52,9 +54,12 @@ function LoginModal({ onClose, onGoogle, onKakao }) {
           ✕
         </button>
         <div className="auth-modal-copy">
-          <span className="auth-modal-emoji" aria-hidden="true">🥐</span>
+          <img className="auth-modal-logo" src={logo} alt="" aria-hidden="true" />
           <h3 className="auth-modal-title">로그인&가입하기</h3>
-          <p className="auth-modal-sub">로그인하고 나만의 리스트를 만들어봐요😎 </p>
+          <p className="auth-modal-sub">
+            로그인하고 나만의 리스트를 만들어봐요
+            <HeartIcon />
+          </p>
         </div>
         <div className="auth-modal-buttons">
           <button type="button" className="auth-btn google" onClick={onGoogle}>
