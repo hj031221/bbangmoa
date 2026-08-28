@@ -26,7 +26,10 @@ export default function NavBar({
       setNavOpen(false)
     }
     const onKeyDown = (e) => {
-      if (e.key === 'Escape') setNavOpen(false)
+      if (e.key === 'Escape') {
+        setNavOpen(false)
+        toggleRef.current?.focus()
+      }
     }
     document.addEventListener('pointerdown', onPointerDown)
     document.addEventListener('keydown', onKeyDown)

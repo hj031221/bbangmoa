@@ -38,6 +38,12 @@ export default function MainHero({ onStart, onOpenMap, onOpenTour, onSearch }) {
   const [manualNudge, setManualNudge] = useState(0)
   const spotsReadyRef = useRef(TOUR_SPOTS.length > 0)
   const swipeRef = useRef({ x: 0, y: 0, active: false, swiped: false })
+  // 터치 기기는 마우스가 없어도 탭이 합성 mouseenter를 발생시켜 hover-pause에 영구히 갇힌다
+  // (대응하는 mouseleave가 오지 않음). hover를 실제로 지원하는 기기에서만 pause를 건다.
+  const supportsHover = useMemo(
+    () => typeof window !== 'undefined' && window.matchMedia('(hover: hover)').matches,
+    [],
+  )
 
   // 관광지 데이터가 실시간 API에서 로딩되는 동안(TOUR_SPOTS가 빈 배열)엔 위 초기 인덱스가
   // 0으로 고정된다 — 데이터가 처음 도착하는 순간 한 번 더 랜덤화해서, 로딩 완료 직후 첫 회전
@@ -143,8 +149,8 @@ export default function MainHero({ onStart, onOpenMap, onOpenTour, onSearch }) {
         role="region"
         aria-label="대전 추천 관광지"
         aria-roledescription="캐러셀"
-        onMouseEnter={() => setTourPaused(true)}
-        onMouseLeave={() => setTourPaused(false)}
+        onMouseEnter={() => supportsHover && setTourPaused(true)}
+        onMouseLeave={() => supportsHover && setTourPaused(false)}
         onFocusCapture={() => setTourPaused(true)}
         onBlurCapture={() => setTourPaused(false)}
       >
