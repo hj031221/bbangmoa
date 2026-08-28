@@ -308,3 +308,69 @@ drop policy if exists "avatars_delete_own" on storage.objects;
 create policy "avatars_delete_own" on storage.objects
   for delete to authenticated
   using (bucket_id = 'avatars' and name = auth.uid()::text || '/avatar.jpg');
+
+-- ===== 이슈 #51: 기록장 좋아요·댓글 =====
+
+create table if not exists diary_likes (
+  entry_id uuid not null references diary_entries(id) on delete cascade,
+  user_id  uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (entry_id, user_id)
+);
+
+alter table diary_likes enable row level security;
+
+create table if not exists diary_comments (
+  id uuid primary key default gen_random_uuid(),
+  entry_id uuid not null references diary_entries(id) on delete cascade,
+  user_id  uuid not null references auth.users(id) on delete cascade,
+  text text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table diary_comments enable row level security;
+
+-- diary_comments 는 entry_id 로 PK 가 아니라 매번 필터링되므로 조회 성능을 위해 인덱스가 필요하다
+-- (diary_likes 는 (entry_id, user_id) 복합 PK 라 entry_id 단독 조회도 이미 그 인덱스로 커버된다).
+create index if not exists diary_comments_entry_id_idx on diary_comments(entry_id);
+
+-- entry 를 볼 수 있는 사람(본인 또는 수락된 친구)인지 판정 — like/comment 정책에서 공용으로 쓴다.
+create or replace function can_see_entry(entry uuid)
+returns boolean
+language sql
+security definer
+stable
+as $$
+  select exists (
+    select 1 from diary_entries
+    where id = entry
+      and (user_id = auth.uid() or is_friends_with(user_id))
+  );
+$$;
+alter function can_see_entry(uuid) set search_path = public, pg_temp;
+
+-- select/insert 는 그 entry를 볼 수 있는 사람만. delete 는 본인이 쓴 것만
+-- (entry 소유자가 남의 좋아요/댓글을 지우는 기능은 이번 스코프에서 제외 — 필요해지면 별도 이슈).
+drop policy if exists "diary_likes_select_visible" on diary_likes;
+create policy "diary_likes_select_visible" on diary_likes
+  for select using (can_see_entry(entry_id));
+
+drop policy if exists "diary_likes_insert_own" on diary_likes;
+create policy "diary_likes_insert_own" on diary_likes
+  for insert with check (auth.uid() = user_id and can_see_entry(entry_id));
+
+drop policy if exists "diary_likes_delete_own" on diary_likes;
+create policy "diary_likes_delete_own" on diary_likes
+  for delete using (auth.uid() = user_id);
+
+drop policy if exists "diary_comments_select_visible" on diary_comments;
+create policy "diary_comments_select_visible" on diary_comments
+  for select using (can_see_entry(entry_id));
+
+drop policy if exists "diary_comments_insert_own" on diary_comments;
+create policy "diary_comments_insert_own" on diary_comments
+  for insert with check (auth.uid() = user_id and can_see_entry(entry_id));
+
+drop policy if exists "diary_comments_delete_own" on diary_comments;
+create policy "diary_comments_delete_own" on diary_comments
+  for delete using (auth.uid() = user_id);
