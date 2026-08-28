@@ -113,18 +113,22 @@ export function getAvatarUrl(userOrProfile) {
 // 파일을 정사각 center-crop 후 image/jpeg Blob 으로 반환. maxSize(기본 512)보다 작으면 확대하지 않는다.
 export async function resizeToSquareJpeg(file, maxSize = 512) {
   const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' }) // EXIF 방향 보정
-  const side = Math.min(bitmap.width, bitmap.height)          // 짧은 변 기준 정사각
-  const out  = Math.min(maxSize, side)                        // 업스케일 금지
-  const canvas = document.createElement('canvas')
-  canvas.width = canvas.height = out
-  const ctx = canvas.getContext('2d')
-  ctx.fillStyle = '#fff'                                      // 투명 PNG → 흰 배경
-  ctx.fillRect(0, 0, out, out)
-  ctx.drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, out, out)
-  bitmap.close()
-  const blob = await new Promise((res) => canvas.toBlob(res, 'image/jpeg', 0.85))
-  if (!blob) throw new Error('이미지 인코딩 실패')
-  return blob
+  try {
+    const side = Math.min(bitmap.width, bitmap.height)        // 짧은 변 기준 정사각
+    const out  = Math.min(maxSize, side)                      // 업스케일 금지
+    const canvas = document.createElement('canvas')
+    canvas.width = canvas.height = out
+    const ctx = canvas.getContext('2d')
+    if (!ctx) throw new Error('canvas 2d 컨텍스트를 얻지 못했어요.')
+    ctx.fillStyle = '#fff'                                    // 투명 PNG → 흰 배경
+    ctx.fillRect(0, 0, out, out)
+    ctx.drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, out, out)
+    const blob = await new Promise((res) => canvas.toBlob(res, 'image/jpeg', 0.85))
+    if (!blob) throw new Error('이미지 인코딩 실패')
+    return blob
+  } finally {
+    bitmap.close()                                            // 성공·throw 모두에서 해제
+  }
 }
 ```
 
@@ -188,23 +192,36 @@ const removeAvatar = async () => {
   if (result.error) { console.error('[프로필] 아바타 제거 실패', result.error); return result }
   setUser(result.data.user)
 
+  // 원본(참조)이 지워졌으므로 Storage 객체 삭제는 미러 성공 여부와 무관하게 먼저 best-effort 로 실행.
+  // (미러만 실패해 재시도하는 경로에서 공개 이미지가 Storage 에 잔류하지 않게)
+  const { error: rmErr } = await supabase.storage.from('avatars').remove([`${user.id}/avatar.jpg`])
+  if (rmErr) console.error('[프로필] 아바타 객체 삭제 실패(무시)', rmErr)
+
   const { error: profileError } = await supabase
     .from('profiles').update({ avatar_url: null }).eq('user_id', user.id)
   if (profileError) {
     console.error('[프로필] 아바타 제거 동기화 실패', profileError)
     return { ...result, error: profileError, partial: 'mirror' }
   }
-
-  // Storage 객체 삭제는 best-effort — 참조는 이미 다 지워졌으므로 실패해도 치명적 아님(고아 바이트만 남음).
-  const { error: rmErr } = await supabase.storage.from('avatars').remove([`${user.id}/avatar.jpg`])
-  if (rmErr) console.error('[프로필] 아바타 객체 삭제 실패(무시)', rmErr)
   return result
+}
+
+// partial:'mirror' 재시도용 — 현재 원본(user_metadata.avatar_url) 값을 profiles 미러에 다시 쓴다.
+// 설정/제거 양쪽 커버(제거면 값이 null). Storage 객체는 updateAvatar/removeAvatar 가 이미 처리했으므로 안 건드림.
+const syncAvatarMirror = async () => {
+  if (!supabase) return { error: new Error('로그인이 필요해요.') }
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: new Error('로그인이 필요해요.') }
+  const url = user.user_metadata?.avatar_url ?? null
+  const { error } = await supabase.from('profiles').update({ avatar_url: url }).eq('user_id', user.id)
+  if (error) { console.error('[프로필] 아바타 미러 재동기화 실패', error); return { error } }
+  return { error: null }
 }
 ```
 
-- 훅 반환 객체에 `updateAvatar`, `removeAvatar` 추가, 상단 주석 반환 목록에도 추가.
+- 훅 반환 객체에 `updateAvatar`, `removeAvatar`, `syncAvatarMirror` 추가, 상단 주석 반환 목록에도 추가.
 - **일관성**: `updateNickname`도 성공 시 `setUser(result.data.user)`를 호출하도록 같이 수정한다(현재는 이벤트 의존). 위험 낮고 즉시 반영이 확실해짐.
-- 반환값의 `partial: 'mirror'`는 "원본은 저장됐고 친구용 미러만 실패" 신호 — `ProfileCard`가 이걸 보고 "친구에게 보이는 데 지연될 수 있어요. 재시도" 형태의 비치명적 안내를 띄운다.
+- 반환값의 `partial: 'mirror'`는 "원본은 저장됐고 친구용 미러만 실패" 신호 — `ProfileCard`가 비치명적 안내 + "재시도"(`syncAvatarMirror()`)를 띄운다.
 
 ## 4. 렌더링 지점
 
@@ -240,7 +257,11 @@ URL이 있으면 `<img>`, 없으면 기존 이니셜 `<span>`. 이니셜 로직�
   4. **닉네임 단계** (`trimmed !== name`일 때만): `updateNickname(trimmed)`.
      - 에러: `formError` 표시, 편집 모드 유지, `setSaving(false)`. (사진은 이미 커밋됐고 pending은 클리어된 상태 → 재시도 시 닉네임만 다시 시도)
   5. 전부 성공: pending 상태 클리어, `previewUrl` revoke, `setEditing(false)`, `setSaving(false)`.
-- **"취소"**: `previewUrl` revoke, `pendingFile=null`, `pendingRemove=false`, `draft` 리셋, `setEditing(false)`. **네트워크 호출 없음, 아무것도 커밋 안 됨.**
+- **`partial: 'mirror'` 안내 + 재시도**: 사진 단계가 `partial:'mirror'`를 반환하면 "친구에게 보이는 데 지연될 수 있어요 · 재시도" 표시. 재시도 버튼 → `syncAvatarMirror()`. 성공 시 안내 제거, 실패 시 안내 유지(재클릭 가능). 재시도 중 버튼 disable.
+- **"취소" 및 부분 성공 이후 상태**:
+  - 저장 버튼을 누르기 **전** 취소: 모든 임시 변경(`pendingFile`/`pendingRemove`/`draft`) 폐기, `previewUrl` revoke, **네트워크 호출 없음**.
+  - 저장 중 **사진 단계가 이미 성공**한 경우: 이후 닉네임이 실패하거나 사용자가 취소해도 **서버에 반영된 사진은 유지된다**(사진은 되돌리지 않음).
+  - 취소는 아직 커밋되지 않은 로컬 상태만 폐기한다.
 - 사진 단계 진행 중 버튼 disable + "저장 중…"(기존 문구 재사용).
 - 에러 인라인 메시지는 `.friend-form-message` 재사용.
 - `useEffect` cleanup에서 `previewUrl` revoke(언마운트·값 변경 모두 커버).
@@ -284,7 +305,7 @@ URL이 있으면 `<img>`, 없으면 기존 이니셜 `<span>`. 이니셜 로직�
 | `src/lib/avatarUrl.js` | **신규** — `getAvatarUrl` resolver |
 | `src/lib/avatarUrl.test.js` | **신규** — resolver 단위 테스트 |
 | `src/lib/avatarImage.js` | **신규** — `resizeToSquareJpeg` canvas 리사이즈 |
-| `src/hooks/useAuth.js` | `updateAvatar`, `removeAvatar` 추가 |
+| `src/hooks/useAuth.js` | `updateAvatar`, `removeAvatar`, `syncAvatarMirror` 추가; `updateNickname`에 `setUser` |
 | `src/hooks/useFriends.js` | 친구 `profiles` select에 `avatar_url`, entry에 `avatarUrl` |
 | `src/components/mypage/ProfileCard.jsx` | 아바타 `<img>` 렌더 + 편집 모드 업로드/제거 UI |
 | `src/components/mypage/FriendsPanel.jsx` | 친구 목록 아바타 `<img>` |
@@ -307,7 +328,8 @@ URL이 있으면 `<img>`, 없으면 기존 이니셜 `<span>`. 이니셜 로직�
   - 작은 이미지(예: 128×128) 업로드 → 확대되지 않고 128×128로 저장.
   - 투명 PNG 업로드 → 흰 배경으로 채워져 저장.
   - 회전 정보(EXIF orientation) 있는 모바일 사진 → 똑바로 표시.
-  - 저장·취소: 사진만 바꾸고 취소 → 아무 변화 없음 / 사진+닉네임 바꾸고 저장 → 둘 다 반영 / 닉네임 비우고 저장 → 사진도 커밋 안 됨.
+  - 저장·취소: 사진만 바꾸고 취소 → 아무 변화 없음 / 사진+닉네임 바꾸고 저장 → 둘 다 반영 / 닉네임 비우고 저장 → 사진도 커밋 안 됨 / 사진 성공 후 닉네임 실패 상태에서 취소 → 사진은 서버에 유지.
+  - 미러 실패 시뮬레이션(`profiles` 쓰기 차단) 후 `syncAvatarMirror()` 재시도 → 친구 화면 동기화 회복.
   - 모바일: 파일 선택기가 정상 호출되고 사진 선택·반영이 가능한지(갤러리/카메라 시트 노출 자체는 OS·브라우저 소관이라 검증 대상 아님).
 
 ## 8. 리스크 / 주의
@@ -315,7 +337,7 @@ URL이 있으면 `<img>`, 없으면 기존 이니셜 `<span>`. 이니셜 로직�
 - **`storage.objects` 정책·버킷 설정 권한**: Supabase SQL Editor는 소유자 권한으로 실행되므로 `create policy on storage.objects` 및 `storage.buckets` 갱신이 가능하다. 로컬 psql 등 다른 경로로 실행 시 권한 문제가 날 수 있음 — `schema.sql` 주석에 "SQL Editor에서 실행" 명시.
 - **캐시버스터 URL 길이**: `?v=<13자리>`만 붙으므로 `text` 컬럼에 문제 없음.
 - **기존 사용자 백필 불필요**: 아바타 없던 사용자는 `avatar_url = null` → 이니셜 폴백으로 기존과 동일.
-- **부분 성공(원본 OK / 미러 실패)**: `partial: 'mirror'`로 신호 → 비치명적 안내 + "재시도"(미러만 다시 쓰기). 자동 재동기화 큐는 범위 밖.
+- **부분 성공(원본 OK / 미러 실패)**: `partial: 'mirror'` 신호 → 비치명적 안내 + `syncAvatarMirror()` 재시도(미러만 다시 쓰기). 제거 시 Storage 객체는 `removeAvatar`가 미러 실패와 무관하게 이미 삭제하므로, 재시도는 미러 갱신만 하면 된다. 자동 재동기화 큐는 범위 밖.
 - **`createImageBitmap` 미지원 브라우저**: 주 타깃(모던 크롬/사파리/파이어폭스)은 지원. 필요 시 `<img>`+`createObjectURL` 폴백은 후속.
 
 ## 9. 프라이버시 범위 (public 버킷)
