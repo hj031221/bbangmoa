@@ -104,8 +104,9 @@ export function useAuth() {
       return { error: upErr }
     }
 
+    const version = Date.now() // 고정 경로라 캐시버스터 필수 — 자기 화면/친구 화면 URL 양쪽에 쓴다.
     const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path)
-    const url = `${pub.publicUrl}?v=${Date.now()}` // 고정 경로라 캐시버스터 필수
+    const url = `${pub.publicUrl}?v=${version}`
 
     // 2) 원본(자기 화면). 실패면 롤백 없이 에러 반환.
     const result = await supabase.auth.updateUser({ data: { custom_avatar_url: url } })
@@ -116,10 +117,12 @@ export function useAuth() {
     setUser(result.data.user)
 
     // 3) 미러(친구 화면). 실패해도 자기 화면은 정상 → 비치명적.
-    // DB 에는 전체 URL 이 아니라 경로만 저장(CHECK 제약이 이 형식만 허용).
+    // DB 에는 전체 URL 이 아니라 경로만 저장(CHECK 제약이 이 형식만 허용) — 캐시버스터는
+    // avatar_version 에 따로 저장해 useFriends 가 공개 URL 조립 시 붙인다
+    // (Storage SDK 기본 캐시가 3600초라 버전 없이는 사진을 바꿔도 친구 화면에 최대 1시간 이전 사진이 남는다).
     const { error: profileError } = await supabase
       .from('profiles')
-      .update({ avatar_url: path })
+      .update({ avatar_url: path, avatar_version: version })
       .eq('user_id', current.id)
     if (profileError) {
       console.error('[프로필] 아바타 친구용 동기화 실패', profileError)
@@ -147,7 +150,7 @@ export function useAuth() {
 
     const { error: profileError } = await supabase
       .from('profiles')
-      .update({ avatar_url: null })
+      .update({ avatar_url: null, avatar_version: null })
       .eq('user_id', current.id)
     if (profileError) {
       console.error('[프로필] 아바타 제거 동기화 실패', profileError)
@@ -163,10 +166,14 @@ export function useAuth() {
     if (!supabase) return { error: new Error('로그인이 필요해요.') }
     const { data: { user: current } } = await supabase.auth.getUser()
     if (!current) return { error: new Error('로그인이 필요해요.') }
-    const path = current.user_metadata?.custom_avatar_url ? `${current.id}/avatar.jpg` : null
+    const hasAvatar = !!current.user_metadata?.custom_avatar_url
+    const path = hasAvatar ? `${current.id}/avatar.jpg` : null
+    // 원본 쿼리스트링의 버전을 굳이 파싱하지 않고 새로 발급한다 — 어차피 최신 이미지를 가리키므로
+    // 캐시버스터로서는 이 편이 더 안전하다(파싱 실패로 버전 없는 URL이 되는 경우를 없앤다).
+    const version = hasAvatar ? Date.now() : null
     const { error } = await supabase
       .from('profiles')
-      .update({ avatar_url: path })
+      .update({ avatar_url: path, avatar_version: version })
       .eq('user_id', current.id)
     if (error) {
       console.error('[프로필] 아바타 미러 재동기화 실패', error)

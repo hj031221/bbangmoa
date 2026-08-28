@@ -156,6 +156,9 @@ export default function ProfileCard() {
       const res = await updateNickname(trimmed)
       if (res?.error && res.partial !== 'mirror') {
         console.error('[프로필] 닉네임 변경 실패', res.error)
+        // 사진 단계에서 이미 확정된 미러 상태(1단계 nextMirrorWarning.avatar)를 여기서 버리면
+        // 안 된다 — 사진은 이미 저장되고 pending 도 지워졌으므로 재시도 배너가 유일한 복구 경로다.
+        setMirrorWarning(nextMirrorWarning)
         setSaving(false)
         setFormError('닉네임을 저장하지 못했어요.')
         return

@@ -246,21 +246,33 @@ alter function find_user_by_friend_code(text) set search_path = public, pg_temp;
 -- 아래 storage.* 문장은 소유자 권한이 필요하다 — 반드시 Supabase 대시보드 SQL Editor 에서 실행할 것.
 
 alter table profiles add column if not exists avatar_url text;
+-- 업로드 시각(ms) — 경로가 {uid}/avatar.jpg 로 고정이라 친구 화면 URL 에도 캐시버스터가 필요하다.
+alter table profiles add column if not exists avatar_version bigint;
 
--- 기존엔 update 권한이 nickname 컬럼으로만 제한돼 있었다. avatar_url 을 추가한다.
+-- 기존엔 update 권한이 nickname 컬럼으로만 제한돼 있었다. avatar_url/avatar_version 을 추가한다.
 revoke update on profiles from authenticated;
-grant update (nickname, avatar_url) on profiles to authenticated;
+grant update (nickname, avatar_url, avatar_version) on profiles to authenticated;
 
 -- 보안 리뷰 지적(이슈 #50): 기존엔 '^https://[a-z0-9]+\.supabase\.co/.../avatars/' 정규식이라
 -- (1) 우리 프로젝트가 아닌 임의의 *.supabase.co 프로젝트를 호스트로 허용했고
 -- (2) 경로를 본인 uid 로 고정하지 않아 남의 avatars/{uid}/avatar.jpg 도 그대로 통과했다.
 -- 둘 다 로그인 사용자가 API 를 직접 호출하면 친구 화면에 외부 추적 이미지나 타인 사진을 심을 수 있는 구멍이었다.
 -- 호스트를 SQL 에 하드코딩하는 대신, avatar_url 에는 전체 URL이 아니라 storage 객체 "경로"만 저장하고
--- 이 경로가 본인 고정 경로({auth.uid()}/avatar.jpg)와 정확히 일치하는지만 검사한다 —
+-- 이 경로가 본인 고정 경로({uid}/avatar.jpg)와 정확히 일치하는지만 검사한다 —
 -- 클라이언트가 자기 SUPABASE_URL 로 공개 URL 을 조립하므로 외부 호스트를 DB 에 넣을 방법 자체가 없다.
+--
+-- auth.uid() 가 아니라 이 행의 user_id 컬럼과 비교한다: SQL Editor/service-role 컨텍스트에선
+-- auth.uid() 가 null 이고, Postgres CHECK 는 조건이 null 이면(false 가 아니면) 통과시키므로
+-- auth.uid() 기준이면 그런 컨텍스트에서 어떤 값이든(과거의 전체 URL 포함) 그대로 통과해버린다.
+-- user_id 는 각 행의 NOT NULL 기본키라 항상 값이 있어 이 구멍이 없다.
+-- 새 제약을 걸기 전에, 예전 정규식 시절 전체 URL 형태로 저장된 값을 먼저 정리한다(존재한다면).
+update profiles
+set avatar_url = null
+where avatar_url is not null and avatar_url <> user_id::text || '/avatar.jpg';
+
 alter table profiles drop constraint if exists profiles_avatar_url_origin;
 alter table profiles add constraint profiles_avatar_url_origin
-  check (avatar_url is null or avatar_url = auth.uid()::text || '/avatar.jpg');
+  check (avatar_url is null or avatar_url = user_id::text || '/avatar.jpg');
 
 -- 아바타 저장용 public 버킷. MIME/용량은 버킷 레벨에서 강제(클라이언트 검증은 UX 용).
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
