@@ -127,10 +127,10 @@ export default function FriendsPanel({ onBack, onSelectFriend }) {
                 <button
                   type="button"
                   className="friend-list-item-btn"
-                  onClick={() => onSelectFriend({ userId: f.userId, nickname: f.nickname })}
+                  onClick={() => onSelectFriend({ userId: f.userId, nickname: f.nickname, avatarUrl: f.avatarUrl })}
                 >
                   <span className="friend-avatar" aria-hidden="true">
-                    {f.nickname?.[0] || '?'}
+                    {f.avatarUrl ? <img src={f.avatarUrl} alt="" /> : (f.nickname?.[0] || '?')}
                   </span>
                   {f.nickname}
                 </button>

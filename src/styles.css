@@ -776,10 +776,12 @@ a{ color:var(--accent-text); }
 .mypage-home-heading p{ margin:0; color:var(--muted); font-size:.9rem; }
 .mypage-profile{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; min-height:340px; border:1px solid var(--line); border-radius:16px; padding:24px 16px; background:var(--card); text-align:center; }
 .mypage-avatar{ width:80px; height:80px; border-radius:50%; background:var(--gold); color:#fff; font-size:1.8rem; font-weight:800; display:flex; align-items:center; justify-content:center; }
+.mypage-avatar img, .friend-avatar img{ width:100%; height:100%; object-fit:cover; border-radius:inherit; display:block; }
 .mypage-name{ margin:0; color:var(--brown); }
 .mypage-nickname-form{ display:flex; flex-direction:column; gap:8px; width:100%; }
 .mypage-nickname-input{ padding:8px 12px; border:1.5px solid var(--line); border-radius:999px; font-size:.9rem; text-align:center; }
 .mypage-nickname-actions{ display:flex; gap:8px; justify-content:center; }
+.mypage-avatar-actions{ display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
 .mypage-friend-code{ margin-top:12px; padding-top:12px; border-top:1px solid var(--line); width:100%; text-align:center; }
 .mypage-friend-code-label{ display:block; font-size:.8rem; color:var(--muted); margin-bottom:8px; }
 .mypage-friend-code-actions{ display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
@@ -798,7 +800,9 @@ a{ color:var(--accent-text); }
 .mypage-preview-empty{ margin:0; color:var(--muted); text-align:center; padding:24px 0; font-size:.85rem; }
 .mypage-preview-badge{ background:var(--accent); color:#fff; font-size:.7rem; font-weight:800; min-width:18px; height:18px; border-radius:999px; display:flex; align-items:center; justify-content:center; padding:0 5px; }
 .mypage-preview-friend-chips{ display:flex; flex-wrap:wrap; gap:8px; }
-.mypage-preview-friend-chip{ background:var(--card2); color:var(--brown); font-size:.8rem; font-weight:600; padding:6px 12px; border-radius:999px; }
+.mypage-preview-friend-chip{ background:var(--card2); color:var(--brown); font-size:.8rem; font-weight:600; padding:6px 12px; border-radius:999px; display:inline-flex; align-items:center; gap:6px; }
+.mypage-preview-friend-chip img{ width:18px; height:18px; border-radius:50%; object-fit:cover; }
+.friend-avatar.friend-avatar-sm{ width:28px; height:28px; font-size:.78rem; }
 .mypage-preview-bakery-grid{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
 .mypage-preview-bakery-card{ display:flex; flex-direction:column; align-items:center; gap:4px; min-width:0; border:1px solid var(--line); border-radius:12px; padding:10px; text-align:center; }
 .mypage-preview-bakery-icon{ display:block; width:72px; height:58px; object-fit:contain; mix-blend-mode:multiply; }

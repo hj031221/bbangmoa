@@ -55,10 +55,11 @@ export function useFriends() {
     const otherIds = [...new Set([...accepted, ...incoming, ...outgoing].map(otherIdOf))]
 
     let nicknameById = {}
+    let avatarById = {}
     if (otherIds.length > 0) {
       const { data: profiles, error: nicknamesError } = await supabase
         .from('profiles')
-        .select('user_id, nickname')
+        .select('user_id, nickname, avatar_url, avatar_version')
         .in('user_id', otherIds)
       // 닉네임 조회 실패는 치명적이지 않다 — '이름 없음' 으로 폴백하고 목록 자체는 계속 그린다.
       if (nicknamesError) {
@@ -66,12 +67,25 @@ export function useFriends() {
         setError('일부 친구 정보를 불러오지 못했어요.')
       }
       nicknameById = Object.fromEntries((profiles ?? []).map((p) => [p.user_id, p.nickname]))
+      // profiles.avatar_url 은 전체 URL 이 아니라 storage 객체 경로만 저장한다(schema.sql CHECK 제약) —
+      // 공개 URL 은 여기서 우리 SUPABASE_URL 로 직접 조립한다. 경로가 고정({uid}/avatar.jpg)이라
+      // avatar_version 을 캐시버스터로 붙인다 — 없으면 Storage SDK 기본 캐시(3600초) 동안 친구 화면에
+      // 옛 사진이 남을 수 있다.
+      avatarById = Object.fromEntries(
+        (profiles ?? []).map((p) => [
+          p.user_id,
+          p.avatar_url
+            ? `${supabase.storage.from('avatars').getPublicUrl(p.avatar_url).data.publicUrl}?v=${p.avatar_version ?? 0}`
+            : null,
+        ])
+      )
     }
 
     const toEntry = (r) => ({
       id: r.id,
       userId: otherIdOf(r),
       nickname: nicknameById[otherIdOf(r)] || '이름 없음',
+      avatarUrl: avatarById[otherIdOf(r)] ?? null,
     })
 
     setFriends(accepted.map(toEntry))

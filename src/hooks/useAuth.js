@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase, supabaseEnabled } from '../lib/supabase'
+import { resizeToSquareJpeg } from '../lib/avatarImage'
 
 // 구글/카카오 로그인 상태 훅. Supabase 키 미설정 시엔 항상 로그아웃 상태로 동작한다.
 //
@@ -8,6 +9,7 @@ import { supabase, supabaseEnabled } from '../lib/supabase'
 //   loading : 최초 세션 조회 중 여부
 //   signInWithGoogle / signInWithKakao : OAuth 리다이렉트 시작
 //   signOut : 로그아웃
+//   updateAvatar / removeAvatar / syncAvatarMirror : 프로필 아바타 업로드·제거·미러 재동기화
 export function useAuth() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(supabaseEnabled())
@@ -48,19 +50,157 @@ export function useAuth() {
 
   // 프로필 편집(닉네임 변경). user_metadata.nickname 에 저장 — getDisplayName 이 최우선으로 읽는다.
   // profiles.nickname 은 친구가 볼 수 있게 별도로 미러링한다(auth.users 는 타인이 조회 불가).
+  // 미러 단계만 실패하면 { ...result, error, partial: 'mirror' } 로 신호한다(비치명적) — 아바타와 동일 패턴.
+  // 주의: auth 메타데이터가 먼저 반영되므로(setUser) 화면의 표시 이름은 이미 새 닉네임이다.
+  // 그래서 재시도는 "값이 바뀌었는지" 비교가 아니라 이 partial 플래그로만 판단해야 한다 —
+  // 그렇지 않으면 재제출 시 nickChanged 가 false 가 되어 미러가 영영 복구되지 않는다.
   const updateNickname = async (nickname) => {
     const result = await supabase?.auth.updateUser({ data: { nickname } })
     if (!result || result.error) return result ?? { error: new Error('로그인이 필요해요.') }
+    setUser(result.data.user) // onAuthStateChange 이벤트에 의존하지 않고 즉시 반영
     const { error: profileError } = await supabase
       .from('profiles')
       .update({ nickname })
       .eq('user_id', result.data.user.id)
     if (profileError) {
       console.error('[프로필] 친구용 닉네임 동기화 실패', profileError)
-      return { ...result, error: profileError }
+      return { ...result, error: profileError, partial: 'mirror' }
     }
     return result
   }
 
-  return { user, loading, signInWithGoogle, signInWithKakao, signOut, updateNickname }
+  // 프로필 아바타 업로드. avatars 버킷 {uid}/avatar.jpg 에 upsert 하고
+  // user_metadata.custom_avatar_url(자기 화면 원본, 전체 URL) → profiles.avatar_url(친구 화면 미러) 순으로 저장한다.
+  // (avatar_url 이 아니라 custom_avatar_url 인 이유: GoTrue 가 매 로그인마다 OAuth 제공자 사진을
+  //  user_metadata.avatar_url 로 재병합하므로 우리 업로드 URL 이 덮어써진다.)
+  // profiles.avatar_url 에는 전체 URL 이 아니라 storage 객체 "경로"만 저장한다 — DB CHECK 제약이
+  // 이 값을 본인 고정 경로와 정확히 일치하는지만 검사하므로(schema.sql), 임의 호스트 URL 을 넣을 수 없다.
+  // 친구 화면은 이 경로로 getAvatarUrl 이 아니라 useFriends 가 공개 URL 을 직접 조립한다.
+  // 미러 단계만 실패하면 { ...result, error, partial: 'mirror' } 로 신호한다(비치명적).
+  const updateAvatar = async (file) => {
+    if (!supabase) return { error: new Error('로그인이 필요해요.') }
+    // 클라이언트 검증은 UX 조기 차단 — 실제 강제선은 버킷 정책(allowed_mime_types / file_size_limit).
+    if (!file?.type?.startsWith('image/')) return { error: new Error('이미지 파일만 올릴 수 있어요.') }
+    if (file.size > 2 * 1024 * 1024) return { error: new Error('2MB 이하 이미지만 올릴 수 있어요.') }
+
+    let blob
+    try {
+      blob = await resizeToSquareJpeg(file, 512)
+    } catch (e) {
+      console.error('[프로필] 이미지 처리 실패', e)
+      return { error: new Error('이미지를 처리하지 못했어요.') }
+    }
+
+    const { data: { user: current } } = await supabase.auth.getUser()
+    if (!current) return { error: new Error('로그인이 필요해요.') }
+    const path = `${current.id}/avatar.jpg`
+
+    // 1) Storage — 고정 경로 + upsert. 이 단계 실패면 이후 상태 변화 없음.
+    const { error: upErr } = await supabase.storage
+      .from('avatars')
+      .upload(path, blob, { upsert: true, contentType: 'image/jpeg' })
+    if (upErr) {
+      console.error('[프로필] 아바타 업로드 실패', upErr)
+      return { error: upErr }
+    }
+
+    const version = Date.now() // 고정 경로라 캐시버스터 필수 — 자기 화면/친구 화면 URL 양쪽에 쓴다.
+    const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path)
+    const url = `${pub.publicUrl}?v=${version}`
+
+    // 2) 원본(자기 화면). 실패면 롤백 없이 에러 반환.
+    const result = await supabase.auth.updateUser({ data: { custom_avatar_url: url } })
+    if (result.error) {
+      console.error('[프로필] 아바타 저장 실패', result.error)
+      return result
+    }
+    setUser(result.data.user)
+
+    // 3) 미러(친구 화면). 실패해도 자기 화면은 정상 → 비치명적.
+    // DB 에는 전체 URL 이 아니라 경로만 저장(CHECK 제약이 이 형식만 허용) — 캐시버스터는
+    // avatar_version 에 따로 저장해 useFriends 가 공개 URL 조립 시 붙인다
+    // (Storage SDK 기본 캐시가 3600초라 버전 없이는 사진을 바꿔도 친구 화면에 최대 1시간 이전 사진이 남는다).
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({ avatar_url: path, avatar_version: version })
+      .eq('user_id', current.id)
+    if (profileError) {
+      console.error('[프로필] 아바타 친구용 동기화 실패', profileError)
+      return { ...result, error: profileError, partial: 'mirror' }
+    }
+    return result
+  }
+
+  // 아바타 제거 → 이니셜로 복귀. 참조(원본)를 먼저 지우고, Storage 객체 삭제는
+  // 미러 성공 여부와 무관하게 best-effort 로 실행한다(미러만 실패해 재시도해도 공개 이미지가 잔류하지 않게).
+  const removeAvatar = async () => {
+    if (!supabase) return { error: new Error('로그인이 필요해요.') }
+    const { data: { user: current } } = await supabase.auth.getUser()
+    if (!current) return { error: new Error('로그인이 필요해요.') }
+
+    const result = await supabase.auth.updateUser({ data: { custom_avatar_url: null } })
+    if (result.error) {
+      console.error('[프로필] 아바타 제거 실패', result.error)
+      return result
+    }
+    setUser(result.data.user)
+
+    const { error: rmErr } = await supabase.storage.from('avatars').remove([`${current.id}/avatar.jpg`])
+    if (rmErr) console.error('[프로필] 아바타 객체 삭제 실패(무시)', rmErr)
+
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({ avatar_url: null, avatar_version: null })
+      .eq('user_id', current.id)
+    if (profileError) {
+      console.error('[프로필] 아바타 제거 동기화 실패', profileError)
+      return { ...result, error: profileError, partial: 'mirror' }
+    }
+    return result
+  }
+
+  // partial:'mirror' 재시도용 — 현재 원본(user_metadata.custom_avatar_url) 유무를 profiles 미러에 다시 쓴다.
+  // 설정/제거 양쪽 커버(제거면 값이 null). Storage 객체는 update/removeAvatar 가 이미 처리했다.
+  // DB 에는 전체 URL 이 아니라 경로만 저장(CHECK 제약이 이 형식만 허용).
+  const syncAvatarMirror = async () => {
+    if (!supabase) return { error: new Error('로그인이 필요해요.') }
+    const { data: { user: current } } = await supabase.auth.getUser()
+    if (!current) return { error: new Error('로그인이 필요해요.') }
+    const hasAvatar = !!current.user_metadata?.custom_avatar_url
+    const path = hasAvatar ? `${current.id}/avatar.jpg` : null
+    // 원본 쿼리스트링의 버전을 굳이 파싱하지 않고 새로 발급한다 — 어차피 최신 이미지를 가리키므로
+    // 캐시버스터로서는 이 편이 더 안전하다(파싱 실패로 버전 없는 URL이 되는 경우를 없앤다).
+    const version = hasAvatar ? Date.now() : null
+    const { error } = await supabase
+      .from('profiles')
+      .update({ avatar_url: path, avatar_version: version })
+      .eq('user_id', current.id)
+    if (error) {
+      console.error('[프로필] 아바타 미러 재동기화 실패', error)
+      return { error }
+    }
+    return { error: null }
+  }
+
+  // partial:'mirror' 재시도용 — 현재 원본(user_metadata.nickname) 값을 profiles 미러에 다시 쓴다.
+  const syncNicknameMirror = async () => {
+    if (!supabase) return { error: new Error('로그인이 필요해요.') }
+    const { data: { user: current } } = await supabase.auth.getUser()
+    if (!current) return { error: new Error('로그인이 필요해요.') }
+    const nickname = current.user_metadata?.nickname ?? null
+    const { error } = await supabase
+      .from('profiles')
+      .update({ nickname })
+      .eq('user_id', current.id)
+    if (error) {
+      console.error('[프로필] 닉네임 미러 재동기화 실패', error)
+      return { error }
+    }
+    return { error: null }
+  }
+
+  return {
+    user, loading, signInWithGoogle, signInWithKakao, signOut,
+    updateNickname, updateAvatar, removeAvatar, syncAvatarMirror, syncNicknameMirror,
+  }
 }
