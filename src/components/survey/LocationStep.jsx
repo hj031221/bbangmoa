@@ -2,22 +2,27 @@ import { useEffect, useRef, useState } from 'react'
 import { useKakaoLoader } from '../../hooks/useKakaoLoader'
 import { getRegion } from '../../config/regions'
 import { useAppStore } from '../../store/useAppStore'
-import { LOCATION_ICONS, MapPickIcon } from './LocationIcons'
+import { searchPlace } from '../../api'
 
-// 설문 0단계 — 출발 위치 선택 (① 프리셋 ② GPS ③ 지도에서 직접 찍기).
-// 여기서 고른 정밀 origin 이 결과(거리·정렬)로 흐른다. 선택 즉시 onDone 으로 다음 단계.
+// 설문 0단계 — 출발 위치 선택. 카카오맵 길찾기 출발지 화면 톤: 검색바가 최상단 고정 →
+// 그 아래 큰 지도(클릭해서 직접 찍기도 가능) → 검색 중엔 지도 위로 결과 리스트가 덮인다.
+// 프리셋(대전역 등)은 지도 아래 작은 칩으로.
+//
+// 여기서 고른 origin이 결과(거리·정렬)로 흐르고, "대전한바퀴" 코스 저장 시 DB에도 들어간다.
+// GPS(자동 취득 개인위치정보)는 화면 계산에만 쓰고, 저장 시엔 가장 가까운 프리셋으로 치환해
+// 원본 좌표가 서버로 나가지 않게 막는다(originPrivacy.js) — 위치정보법상 "서버로 전송하는
+// 자체만으로" 신고 대상이 될 수 있다는 기준(위치정보지원센터 안내) 때문(#39).
 export default function LocationStep({ onDone }) {
   const regionId = useAppStore((s) => s.regionId)
   const region = getRegion(regionId)
   const setOrigin = useAppStore((s) => s.setOrigin)
-  const [pickOpen, setPickOpen] = useState(false)
-  const [gpsMsg, setGpsMsg] = useState('')
 
   const choose = (origin) => {
     setOrigin(origin)
     onDone?.()
   }
 
+  const [gpsMsg, setGpsMsg] = useState('')
   const useGps = () => {
     if (!navigator.geolocation) {
       setGpsMsg('이 브라우저는 위치를 지원하지 않아요. 아래에서 골라주세요.')
@@ -32,82 +37,48 @@ export default function LocationStep({ onDone }) {
     )
   }
 
-  return (
-    <div className="survey-step">
-      <h2 className="survey-question">어디서 출발하세요?</h2>
-      <p className="loc-sub">추천 빵집까지 거리를 알려드리려면 위치가 필요해요.</p>
-
-      <button type="button" className="loc-gps" onClick={useGps}>
-        <svg className="loc-gps-icon" viewBox="0 0 100.7 124.3" aria-hidden="true">
-          <path
-            d="M99.78 40.39C97.37 17.71 78.24 0.04 55 0.04 54.54 0.04 54.09 0.04 53.64 0.06 19.84 1.06-.01 38.81 17.47 67.86 26.11 82.23 40.17 105.61 48.41 119.3 51.4 124.28 58.6 124.28 61.59 119.3 70.34 104.75 85.67 79.27 94.08 65.27 98.58 57.8 100.7 49.07 99.78 40.39Z"
-            fill="#F97658"
-          />
-          <path
-            d="M69.84 30.27C66.68 30.27 63.95 32.13 62.68 34.81 61.41 32.13 58.68 30.27 55.52 30.27 52.34 30.27 49.59 32.16 48.33 34.88 47.08 32.16 44.33 30.27 41.14 30.27 36.77 30.27 33.22 33.82 33.22 38.21L33.22 52.04C33.22 54.72 35.39 56.89 38.06 56.89L72.92 56.89C75.59 56.89 77.76 54.72 77.76 52.04L77.76 38.21C77.76 33.82 74.21 30.27 69.84 30.27Z"
-            fill="#fff"
-          />
-        </svg>
-        현재 위치 사용
-      </button>
-      {gpsMsg && <p className="loc-msg">{gpsMsg}</p>}
-
-      <div className="loc-or">또는 출발지 선택</div>
-      <div className="loc-chips">
-        {region.origins.map((o) => {
-          const Icon = LOCATION_ICONS[o.icon]
-          return (
-            <button
-              key={o.id}
-              type="button"
-              className="loc-chip"
-              onClick={() => choose({ lat: o.lat, lng: o.lng, label: o.name, source: 'preset' })}
-            >
-              <span className="loc-chip-icon">
-                <Icon />
-              </span>
-              {o.name}
-            </button>
-          )
-        })}
-      </div>
-
-      <button
-        type="button"
-        className={`loc-pick-toggle${pickOpen ? ' is-open' : ''}`}
-        aria-expanded={pickOpen}
-        onClick={() => setPickOpen((v) => !v)}
-      >
-        <span className="loc-pick-toggle-icon"><MapPickIcon /></span>
-        <span>{pickOpen ? '지도 접기' : '지도에서 직접 찍기'}</span>
-        <svg className="loc-pick-toggle-chevron" viewBox="0 0 20 20" aria-hidden="true">
-          <path d="M5,7.5 L10,12.5 L15,7.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </button>
-      {pickOpen && (
-        <PickMap
-          region={region}
-          onPick={(lat, lng) => choose({ lat, lng, label: '지도에서 선택', source: 'pick' })}
-        />
-      )}
-    </div>
-  )
-}
-
-// 클릭으로 출발지를 찍는 미니 지도. 대전 안/밖 어디든 가능.
-function PickMap({ region, onPick }) {
-  const { loaded } = useKakaoLoader()
-  const ref = useRef(null)
-  const [picked, setPicked] = useState(null)
-
+  // 검색 (장소명/주소 → 카카오 키워드 검색, 300ms 디바운스)
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState([])
+  const [searching, setSearching] = useState(false)
+  const reqId = useRef(0)
   useEffect(() => {
-    if (!loaded || !ref.current) return
+    if (!query.trim()) {
+      setResults([])
+      setSearching(false)
+      return
+    }
+    setSearching(true)
+    const id = ++reqId.current
+    const timer = setTimeout(() => {
+      searchPlace(query)
+        .then((docs) => {
+          if (reqId.current === id) setResults(docs)
+        })
+        .catch(() => {
+          if (reqId.current === id) setResults([])
+        })
+        .finally(() => {
+          if (reqId.current === id) setSearching(false)
+        })
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [query])
+
+  // 지도 — 직접 클릭해서 찍기(핀 표시 후 확정 버튼)
+  const mapRef = useRef(null)
+  const { loaded } = useKakaoLoader()
+  const markerRef = useRef(null)
+  const [picked, setPicked] = useState(null)
+  useEffect(() => {
+    if (!loaded || !mapRef.current) return
     const { kakao } = window
-    const map = new kakao.maps.Map(ref.current, {
+    const map = new kakao.maps.Map(mapRef.current, {
       center: new kakao.maps.LatLng(region.center.lat, region.center.lng),
       level: 6,
     })
     const marker = new kakao.maps.Marker()
+    markerRef.current = marker
     kakao.maps.event.addListener(map, 'click', (e) => {
       const ll = e.latLng
       marker.setPosition(ll)
@@ -117,16 +88,86 @@ function PickMap({ region, onPick }) {
   }, [loaded, region])
 
   return (
-    <div className="loc-pickwrap">
-      <div ref={ref} className="loc-pickmap" />
-      <button
-        type="button"
-        className="loc-confirm"
-        disabled={!picked}
-        onClick={() => picked && onPick(picked.lat, picked.lng)}
-      >
-        이 위치로 시작 →
-      </button>
+    <div className="survey-step">
+      <h2 className="survey-question">어디서 출발하세요?</h2>
+      <p className="loc-sub">추천 빵집까지 거리를 알려드리려면 위치가 필요해요.</p>
+
+      <div className="loc-map-step">
+        <div className="loc-map-searchbar">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" strokeWidth="2" />
+            <path d="m16 16 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="장소명·주소로 출발지 검색"
+            aria-label="출발지 검색"
+          />
+          {query.trim() && (
+            <button type="button" className="loc-map-clear" onClick={() => setQuery('')} aria-label="지우기">
+              ✕
+            </button>
+          )}
+          <button type="button" className="loc-map-gps" onClick={useGps}>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="3" fill="currentColor" />
+              <path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+            <span>현재 위치</span>
+          </button>
+        </div>
+        {gpsMsg && <p className="loc-msg">{gpsMsg}</p>}
+
+        <div className="loc-map-wrap">
+          <div className="loc-map-canvas" ref={mapRef} />
+          {query.trim() && (
+            <div className="loc-map-results">
+              {searching && <div className="loc-map-empty">검색 중…</div>}
+              {!searching && results.length === 0 && (
+                <div className="loc-map-empty">검색 결과가 없어요.</div>
+              )}
+              {!searching &&
+                results.map((r, i) => (
+                  <button
+                    key={`${r.name}-${i}`}
+                    type="button"
+                    className="loc-map-result-row"
+                    onClick={() => choose({ lat: r.lat, lng: r.lng, label: r.name, source: 'search' })}
+                  >
+                    <span className="loc-map-result-name">{r.name}</span>
+                    {r.address && <span className="loc-map-result-addr">{r.address}</span>}
+                  </button>
+                ))}
+            </div>
+          )}
+          {!query.trim() && picked && (
+            <button
+              type="button"
+              className="loc-map-confirm"
+              onClick={() => choose({ lat: picked.lat, lng: picked.lng, label: '지도에서 선택', source: 'pick' })}
+            >
+              이 위치로 시작 →
+            </button>
+          )}
+        </div>
+
+        <p className="loc-map-gps-notice">GPS 위치는 저장되지 않아요 — 코스를 저장하면 가까운 지점으로 표시돼요.</p>
+
+        <div className="loc-map-presets">
+          {region.origins.map((o) => (
+            <button
+              key={o.id}
+              type="button"
+              className="loc-map-preset-pill"
+              onClick={() => choose({ lat: o.lat, lng: o.lng, label: o.name, source: 'preset' })}
+            >
+              {o.name}
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
