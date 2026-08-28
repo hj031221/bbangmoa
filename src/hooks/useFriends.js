@@ -67,7 +67,14 @@ export function useFriends() {
         setError('일부 친구 정보를 불러오지 못했어요.')
       }
       nicknameById = Object.fromEntries((profiles ?? []).map((p) => [p.user_id, p.nickname]))
-      avatarById = Object.fromEntries((profiles ?? []).map((p) => [p.user_id, p.avatar_url]))
+      // profiles.avatar_url 은 전체 URL 이 아니라 storage 객체 경로만 저장한다(schema.sql CHECK 제약) —
+      // 공개 URL 은 여기서 우리 SUPABASE_URL 로 직접 조립한다.
+      avatarById = Object.fromEntries(
+        (profiles ?? []).map((p) => [
+          p.user_id,
+          p.avatar_url ? supabase.storage.from('avatars').getPublicUrl(p.avatar_url).data.publicUrl : null,
+        ])
+      )
     }
 
     const toEntry = (r) => ({

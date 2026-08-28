@@ -50,6 +50,10 @@ export function useAuth() {
 
   // 프로필 편집(닉네임 변경). user_metadata.nickname 에 저장 — getDisplayName 이 최우선으로 읽는다.
   // profiles.nickname 은 친구가 볼 수 있게 별도로 미러링한다(auth.users 는 타인이 조회 불가).
+  // 미러 단계만 실패하면 { ...result, error, partial: 'mirror' } 로 신호한다(비치명적) — 아바타와 동일 패턴.
+  // 주의: auth 메타데이터가 먼저 반영되므로(setUser) 화면의 표시 이름은 이미 새 닉네임이다.
+  // 그래서 재시도는 "값이 바뀌었는지" 비교가 아니라 이 partial 플래그로만 판단해야 한다 —
+  // 그렇지 않으면 재제출 시 nickChanged 가 false 가 되어 미러가 영영 복구되지 않는다.
   const updateNickname = async (nickname) => {
     const result = await supabase?.auth.updateUser({ data: { nickname } })
     if (!result || result.error) return result ?? { error: new Error('로그인이 필요해요.') }
@@ -60,15 +64,18 @@ export function useAuth() {
       .eq('user_id', result.data.user.id)
     if (profileError) {
       console.error('[프로필] 친구용 닉네임 동기화 실패', profileError)
-      return { ...result, error: profileError }
+      return { ...result, error: profileError, partial: 'mirror' }
     }
     return result
   }
 
   // 프로필 아바타 업로드. avatars 버킷 {uid}/avatar.jpg 에 upsert 하고
-  // user_metadata.custom_avatar_url(자기 화면 원본) → profiles.avatar_url(친구 화면 미러) 순으로 저장한다.
+  // user_metadata.custom_avatar_url(자기 화면 원본, 전체 URL) → profiles.avatar_url(친구 화면 미러) 순으로 저장한다.
   // (avatar_url 이 아니라 custom_avatar_url 인 이유: GoTrue 가 매 로그인마다 OAuth 제공자 사진을
   //  user_metadata.avatar_url 로 재병합하므로 우리 업로드 URL 이 덮어써진다.)
+  // profiles.avatar_url 에는 전체 URL 이 아니라 storage 객체 "경로"만 저장한다 — DB CHECK 제약이
+  // 이 값을 본인 고정 경로와 정확히 일치하는지만 검사하므로(schema.sql), 임의 호스트 URL 을 넣을 수 없다.
+  // 친구 화면은 이 경로로 getAvatarUrl 이 아니라 useFriends 가 공개 URL 을 직접 조립한다.
   // 미러 단계만 실패하면 { ...result, error, partial: 'mirror' } 로 신호한다(비치명적).
   const updateAvatar = async (file) => {
     if (!supabase) return { error: new Error('로그인이 필요해요.') }
@@ -109,9 +116,10 @@ export function useAuth() {
     setUser(result.data.user)
 
     // 3) 미러(친구 화면). 실패해도 자기 화면은 정상 → 비치명적.
+    // DB 에는 전체 URL 이 아니라 경로만 저장(CHECK 제약이 이 형식만 허용).
     const { error: profileError } = await supabase
       .from('profiles')
-      .update({ avatar_url: url })
+      .update({ avatar_url: path })
       .eq('user_id', current.id)
     if (profileError) {
       console.error('[프로필] 아바타 친구용 동기화 실패', profileError)
@@ -148,16 +156,17 @@ export function useAuth() {
     return result
   }
 
-  // partial:'mirror' 재시도용 — 현재 원본(user_metadata.custom_avatar_url) 값을 profiles 미러에 다시 쓴다.
+  // partial:'mirror' 재시도용 — 현재 원본(user_metadata.custom_avatar_url) 유무를 profiles 미러에 다시 쓴다.
   // 설정/제거 양쪽 커버(제거면 값이 null). Storage 객체는 update/removeAvatar 가 이미 처리했다.
+  // DB 에는 전체 URL 이 아니라 경로만 저장(CHECK 제약이 이 형식만 허용).
   const syncAvatarMirror = async () => {
     if (!supabase) return { error: new Error('로그인이 필요해요.') }
     const { data: { user: current } } = await supabase.auth.getUser()
     if (!current) return { error: new Error('로그인이 필요해요.') }
-    const url = current.user_metadata?.custom_avatar_url ?? null
+    const path = current.user_metadata?.custom_avatar_url ? `${current.id}/avatar.jpg` : null
     const { error } = await supabase
       .from('profiles')
-      .update({ avatar_url: url })
+      .update({ avatar_url: path })
       .eq('user_id', current.id)
     if (error) {
       console.error('[프로필] 아바타 미러 재동기화 실패', error)
@@ -166,8 +175,25 @@ export function useAuth() {
     return { error: null }
   }
 
+  // partial:'mirror' 재시도용 — 현재 원본(user_metadata.nickname) 값을 profiles 미러에 다시 쓴다.
+  const syncNicknameMirror = async () => {
+    if (!supabase) return { error: new Error('로그인이 필요해요.') }
+    const { data: { user: current } } = await supabase.auth.getUser()
+    if (!current) return { error: new Error('로그인이 필요해요.') }
+    const nickname = current.user_metadata?.nickname ?? null
+    const { error } = await supabase
+      .from('profiles')
+      .update({ nickname })
+      .eq('user_id', current.id)
+    if (error) {
+      console.error('[프로필] 닉네임 미러 재동기화 실패', error)
+      return { error }
+    }
+    return { error: null }
+  }
+
   return {
     user, loading, signInWithGoogle, signInWithKakao, signOut,
-    updateNickname, updateAvatar, removeAvatar, syncAvatarMirror,
+    updateNickname, updateAvatar, removeAvatar, syncAvatarMirror, syncNicknameMirror,
   }
 }

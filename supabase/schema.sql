@@ -251,10 +251,16 @@ alter table profiles add column if not exists avatar_url text;
 revoke update on profiles from authenticated;
 grant update (nickname, avatar_url) on profiles to authenticated;
 
--- avatar_url 은 우리 Supabase Storage public 경로만 허용 — 친구 브라우저가 임의 호스트를 <img> 로 로드하지 않도록.
+-- 보안 리뷰 지적(이슈 #50): 기존엔 '^https://[a-z0-9]+\.supabase\.co/.../avatars/' 정규식이라
+-- (1) 우리 프로젝트가 아닌 임의의 *.supabase.co 프로젝트를 호스트로 허용했고
+-- (2) 경로를 본인 uid 로 고정하지 않아 남의 avatars/{uid}/avatar.jpg 도 그대로 통과했다.
+-- 둘 다 로그인 사용자가 API 를 직접 호출하면 친구 화면에 외부 추적 이미지나 타인 사진을 심을 수 있는 구멍이었다.
+-- 호스트를 SQL 에 하드코딩하는 대신, avatar_url 에는 전체 URL이 아니라 storage 객체 "경로"만 저장하고
+-- 이 경로가 본인 고정 경로({auth.uid()}/avatar.jpg)와 정확히 일치하는지만 검사한다 —
+-- 클라이언트가 자기 SUPABASE_URL 로 공개 URL 을 조립하므로 외부 호스트를 DB 에 넣을 방법 자체가 없다.
 alter table profiles drop constraint if exists profiles_avatar_url_origin;
 alter table profiles add constraint profiles_avatar_url_origin
-  check (avatar_url is null or avatar_url ~ '^https://[a-z0-9]+\.supabase\.co/storage/v1/object/public/avatars/');
+  check (avatar_url is null or avatar_url = auth.uid()::text || '/avatar.jpg');
 
 -- 아바타 저장용 public 버킷. MIME/용량은 버킷 레벨에서 강제(클라이언트 검증은 UX 용).
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)

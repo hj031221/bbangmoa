@@ -10,13 +10,15 @@ import { buildInviteLink } from '../../lib/inviteLink'
 // profiles.avatar_url(친구 화면 미러) 에 URL 이 미러링된다. getAvatarUrl 이 최우선으로 읽는다.
 // 사진/닉네임 변경은 편집 모드에서 임시 상태로만 두고 "저장" 버튼에서 함께 커밋한다.
 export default function ProfileCard() {
-  const { user, updateNickname, updateAvatar, removeAvatar, syncAvatarMirror } = useAuth()
+  const { user, updateNickname, updateAvatar, removeAvatar, syncAvatarMirror, syncNicknameMirror } = useAuth()
   const { friendCode } = useFriends()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
-  const [mirrorWarning, setMirrorWarning] = useState(false)
+  // 사진/닉네임 각각 독립적으로 미러(profiles 반영)가 실패할 수 있어 따로 추적한다 —
+  // 재시도가 "값이 바뀌었는지" 비교에 기대면 auth 쪽은 이미 반영돼 있어 재시도가 무력화된다.
+  const [mirrorWarning, setMirrorWarning] = useState({ avatar: false, nickname: false })
   const [retrying, setRetrying] = useState(false)
   const [pendingFile, setPendingFile] = useState(null)
   const [pendingRemove, setPendingRemove] = useState(false)
@@ -103,9 +105,17 @@ export default function ProfileCard() {
 
   const retryMirror = async () => {
     setRetrying(true)
-    const { error } = await syncAvatarMirror()
+    const next = { ...mirrorWarning }
+    if (mirrorWarning.avatar) {
+      const { error } = await syncAvatarMirror()
+      if (!error) next.avatar = false
+    }
+    if (mirrorWarning.nickname) {
+      const { error } = await syncNicknameMirror()
+      if (!error) next.nickname = false
+    }
+    setMirrorWarning(next)
     setRetrying(false)
-    if (!error) setMirrorWarning(false)
   }
 
   const submit = async (e) => {
@@ -126,6 +136,8 @@ export default function ProfileCard() {
     setSaving(true)
     setFormError('')
 
+    const nextMirrorWarning = { ...mirrorWarning }
+
     // 1) 사진 단계 — pending 이 있을 때만. 성공해야 닉네임 단계로 넘어간다.
     if (photoChanged) {
       const res = pendingFile ? await updateAvatar(pendingFile) : await removeAvatar()
@@ -136,20 +148,22 @@ export default function ProfileCard() {
         return // pending 유지 → 재시도 가능
       }
       clearPending()
-      setMirrorWarning(res?.partial === 'mirror')
+      nextMirrorWarning.avatar = res?.partial === 'mirror'
     }
 
     // 2) 닉네임 단계 — 값이 바뀐 경우에만.
     if (nickChanged) {
-      const { error } = await updateNickname(trimmed)
-      if (error) {
-        console.error('[프로필] 닉네임 변경 실패', error)
+      const res = await updateNickname(trimmed)
+      if (res?.error && res.partial !== 'mirror') {
+        console.error('[프로필] 닉네임 변경 실패', res.error)
         setSaving(false)
         setFormError('닉네임을 저장하지 못했어요.')
         return
       }
+      nextMirrorWarning.nickname = res?.partial === 'mirror'
     }
 
+    setMirrorWarning(nextMirrorWarning)
     setSaving(false)
     setEditing(false)
   }
@@ -229,7 +243,7 @@ export default function ProfileCard() {
           </button>
         </>
       )}
-      {mirrorWarning && (
+      {(mirrorWarning.avatar || mirrorWarning.nickname) && (
         <p className="friend-form-message">
           친구에게 보이는 데 잠시 지연될 수 있어요.{' '}
           <button type="button" className="ghost-btn" onClick={retryMirror} disabled={retrying}>
