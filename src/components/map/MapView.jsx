@@ -179,12 +179,12 @@ export default function MapView({
     setMap(m)
   }, [loaded, map, region])
 
-  // 선택이 해제되거나 구 필터가 바뀌면 대전 전체 시점으로 복귀한다.
-  // selectedId를 의존성에 둬야 빈 지도 클릭으로 선택을 풀었을 때도 카메라가 복귀한다.
+  // 대전 전체 시점으로 복귀하는 건 구 필터가 바뀐 경우만이다.
+  // 빈 지도 클릭으로 선택만 풀면 현재 위치와 줌을 유지한다.
   useEffect(() => {
     if (!map || !boundsRef.current || selectedId) return
     map.setBounds(boundsRef.current)
-  }, [map, selectedId, highlightDistrict])
+  }, [map, highlightDistrict])
 
   // 구 필터 색칠: highlightDistrict 가 있으면 그 구의 경계를 채워 그리고, 없으면 지운다.
   useEffect(() => {
