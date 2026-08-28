@@ -55,10 +55,11 @@ export function useFriends() {
     const otherIds = [...new Set([...accepted, ...incoming, ...outgoing].map(otherIdOf))]
 
     let nicknameById = {}
+    let avatarById = {}
     if (otherIds.length > 0) {
       const { data: profiles, error: nicknamesError } = await supabase
         .from('profiles')
-        .select('user_id, nickname')
+        .select('user_id, nickname, avatar_url')
         .in('user_id', otherIds)
       // 닉네임 조회 실패는 치명적이지 않다 — '이름 없음' 으로 폴백하고 목록 자체는 계속 그린다.
       if (nicknamesError) {
@@ -66,12 +67,14 @@ export function useFriends() {
         setError('일부 친구 정보를 불러오지 못했어요.')
       }
       nicknameById = Object.fromEntries((profiles ?? []).map((p) => [p.user_id, p.nickname]))
+      avatarById = Object.fromEntries((profiles ?? []).map((p) => [p.user_id, p.avatar_url]))
     }
 
     const toEntry = (r) => ({
       id: r.id,
       userId: otherIdOf(r),
       nickname: nicknameById[otherIdOf(r)] || '이름 없음',
+      avatarUrl: avatarById[otherIdOf(r)] ?? null,
     })
 
     setFriends(accepted.map(toEntry))
