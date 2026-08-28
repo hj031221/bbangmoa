@@ -3,8 +3,9 @@ import { useAuth } from '../../hooks/useAuth'
 import { useFriends } from '../../hooks/useFriends'
 import { getDisplayName } from '../../lib/displayName'
 import { buildInviteLink } from '../../lib/inviteLink'
+import { getAvatarUrl } from '../../lib/avatarUrl'
 
-// 마이페이지 왼쪽 프로필 카드. 아바타는 이니셜 placeholder(이미지 업로드 없음),
+// 마이페이지 왼쪽 프로필 카드. 아바타는 avatars 버킷의 이미지(getAvatarUrl)로 렌더하고, 없으면 이니셜로 폴백.
 // 닉네임만 편집 가능 — user_metadata.nickname 에 저장되고 getDisplayName 이 최우선으로 읽는다.
 // 친구코드/초대 링크 복사는 useFriends 의 friendCode(profiles 테이블) 를 그대로 노출한다.
 export default function ProfileCard() {
@@ -34,6 +35,7 @@ export default function ProfileCard() {
     copiedTimeoutRef.current = setTimeout(() => setCopyError(''), 1500)
   }
   const initial = name?.[0] || '?'
+  const savedAvatarUrl = getAvatarUrl(user)
 
   const startEdit = () => {
     setDraft(name === '내 계정' ? '' : name)
@@ -80,7 +82,9 @@ export default function ProfileCard() {
 
   return (
     <div className="mypage-profile">
-      <div className="mypage-avatar" aria-hidden="true">{initial}</div>
+      <div className="mypage-avatar" aria-hidden="true">
+        {savedAvatarUrl ? <img src={savedAvatarUrl} alt="" /> : initial}
+      </div>
       {editing ? (
         <form className="mypage-nickname-form" onSubmit={submit}>
           <input
