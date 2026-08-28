@@ -54,7 +54,7 @@ function LoginModal({ onClose, onGoogle, onKakao }) {
           ✕
         </button>
         <div className="auth-modal-copy">
-          <img className="auth-modal-logo" src={logo} alt="빵모아" />
+          <img className="auth-modal-logo" src={logo} alt="" aria-hidden="true" />
           <h3 className="auth-modal-title">로그인&가입하기</h3>
           <p className="auth-modal-sub">
             로그인하고 나만의 리스트를 만들어봐요

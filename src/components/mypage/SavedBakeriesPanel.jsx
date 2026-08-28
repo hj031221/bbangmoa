@@ -35,6 +35,7 @@ export default function SavedBakeriesPanel({ onBack, targetUserId, readOnly = fa
                   tabIndex: 0,
                   onClick: () => onViewOnMap(b),
                   onKeyDown: (e) => {
+                    if (e.target !== e.currentTarget) return
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault()
                       onViewOnMap(b)
