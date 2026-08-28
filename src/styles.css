@@ -152,7 +152,11 @@ a{ color:var(--accent-text); }
 }
 .bm-landing h1, .bm-landing h2{ font-family:'HakgyoansimDunggeunmisoTTF-B', sans-serif; }
 .bm-landing section > *{ max-width:var(--bm-container); margin-left:auto; margin-right:auto; }
-.bm-landing.is-home{ position:fixed; inset:0; width:100%; overflow:hidden; }
+/* 홈도 그냥 일반 스크롤 페이지다 — 예전엔 position:fixed + overflow:hidden 으로 "한 화면"에
+   가뒀는데, 콘텐츠가 뷰포트를 넘는 순간(모바일/태블릿, 브라우저 확대, iPad Pro 가로 등)
+   스크롤도 확대/축소도 막히고 sticky 네비게이션이 스크롤 밖으로 밀려 사라지는 덫이 됐다.
+   히어로가 첫 화면을 채우는 건 .bm-mhero 의 min-height 가 이미 담당한다. */
+.bm-landing.is-home{ width:100%; }
 
 /* nav */
 .bm-nav{ position:sticky; top:0; z-index:50; background:rgba(251,228,183,.9); backdrop-filter:blur(10px); border-bottom:1px solid var(--bm-line); border-top:6px solid var(--bm-gold); }
@@ -297,6 +301,20 @@ a{ color:var(--accent-text); }
     background:var(--bm-card); box-shadow:var(--bm-shadow-md); color:#fff; text-align:left; }
   .bm-tour-showcase-card img{ width:100%; height:100%; object-fit:cover; display:block;
     animation:bm-tour-fade .45s ease both; }
+  .bm-tour-showcase-frame{ position:relative; }
+  /* 넘기는 아이콘(이전/다음)만 글래스모피즘 — 반투명 + 블러로 배경 이미지가 비쳐 보이게.
+     화살표 모양은 빵 지도 헤더의 뒤로가기 아이콘(.result-back)과 동일한 쉐브론. */
+  .bm-tour-showcase-nav{ position:absolute; top:50%; transform:translateY(-50%); z-index:2;
+    width:26px; height:26px; display:flex; align-items:center; justify-content:center;
+    border:1px solid rgba(255,255,255,.4); border-radius:50%;
+    background:rgba(255,255,255,.16); color:#fff;
+    box-shadow:0 4px 14px rgba(20,14,6,.28);
+    -webkit-backdrop-filter:blur(10px) saturate(140%); backdrop-filter:blur(10px) saturate(140%);
+    cursor:pointer; }
+  .bm-tour-showcase-nav svg{ width:8px; height:14px; filter:drop-shadow(0 1px 2px rgba(20,14,6,.45)); }
+  .bm-tour-showcase-nav:hover{ background:rgba(255,255,255,.3); }
+  .bm-tour-showcase-nav.prev{ left:8px; }
+  .bm-tour-showcase-nav.next{ right:8px; }
   .bm-tour-showcase-card::after{ content:''; position:absolute; inset:0;
     background:linear-gradient(90deg, rgba(48,30,8,.78) 0%, rgba(48,30,8,.4) 58%, rgba(48,30,8,.08) 100%); }
   .bm-tour-showcase-copy{ position:absolute; z-index:1; left:16px; right:16px; bottom:16px;
@@ -519,7 +537,8 @@ a{ color:var(--accent-text); }
 @media (max-width:820px){
   .result-quiz{ overflow:visible; }
   .result-quiz .result-body{ grid-template-columns:1fr; padding:12px; }
-  .result-quiz .result-map{ order:1; }
+  /* 고정(sticky) 지도 높이를 살짝 줄인다. */
+  .result-quiz .result-map{ order:1; height:44vh; }
   .result-quiz .result-detail-col{ order:2; }
   /* 리스트 자체 높이를 뷰포트 기준으로 다시 줘야 위(479행)의 overflow-y:auto가 실제로 작동한다 —
      안 주면 부모(.result-body)가 height:auto라 리스트가 내용만큼 늘어나며 페이지 전체가 스크롤된다. */
@@ -542,6 +561,9 @@ a{ color:var(--accent-text); }
   .result-browse{ overflow:visible; }
   .result-browse .result-body{ grid-template-columns:1fr; padding:12px; }
   .result-browse .result-map{ order:1; }
+  /* 모바일에선 .result-browse 가 overflow:visible(sticky 지도 때문) 이라 카드 radius 가 헤더를
+     못 깎아서 골드 헤더 윗모서리가 각져 보였다 — 헤더에 직접 같은 radius 를 준다(웹과 동일하게). */
+  .result-browse .result-header{ border-radius:24px 24px 0 0; }
   .result-browse .result-detail-col{ order:2; }
   .result-browse .result-list-col{ order:3; max-height:60vh; overflow-y:auto; }
 }
@@ -720,7 +742,8 @@ a{ color:var(--accent-text); }
 
 @media (max-width:820px){
   .pil-page{ grid-template-columns:1fr; }
-  .pil-map{ height:320px; }
+  /* 모바일에서는 지도를 위로, 코스 패널을 아래로 (데스크톱은 소스 순서 그대로 좌:패널 / 우:지도) */
+  .pil-map{ height:320px; order:-1; }
   .pil-gate-cards{ grid-template-columns:1fr; }
 }
 .tour-reveal-footnote{ text-align:center; font-size:.76rem; color:var(--muted); margin:10px 0 14px; }
