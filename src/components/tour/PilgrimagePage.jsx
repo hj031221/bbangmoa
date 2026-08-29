@@ -198,6 +198,12 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
   //    대신 실주행시간만 다르다).
   // 한 스텝이라도 API가 실패하면 전체를 포기한다(realOrderIds는 null로 남아 그리디 폴백) —
   // 부분 성공을 짜깁기하면 "일부만 실측"인 애매한 순서가 되어 오히려 신뢰도만 떨어뜨린다.
+  //
+  // 리뷰 발견 — 이 재정렬은 스텝마다 fetchDestinationsMatrix를 호출하는 순차 체이닝이라
+  // 코스당 최대 N-1회(스톱 N개) 라운드트립이 나간다(kakaoMobility.js 주석 참고). 추가/제거를
+  // 연달아 누르면(customStops가 빠르게 여러 번 바뀌면) 그때마다 새 체인이 돌아 쿼터를
+  // 불필요하게 많이 쓴다 — 300ms 디바운스로 묶어서 연속 조작이 끝난 뒤 한 번만 돌게 한다
+  // (LocationStep.jsx의 검색 디바운스와 동일 패턴).
   const [realOrderIds, setRealOrderIds] = useState(null)
   useEffect(() => {
     setRealOrderIds(null)
@@ -205,24 +211,27 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
       return
     }
     let alive = true
-    ;(async () => {
-      const remaining = [...customStops]
-      const ordered = []
-      let cur = origin
-      while (remaining.length > 0) {
-        const result = await fetchDestinationsMatrix(cur, remaining)
-        if (!alive) return
-        if (!result || result.length === 0) return // 실패 — realOrderIds는 null로 남는다(그리디 폴백)
-        const byId = new Map(result.map((r) => [r.id, r]))
-        remaining.sort((a, b) => (byId.get(a.id)?.minutes ?? Infinity) - (byId.get(b.id)?.minutes ?? Infinity))
-        const next = remaining.shift()
-        ordered.push(next)
-        cur = next
-      }
-      if (alive) setRealOrderIds(ordered.map((s) => s.id))
-    })()
+    const timer = setTimeout(() => {
+      ;(async () => {
+        const remaining = [...customStops]
+        const ordered = []
+        let cur = origin
+        while (remaining.length > 0) {
+          const result = await fetchDestinationsMatrix(cur, remaining)
+          if (!alive) return
+          if (!result || result.length === 0) return // 실패 — realOrderIds는 null로 남는다(그리디 폴백)
+          const byId = new Map(result.map((r) => [r.id, r]))
+          remaining.sort((a, b) => (byId.get(a.id)?.minutes ?? Infinity) - (byId.get(b.id)?.minutes ?? Infinity))
+          const next = remaining.shift()
+          ordered.push(next)
+          cur = next
+        }
+        if (alive) setRealOrderIds(ordered.map((s) => s.id))
+      })()
+    }, 300)
     return () => {
       alive = false
+      clearTimeout(timer)
     }
   }, [origin, customStops, manualOrderIds, travelMode])
 
@@ -339,6 +348,10 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
   const addStop = (stop) => {
     setCustomStops((prev) => [...(prev || []), stop])
     setManualOrderIds((prev) => (prev ? [...prev, stop.id] : prev))
+    // manualOrderIds와 똑같이 realOrderIds도 미러링한다 — 안 하면 실주행 재정렬이 활성인
+    // 상태에서 추가한 stop이 realOrderIds엔 없어서, 재정렬 effect가 새로 돌기 전까지 한
+    // 프레임 동안 route memo가 방금 추가한 stop이 빠진 목록으로 그려진다(리뷰 발견).
+    setRealOrderIds((prev) => (prev ? [...prev, stop.id] : prev))
     setAddOpen(false)
     setHighlightIndex(null)
   }

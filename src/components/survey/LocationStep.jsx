@@ -35,13 +35,34 @@ export default function LocationStep({ onDone }) {
   const markerRef = useRef(null)
   const [picked, setPicked] = useState(null) // { lat, lng, label, source }
 
+  // 지도 생성 — 클릭하면 직접 찍기. 아래 마커 그리기 effect보다 반드시 먼저 선언한다: 둘 다
+  // deps에 loaded가 있어서 loaded가 true로 바뀌는 렌더에서 React가 선언 순서대로 실행하는데,
+  // 이 effect(지도 생성)가 나중에 선언돼 있으면 마커 그리기 effect가 먼저 실행되면서
+  // mapInstanceRef.current가 아직 null이라 조용히 return해버린다 — 그 뒤로 loaded/picked가
+  // 더 안 바뀌면 재실행 기회가 없어 GPS 등으로 이미 잡힌 picked가 있어도 마커가 영영 안
+  // 그려진다(리뷰 발견 — #58이 막으려던 "확인 기회"가 이 선언 순서 때문에 무력화됨).
+  useEffect(() => {
+    if (!loaded || !mapRef.current) return
+    const { kakao } = window
+    const map = new kakao.maps.Map(mapRef.current, {
+      center: new kakao.maps.LatLng(region.center.lat, region.center.lng),
+      level: 6,
+    })
+    const marker = new kakao.maps.Marker()
+    mapInstanceRef.current = map
+    markerRef.current = marker
+    kakao.maps.event.addListener(map, 'click', (e) => {
+      const ll = e.latLng
+      placePick(ll.getLat(), ll.getLng(), '지도에서 선택', 'pick')
+    })
+  }, [loaded, region])
+
   // "어디가 찍혔는지"(picked 상태)와 "그걸 지도에 실제로 그리는 것"을 분리한다 — 이 스텝
   // 진입 직후 카카오 SDK 로딩(loaded)과 GPS 응답이 경합하면(특히 enableHighAccuracy라 GPS가
   // 늦게 안 오는 편이라 보통은 안전하지만, 로딩이 느린 환경에선 반대로 될 수 있음) GPS가 먼저
-  // 도착해 지도/마커가 아직 없는 채로 호출될 수 있다 — 그때 마커 그리기를 조용히 건너뛰면
-  // 확인 버튼은 뜨는데 지도엔 마커가 안 보여서 GPS가 어디로 잡혔는지 확인할 방법이 없었다
-  // (리뷰 발견 — 이슈 #58이 막으려던 것 자체가 무력화됨). 아래 effect가 loaded/picked 중
-  // 뭐가 늦게 오든 둘 다 준비된 시점에 마커를 그린다.
+  // 도착해 지도/마커가 아직 없는 채로 호출될 수 있다 — 위 지도 생성 effect가 항상 먼저
+  // 실행되도록 선언 순서를 맞춰뒀지만(리뷰 발견), 그래도 이 effect를 loaded/picked 둘 다에
+  // 반응하게 해서 어느 쪽이 늦게 오든 최종적으로 마커가 그려지도록 이중으로 보장한다.
   const placePick = (lat, lng, label, source) => setPicked({ lat, lng, label, source })
 
   useEffect(() => {
@@ -104,23 +125,6 @@ export default function LocationStep({ onDone }) {
     }, 300)
     return () => clearTimeout(timer)
   }, [query, picked])
-
-  // 지도 생성 — 클릭하면 직접 찍기
-  useEffect(() => {
-    if (!loaded || !mapRef.current) return
-    const { kakao } = window
-    const map = new kakao.maps.Map(mapRef.current, {
-      center: new kakao.maps.LatLng(region.center.lat, region.center.lng),
-      level: 6,
-    })
-    const marker = new kakao.maps.Marker()
-    mapInstanceRef.current = map
-    markerRef.current = marker
-    kakao.maps.event.addListener(map, 'click', (e) => {
-      const ll = e.latLng
-      placePick(ll.getLat(), ll.getLng(), '지도에서 선택', 'pick')
-    })
-  }, [loaded, region])
 
   const confirmLabel =
     picked?.source === 'gps'
