@@ -181,29 +181,50 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
     }
   }, [baseRoute, customStops, bakeriesLoading, attractionsLoading])
 
-  // CP12 — haversine 그리디(recalcRoute)로 먼저 즉시 렌더한 뒤, 카카오 1:N 목적지 API로
-  // origin→각 stop 실주행시간을 한 번에 받아 그 기준으로 다시 정렬한다. "직선으로 가까워
-  // 보이지만 실제로는 하천 건너편이라 크게 도는" 사례(대전 갑천·대전천에서 실제로 겪음)를
-  // 바로잡는다. 수동으로 순서를 바꾼 뒤(manualOrderIds)엔 안 건드린다. API가 실패하거나 일부
-  // stop이 radius(10km) 밖이면 그 stop만 뒤로 밀어 넣고 나머지는 실주행시간 순으로 — 완전
-  // 실패하면 realOrderIds가 null로 남아 그리디 순서를 그대로 쓴다(동작 보존).
+  // CP12 — car 모드에서만: haversine 그리디(recalcRoute)로 먼저 즉시 렌더한 뒤, 카카오 1:N
+  // 목적지 API로 매 스텝(마지막 방문지 → 남은 stop들) 실주행시간을 받아 그리디를 다시 돈다.
+  // "직선으로 가까워 보이지만 실제로는 하천 건너편이라 크게 도는" 사례(대전 갑천·대전천에서
+  // 실제로 겪음)를 바로잡는다. 수동으로 순서를 바꾼 뒤(manualOrderIds)엔 안 건드린다.
+  //
+  // 리뷰 발견 2건 반영:
+  //  - fetchDestinationsMatrix는 카카오모빌리티의 자동차 전용 엔드포인트다. travelMode가
+  //    도보/대중교통일 때도 이 재정렬을 적용하면 자동차 기준 거리를 다른 모드에 잘못 씌우는
+  //    꼴이라(이 PR이 고치려던 문제를 형태만 바꿔 재현) car 모드에서만 돈다 — deps에 travelMode
+  //    추가, 모드가 바뀌면 realOrderIds를 비우고(위 setRealOrderIds(null)) 도보/대중교통은
+  //    기존 haversine 그리디를 그대로 쓴다.
+  //  - origin 한 곳 기준으로 한 번에 정렬하면(단순 정렬) "A·C가 양끝, B가 그 사이"인 배치에서
+  //    최적(O→A→C→B)이 아니라 O→A→B→C를 낼 수 있다 — 매 스텝 "마지막 방문지"를 새 기준점으로
+  //    다시 조회하는 진짜 최근접 이웃 체이닝으로 바꿨다(buildGreedyOrder와 동일한 구조, haversine
+  //    대신 실주행시간만 다르다).
+  // 한 스텝이라도 API가 실패하면 전체를 포기한다(realOrderIds는 null로 남아 그리디 폴백) —
+  // 부분 성공을 짜깁기하면 "일부만 실측"인 애매한 순서가 되어 오히려 신뢰도만 떨어뜨린다.
   const [realOrderIds, setRealOrderIds] = useState(null)
   useEffect(() => {
     setRealOrderIds(null)
-    if (!origin || manualOrderIds || !customStops || customStops.length === 0) return
+    if (travelMode !== 'car' || !origin || manualOrderIds || !customStops || customStops.length === 0) {
+      return
+    }
     let alive = true
-    fetchDestinationsMatrix(origin, customStops).then((result) => {
-      if (!alive || !result || result.length === 0) return
-      const byId = new Map(result.map((r) => [r.id, r]))
-      const covered = customStops.filter((s) => byId.has(s.id))
-      const uncovered = customStops.filter((s) => !byId.has(s.id))
-      covered.sort((a, b) => byId.get(a.id).minutes - byId.get(b.id).minutes)
-      setRealOrderIds([...covered, ...uncovered].map((s) => s.id))
-    })
+    ;(async () => {
+      const remaining = [...customStops]
+      const ordered = []
+      let cur = origin
+      while (remaining.length > 0) {
+        const result = await fetchDestinationsMatrix(cur, remaining)
+        if (!alive) return
+        if (!result || result.length === 0) return // 실패 — realOrderIds는 null로 남는다(그리디 폴백)
+        const byId = new Map(result.map((r) => [r.id, r]))
+        remaining.sort((a, b) => (byId.get(a.id)?.minutes ?? Infinity) - (byId.get(b.id)?.minutes ?? Infinity))
+        const next = remaining.shift()
+        ordered.push(next)
+        cur = next
+      }
+      if (alive) setRealOrderIds(ordered.map((s) => s.id))
+    })()
     return () => {
       alive = false
     }
-  }, [origin, customStops, manualOrderIds])
+  }, [origin, customStops, manualOrderIds, travelMode])
 
   const route = useMemo(() => {
     if (!customStops || !origin) return null

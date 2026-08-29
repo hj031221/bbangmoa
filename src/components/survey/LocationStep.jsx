@@ -35,18 +35,27 @@ export default function LocationStep({ onDone }) {
   const markerRef = useRef(null)
   const [picked, setPicked] = useState(null) // { lat, lng, label, source }
 
-  const placePick = (lat, lng, label, source) => {
-    setPicked({ lat, lng, label, source })
+  // "어디가 찍혔는지"(picked 상태)와 "그걸 지도에 실제로 그리는 것"을 분리한다 — 이 스텝
+  // 진입 직후 카카오 SDK 로딩(loaded)과 GPS 응답이 경합하면(특히 enableHighAccuracy라 GPS가
+  // 늦게 안 오는 편이라 보통은 안전하지만, 로딩이 느린 환경에선 반대로 될 수 있음) GPS가 먼저
+  // 도착해 지도/마커가 아직 없는 채로 호출될 수 있다 — 그때 마커 그리기를 조용히 건너뛰면
+  // 확인 버튼은 뜨는데 지도엔 마커가 안 보여서 GPS가 어디로 잡혔는지 확인할 방법이 없었다
+  // (리뷰 발견 — 이슈 #58이 막으려던 것 자체가 무력화됨). 아래 effect가 loaded/picked 중
+  // 뭐가 늦게 오든 둘 다 준비된 시점에 마커를 그린다.
+  const placePick = (lat, lng, label, source) => setPicked({ lat, lng, label, source })
+
+  useEffect(() => {
+    if (!picked || !loaded) return
     const { kakao } = window
     const map = mapInstanceRef.current
     const marker = markerRef.current
     if (!kakao || !map || !marker) return
-    const ll = new kakao.maps.LatLng(lat, lng)
+    const ll = new kakao.maps.LatLng(picked.lat, picked.lng)
     marker.setPosition(ll)
     marker.setMap(map)
     map.panTo(ll)
     map.setLevel(4)
-  }
+  }, [picked, loaded])
 
   const [gpsMsg, setGpsMsg] = useState('')
   const useGps = () => {
@@ -71,7 +80,10 @@ export default function LocationStep({ onDone }) {
   const [searching, setSearching] = useState(false)
   const reqId = useRef(0)
   useEffect(() => {
-    if (!query.trim()) {
+    // picked가 있으면(검색 결과를 이미 골라 확정 대기 중) 결과 패널 자체가 안 뜬다
+    // (아래 렌더의 `!picked` 가드) — 검색 결과 클릭 시 setQuery(r.name)이 이 effect를 다시
+    // 트리거해서 쓸모없는 API 호출이 한 번 더 나가던 걸 여기서 막는다(리뷰 발견).
+    if (!query.trim() || picked) {
       setResults([])
       setSearching(false)
       return
@@ -91,7 +103,7 @@ export default function LocationStep({ onDone }) {
         })
     }, 300)
     return () => clearTimeout(timer)
-  }, [query])
+  }, [query, picked])
 
   // 지도 생성 — 클릭하면 직접 찍기
   useEffect(() => {
