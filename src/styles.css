@@ -863,6 +863,22 @@ a{ color:var(--accent-text); }
 .diary-detail-bakery{ font-weight:700; color:var(--brown); }
 .diary-detail-text{ white-space:pre-wrap; line-height:1.6; color:var(--ink); }
 
+.diary-social{ margin-top:20px; padding-top:16px; border-top:1px solid var(--line); display:flex; flex-direction:column; gap:14px; }
+.diary-like-btn{ align-self:flex-start; display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border:1.5px solid var(--line); border-radius:999px; background:none; color:var(--muted); font-size:.85rem; font-weight:700; cursor:pointer; }
+.diary-like-btn:hover{ border-color:var(--accent); }
+.diary-like-btn-active{ border-color:var(--accent-deep); color:var(--accent-deep); }
+.diary-comments{ display:flex; flex-direction:column; gap:10px; }
+.diary-comment{ display:flex; gap:8px; padding:10px 12px; border:1px solid var(--line); border-radius:12px; background:var(--card); }
+.diary-comment-avatar{ margin-top:2px; }
+.diary-comment-body{ flex:1; min-width:0; }
+.diary-comment-meta{ display:flex; align-items:baseline; gap:8px; margin-bottom:4px; }
+.diary-comment-nickname{ font-weight:700; color:var(--brown); font-size:.85rem; }
+.diary-comment-time{ font-size:.75rem; color:var(--muted); }
+.diary-comment-text{ margin:0; font-size:.9rem; color:var(--ink); white-space:pre-wrap; }
+.diary-comment-delete{ margin-top:4px; background:none; border:none; padding:0; font-size:.75rem; color:var(--muted); cursor:pointer; text-decoration:underline; }
+.diary-comment-form{ display:flex; gap:8px; }
+.diary-comment-input{ flex:1; padding:10px 12px; border:1.5px solid var(--line); border-radius:999px; font-family:inherit; font-size:.85rem; }
+
 /* 친구목록 전체 화면 */
 .friend-code-form{ display:flex; gap:8px; margin-bottom:8px; }
 .friend-code-form .mypage-nickname-input{ flex:1; text-align:left; }

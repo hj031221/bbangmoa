@@ -8,3 +8,11 @@ export function getAvatarUrl(userOrProfile) {
   if (!userOrProfile) return null
   return userOrProfile.user_metadata?.custom_avatar_url || userOrProfile.avatar_url || null
 }
+
+// profiles.avatar_url(storage 객체 경로) + avatar_version 으로 남에게 보여줄 공개 URL 을 조립한다
+// (useFriends/useDiaryComments 공용 — avatar_url 은 전체 URL 이 아니라 경로만 저장한다: schema.sql
+// CHECK 제약, avatar_version 은 경로가 {uid}/avatar.jpg 로 고정이라 필요한 캐시버스터).
+export function buildProfileAvatarUrl(supabase, { avatar_url, avatar_version } = {}) {
+  if (!avatar_url) return null
+  return `${supabase.storage.from('avatars').getPublicUrl(avatar_url).data.publicUrl}?v=${avatar_version ?? 0}`
+}

@@ -27,6 +27,11 @@ export default function LandingPage() {
   const [featureOpen, setFeatureOpen] = useState(false)
   const [stage, setStage] = useState('survey') // 'survey' | 'reveal' | 'map'
   const [showMyPage, setShowMyPage] = useState(false)
+  // MyPage 는 기록장 상세 등 내부 화면 전환을 자체 상태(panel/selectedId)로 관리한다.
+  // 이미 마이페이지 안(예: 기록장 상세)에 있을 때 메뉴바 "마이페이지"를 다시 누르면
+  // showMyPage 는 그대로 true 라 리렌더가 안 일어나 화면이 안 바뀌었다 — key 를 바꿔 강제로
+  // MyPage 를 새로 마운트해서 항상 홈으로 돌아가게 한다.
+  const [myPageResetKey, setMyPageResetKey] = useState(0)
   const [showInfo, setShowInfo] = useState(false)
   const [showMap, setShowMap] = useState(false)
   const [showTour, setShowTour] = useState(false)
@@ -91,6 +96,7 @@ export default function LandingPage() {
     enterBreadFlow('survey')
   }
   const openMyPage = () => {
+    setMyPageResetKey((k) => k + 1)
     setShowMyPage(true)
     setFeatureOpen(false)
     setShowInfo(false)
@@ -299,7 +305,7 @@ export default function LandingPage() {
 
       {showMyPage && (
         <div className="page">
-          <MyPage onLoadCourse={loadCourseIntoPilgrimage} onViewBakeryOnMap={viewBakeryOnMap} />
+          <MyPage key={myPageResetKey} onLoadCourse={loadCourseIntoPilgrimage} onViewBakeryOnMap={viewBakeryOnMap} />
         </div>
       )}
 
