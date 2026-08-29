@@ -390,7 +390,7 @@ language sql
 security definer
 stable
 as $$
-  select p.user_id, p.nickname, p.avatar_url, p.avatar_version
+  select p.user_id::uuid, p.nickname::text, p.avatar_url::text, p.avatar_version::bigint
   from profiles p
   where can_see_entry(p_entry_id)
     and p.user_id in (
