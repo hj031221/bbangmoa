@@ -15,15 +15,18 @@ export function useDiaryComments(entryId) {
   const [comments, setComments] = useState([])
   const [loading, setLoading] = useState(false)
 
-  // reload 는 effect(entry 전환)에서도, add/remove 이후(요청 도중 entry 전환 가능)에도 호출된다.
-  // 모든 경로가 이 ref 로 stale 응답을 판별한다 — 요청을 보낼 때의 entryId 와 응답이 왔을 때의
-  // "지금 보고 있는 entry" 가 다르면 버린다. add() 로 A 에 댓글을 달고 응답을 기다리는 사이 B 로
-  // 넘어가면, A 재조회가 늦게 도착해도 이 ref 덕에 B 화면의 댓글 목록을 덮어쓰지 않는다.
-  const currentEntryIdRef = useRef(entryId)
-  currentEntryIdRef.current = entryId
+  // reload 는 effect(entry 전환)에서도, add/remove 이후에도 호출된다 — 같은 entry 안에서도
+  // 겹쳐 호출될 수 있다(예: 초기 조회가 끝나기 전에 댓글을 등록하면 add() 가 또 reload() 를 부름).
+  // 그래서 entryId 비교만으로는 부족하다 — 늦게 도착한 "먼저 보낸" 요청이 나중에 보낸 요청의
+  // 결과를 덮어쓸 수 있기 때문. 매 reload() 마다 증가하는 요청 번호를 매겨, 응답이 왔을 때
+  // "가장 최근에 보낸 요청"인지 확인해서 아니면 버린다 — entry 전환이든 같은 entry 내 중복
+  // 호출이든 이 하나로 전부 걸러진다.
+  const latestRequestIdRef = useRef(0)
 
   const reload = () => {
     const requestEntryId = entryId
+    const requestId = ++latestRequestIdRef.current
+    const isStale = () => latestRequestIdRef.current !== requestId
     if (!requestEntryId) {
       setComments([])
       return
@@ -36,7 +39,7 @@ export function useDiaryComments(entryId) {
       .order('created_at', { ascending: true })
       .then(async ({ data, error }) => {
         if (error) {
-          if (currentEntryIdRef.current !== requestEntryId) return
+          if (isStale()) return
           console.error('[기록장] 댓글 조회 실패', error)
           setLoading(false)
           return
@@ -54,7 +57,7 @@ export function useDiaryComments(entryId) {
             (authors ?? []).map((p) => [p.user_id, buildProfileAvatarUrl(supabase, p)])
           )
         }
-        if (currentEntryIdRef.current !== requestEntryId) return
+        if (isStale()) return
         setLoading(false)
         setComments(
           data.map((c) => ({
