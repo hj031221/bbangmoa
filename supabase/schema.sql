@@ -334,6 +334,13 @@ alter table diary_comments enable row level security;
 -- (diary_likes 는 (entry_id, user_id) 복합 PK 라 entry_id 단독 조회도 이미 그 인덱스로 커버된다).
 create index if not exists diary_comments_entry_id_idx on diary_comments(entry_id);
 
+-- 300자 제한은 원래 입력창의 maxLength 뿐이었다 — Supabase API 를 직접 호출하면 그대로 우회되므로
+-- (실제 방어선은 RLS/제약조건이지 클라이언트 검증이 아니다) DB 에도 같은 제약을 건다.
+-- btrim 으로 공백만 있는 댓글도 함께 막는다(클라이언트도 trim() 하지만 마찬가지로 우회 가능).
+alter table diary_comments drop constraint if exists diary_comments_text_length;
+alter table diary_comments add constraint diary_comments_text_length
+  check (char_length(btrim(text)) between 1 and 300);
+
 -- entry 를 볼 수 있는 사람(본인 또는 수락된 친구)인지 판정 — like/comment 정책에서 공용으로 쓴다.
 create or replace function can_see_entry(entry uuid)
 returns boolean

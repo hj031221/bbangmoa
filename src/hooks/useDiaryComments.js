@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAuth } from './useAuth'
 import { supabase } from '../lib/supabase'
 import { buildProfileAvatarUrl } from '../lib/avatarUrl'
@@ -15,12 +15,16 @@ export function useDiaryComments(entryId) {
   const [comments, setComments] = useState([])
   const [loading, setLoading] = useState(false)
 
-  // reload 는 effect(entry 전환)에서도, add/remove 이후에도 직접 호출된다.
-  // effect 쪽 호출만 alive 가드로 stale 응답을 무시한다 — 없으면 entry 를 빠르게 옮겨다닐 때
-  // 이전 entry 의 댓글(작성자 프로필 조회까지 포함된 2단계 응답)이 늦게 도착해 지금 보고 있는
-  // entry 의 댓글 목록을 덮어쓸 수 있다(useDiaryEntries.js 와 동일한 패턴).
-  const reload = (alive = { current: true }) => {
-    if (!entryId) {
+  // reload 는 effect(entry 전환)에서도, add/remove 이후(요청 도중 entry 전환 가능)에도 호출된다.
+  // 모든 경로가 이 ref 로 stale 응답을 판별한다 — 요청을 보낼 때의 entryId 와 응답이 왔을 때의
+  // "지금 보고 있는 entry" 가 다르면 버린다. add() 로 A 에 댓글을 달고 응답을 기다리는 사이 B 로
+  // 넘어가면, A 재조회가 늦게 도착해도 이 ref 덕에 B 화면의 댓글 목록을 덮어쓰지 않는다.
+  const currentEntryIdRef = useRef(entryId)
+  currentEntryIdRef.current = entryId
+
+  const reload = () => {
+    const requestEntryId = entryId
+    if (!requestEntryId) {
       setComments([])
       return
     }
@@ -28,11 +32,11 @@ export function useDiaryComments(entryId) {
     supabase
       .from('diary_comments')
       .select('id, user_id, text, created_at')
-      .eq('entry_id', entryId)
+      .eq('entry_id', requestEntryId)
       .order('created_at', { ascending: true })
       .then(async ({ data, error }) => {
         if (error) {
-          if (!alive.current) return
+          if (currentEntryIdRef.current !== requestEntryId) return
           console.error('[기록장] 댓글 조회 실패', error)
           setLoading(false)
           return
@@ -42,7 +46,7 @@ export function useDiaryComments(entryId) {
         if (data.length > 0) {
           const { data: authors, error: authorsError } = await supabase.rpc(
             'get_diary_comment_authors',
-            { p_entry_id: entryId }
+            { p_entry_id: requestEntryId }
           )
           if (authorsError) console.error('[기록장] 댓글 작성자 조회 실패', authorsError)
           nicknameById = Object.fromEntries((authors ?? []).map((p) => [p.user_id, p.nickname]))
@@ -50,7 +54,7 @@ export function useDiaryComments(entryId) {
             (authors ?? []).map((p) => [p.user_id, buildProfileAvatarUrl(supabase, p)])
           )
         }
-        if (!alive.current) return
+        if (currentEntryIdRef.current !== requestEntryId) return
         setLoading(false)
         setComments(
           data.map((c) => ({
@@ -63,11 +67,8 @@ export function useDiaryComments(entryId) {
   }
 
   useEffect(() => {
-    const alive = { current: true }
-    reload(alive)
-    return () => {
-      alive.current = false
-    }
+    reload()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entryId])
 
   const add = async (text) => {
