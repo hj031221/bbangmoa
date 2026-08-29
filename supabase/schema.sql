@@ -379,19 +379,25 @@ create policy "diary_comments_delete_own" on diary_comments
 -- (예: A 글에 A의 친구 C가 댓글을 달고, A의 다른 친구 B가 그 글을 봄 — B 와 C는 서로 친구가 아님).
 -- 이 경우 diary_comments 자체는 can_see_entry 로 B 에게 보이지만, 기존 profiles RLS(직접 친구
 -- 관계만)가 C 의 닉네임/아바타 조회를 막아 '이름 없음' + 빈 아바타로만 보였다.
--- 댓글 작성자 프로필은 "그 댓글이 달린 entry 를 볼 수 있는 사람"에게 추가로 공개한다.
-drop policy if exists "profiles_select_self_or_related" on profiles;
-create policy "profiles_select_self_or_related" on profiles
-  for select using (
-    auth.uid() = user_id
-    or exists (
-      select 1 from friend_requests
-      where (requester_id = auth.uid() and addressee_id = profiles.user_id)
-         or (requester_id = profiles.user_id and addressee_id = auth.uid())
-    )
-    or exists (
-      select 1 from diary_comments
-      where diary_comments.user_id = profiles.user_id
-        and can_see_entry(diary_comments.entry_id)
-    )
-  );
+--
+-- PR #57 리뷰에서 지적된 대로, profiles SELECT 정책 자체를 넓히는 방식은 RLS 가 행 단위라
+-- friend_code(친구 추가 모델의 전제 — §"친구 요청" 참고)까지 낯선 사람에게 노출시킨다.
+-- 대신 find_user_by_friend_code 와 동일하게, 필요한 컬럼만 반환하는 security definer 함수로
+-- 댓글 작성자 프로필만 좁게 공개한다 — profiles 행 자체의 가시성은 원래대로 유지.
+create or replace function get_diary_comment_authors(p_entry_id uuid)
+returns table(user_id uuid, nickname text, avatar_url text, avatar_version bigint)
+language sql
+security definer
+stable
+as $$
+  select p.user_id, p.nickname, p.avatar_url, p.avatar_version
+  from profiles p
+  where can_see_entry(p_entry_id)
+    and p.user_id in (
+      select dc.user_id from diary_comments dc where dc.entry_id = p_entry_id
+    );
+$$;
+alter function get_diary_comment_authors(uuid) set search_path = public, pg_temp;
+
+revoke execute on function get_diary_comment_authors(uuid) from public, anon;
+grant execute on function get_diary_comment_authors(uuid) to authenticated;

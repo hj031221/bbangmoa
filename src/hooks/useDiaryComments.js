@@ -4,7 +4,9 @@ import { supabase } from '../lib/supabase'
 import { buildProfileAvatarUrl } from '../lib/avatarUrl'
 
 // 기록장 댓글. entryId 가 바뀌면(다른 기록 열기) 다시 조회한다.
-// 댓글 자체엔 작성자 닉네임/아바타가 없어 profiles 조회로 합친다(useFriends 와 동일한 2단계 패턴).
+// 댓글 자체엔 작성자 닉네임/아바타가 없어 get_diary_comment_authors RPC 로 합친다 — profiles 테이블을
+// 직접 조회하지 않는 이유는 schema.sql 참고(그 조회를 허용하려고 RLS 를 넓히면 friend_code 까지
+// 노출된다. RPC 는 nickname/avatar 컬럼만 반환).
 // avatar_url 은 storage 객체 경로만 저장하므로(schema.sql CHECK) 공개 URL 을 여기서 조립한다 —
 // avatar_version 을 캐시버스터로 붙인다(경로가 {uid}/avatar.jpg 로 고정이라 없으면 스토리지 기본
 // 캐시(3600초) 동안 사진을 바꿔도 예전 아바타가 남을 수 있다).
@@ -35,18 +37,17 @@ export function useDiaryComments(entryId) {
           setLoading(false)
           return
         }
-        const userIds = [...new Set(data.map((c) => c.user_id))]
         let nicknameById = {}
         let avatarUrlById = {}
-        if (userIds.length > 0) {
-          const { data: profiles, error: profilesError } = await supabase
-            .from('profiles')
-            .select('user_id, nickname, avatar_url, avatar_version')
-            .in('user_id', userIds)
-          if (profilesError) console.error('[기록장] 댓글 작성자 조회 실패', profilesError)
-          nicknameById = Object.fromEntries((profiles ?? []).map((p) => [p.user_id, p.nickname]))
+        if (data.length > 0) {
+          const { data: authors, error: authorsError } = await supabase.rpc(
+            'get_diary_comment_authors',
+            { p_entry_id: entryId }
+          )
+          if (authorsError) console.error('[기록장] 댓글 작성자 조회 실패', authorsError)
+          nicknameById = Object.fromEntries((authors ?? []).map((p) => [p.user_id, p.nickname]))
           avatarUrlById = Object.fromEntries(
-            (profiles ?? []).map((p) => [p.user_id, buildProfileAvatarUrl(supabase, p)])
+            (authors ?? []).map((p) => [p.user_id, buildProfileAvatarUrl(supabase, p)])
           )
         }
         if (!alive.current) return
