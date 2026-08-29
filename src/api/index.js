@@ -2,3 +2,4 @@
 export { fetchTourBakeries, fetchAttractions, getAttractionIntro, getDetail, tourEnabled } from './tourApi'
 export { fetchKakaoBakeries, kakaoLocalEnabled, reverseGeocode, reverseGeocodeAddress, searchPlace } from './kakaoLocal'
 export { mergeBakeries, normalizeTour, normalizeKakao } from './normalize'
+export { fetchDestinationsMatrix } from './kakaoMobility'

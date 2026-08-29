@@ -1,23 +1,27 @@
 // 이동수단별 소요시간(분) 근사 계산. 경로알고리즘.html §2를 그대로 이식한 것.
 import { haversineKm } from './distance.js'
 import { fetchDriving, fetchDrivingMultiWaypoint } from '../api/kakaoMobility.js'
-import { fetchTransit } from '../api/odsay.js'
+import { fetchWalking, fetchWalkingMultiWaypoint } from '../api/tmap.js'
 import { findNearbyParking } from '../api/kakaoLocal.js'
 
-const SPEED = { walk: 4, car: 24 } // km/h
-const DETOUR = 1.3 // 직선거리 → 실제 도로 보정 계수
+const SPEED = { walk: 4.5, car: 24 } // km/h — walk는 TMAP 실측 평균(4.49)과 일치하도록 확정(#53)
+const DETOUR = 1.3 // 직선거리 → 실제 도로 보정 계수(car/transit 공용)
+// 도보 전용 보정 계수 — TMAP(중앙값 1.52)과 Valhalla/OSM(중앙값 1.55) 독립 교차검증으로 확정(#53).
+// car용 DETOUR(1.3)를 그대로 쓰면 실제보다 항상 적게 나온다(대전 산·호수·공원 구간에서 특히).
+const WALK_DETOUR = 1.52
 
 // 두 좌표({lat,lng}) 사이 이동시간(분) 근사치. mode: 'car' | 'transit' | 'walk'
 export function travelMin(a, b, mode) {
-  const km = haversineKm(a, b) * DETOUR
+  const km = haversineKm(a, b) * (mode === 'walk' ? WALK_DETOUR : DETOUR)
   if (mode === 'transit') return Math.round((km / SPEED.car) * 60 * 1.4 + 6)
   return Math.round((km / SPEED[mode]) * 60)
 }
 
 // 두 좌표 사이 거리(km) 근사치 — travelMin()과 짝을 이루는 거리 버전. 실API가 없거나 실패했을 때
-// 이 값이 폴백으로 쓰인다(직선거리를 그대로 안 쓰고 DETOUR로 보정).
-export function estimateKm(a, b) {
-  return haversineKm(a, b) * DETOUR
+// 이 값이 폴백으로 쓰인다(직선거리를 그대로 안 쓰고 DETOUR로 보정). mode 기본값 'car'는 기존
+// 호출부(자동차 전용 대체 지점 계산 등)와의 호환 — travelMin과 짝 맞춰 walk만 다른 계수를 쓴다.
+export function estimateKm(a, b, mode = 'car') {
+  return haversineKm(a, b) * (mode === 'walk' ? WALK_DETOUR : DETOUR)
 }
 
 // CP11-4 — 목적지 좌표 그대로는 도로망을 못 찾는 지점(대청호 같은 호수·공원 초입, 카카오
@@ -110,7 +114,7 @@ async function estimateLegByLeg(fetchLeg, points, travelMode) {
     const leg = results[i]
     if (leg) {
       const distanceReal = Number.isFinite(leg.distanceKm)
-      const km = distanceReal ? leg.distanceKm : estimateKm(points[i], points[i + 1])
+      const km = distanceReal ? leg.distanceKm : estimateKm(points[i], points[i + 1], travelMode)
       totalMinutes += leg.minutes
       totalDistanceKm += km
       legDistancesKm.push(km)
@@ -123,7 +127,7 @@ async function estimateLegByLeg(fetchLeg, points, travelMode) {
       legDistanceEstimated.push(!!leg.estimated || !distanceReal)
     } else {
       const min = travelMin(points[i], points[i + 1], travelMode)
-      const km = estimateKm(points[i], points[i + 1])
+      const km = estimateKm(points[i], points[i + 1], travelMode)
       totalMinutes += min
       totalDistanceKm += km
       legDistancesKm.push(km)
@@ -146,15 +150,20 @@ async function estimateLegByLeg(fetchLeg, points, travelMode) {
   }
 }
 
-// CP6-4/CP11-4 — origin→stops 순서의 총 이동시간(분)·거리(km) + 구간별 실제 경로 좌표를 실API로
-// 구한다. 도보는 실API를 안 붙인다(근사로 충분, §08) → legPaths도 항상 직선(폴백)이다.
+// CP6-4/CP11-4/CP12 — origin→stops 순서의 총 이동시간(분)·거리(km) + 구간별 실제 경로 좌표를
+// 실API로 구한다.
 // 자동차는 다중 경유지 API(한 번의 호출로 전체 동선을 한 번에 계산)를 먼저 시도하고, 그게
 // 실패하면(코스 중 한 곳이라도 도로망을 못 찾으면 전체가 실패하는 게 카카오 쪽 제약이라 실제로
-// 겪음) 구간별 개별 호출(대체 지점 재시도 포함)로 폴백한다. 대중교통은 다중 경유지 API가 없어
-// 처음부터 구간별로 부른다. 전 구간이 다 실패했을 때만(키 미설정·인증 실패 등) null — 호출부가
-// 근사치로 폴백.
+// 겪음) 구간별 개별 호출(대체 지점 재시도 포함)로 폴백한다.
+// 도보는 TMAP 보행자 API(passList, 다중 경유지와 같은 방식)를 먼저 시도하고, 실패하면(대청호
+// 외곽 등 ~6.7% 확률로 실측됨) 구간별 개별 호출로 폴백한다.
+// 대중교통은 CP12부터 런타임 API 호출을 안 한다(ODsay 무료 쿼터 일 30건 — 실측 확인, 코스
+// 계산마다 부르면 하루 7코스만에 소진돼 항상 null) → 항상 null 반환, 호출부가 보정된 근사치를
+// 쓰고 화면은 카카오맵 링크로 정확한 정보를 안내한다.
+// 전 구간이 다 실패했을 때만(키 미설정·인증 실패 등) null — 호출부가 근사치로 폴백.
 // → { totalMinutes, totalDistanceKm, legPaths, legDistancesKm, legMinutes,
-//     legMinutesEstimated, legDistanceEstimated, legEstimated } | null
+//     legMinutesEstimated, legDistanceEstimated, legEstimated, taxiFare? } | null
+//   (taxiFare는 car 모드 다중경유지 성공 시에만 옴 — "버스 vs 택시" 비교용, CP12)
 export async function estimateActualRoute(origin, orderedStops, travelMode) {
   if (orderedStops.length === 0) return null
   const points = [origin, ...orderedStops]
@@ -177,12 +186,35 @@ export async function estimateActualRoute(origin, orderedStops, travelMode) {
         legMinutesEstimated: multi.legEstimated,
         legDistanceEstimated: multi.legEstimated,
         legEstimated: multi.legEstimated,
+        taxiFare: multi.taxiFare, // CP12 — "버스 vs 택시" 비교용. 폴백 경로엔 없음(대체 지점 재시도 API는 fare를 안 줌).
       }
     }
     return estimateLegByLeg(fetchDrivingWithSubstitute, points, travelMode)
   }
-  if (travelMode === 'transit') {
-    return estimateLegByLeg(fetchTransit, points, travelMode)
+  if (travelMode === 'walk') {
+    const multi = await fetchWalkingMultiWaypoint(points)
+    if (multi) {
+      return {
+        totalMinutes: multi.minutes,
+        totalDistanceKm: multi.distanceKm,
+        legPaths: multi.legPaths,
+        legDistancesKm: multi.legDistancesKm,
+        legMinutes: multi.legMinutes,
+        // TMAP passList는 구간별 실측을 그대로 준다(검증됨, 카카오처럼 비례분배 근사가 섞일
+        // 일이 없음) — legEstimated는 전 구간 false로 온다.
+        legMinutesEstimated: multi.legEstimated,
+        legDistanceEstimated: multi.legEstimated,
+        legEstimated: multi.legEstimated,
+      }
+    }
+    // passList 호출이 실패해도(경유지 중 한 곳이 대청호 외곽처럼 TMAP이 못 찾는 지점일 수
+    // 있음, ~6.7% 확률로 실측 확인) 구간별 fetchWalking()으로 폴백 — 실패한 구간만
+    // estimateLegByLeg의 근사치로 메운다.
+    return estimateLegByLeg(fetchWalking, points, travelMode)
   }
+  // transit — CP12: ODsay 무료 쿼터가 일 30건뿐이라(실측 확인) 코스 계산마다 런타임 호출하면
+  // 하루 7코스만에 소진돼 이후 전부 조용히 추정으로 폴백하는 문제가 있었다. 런타임 호출 자체를
+  // 걷어내고 항상 보정된 근사치(travelMin/estimateKm)를 쓴다 — 정확한 시간표는 화면의 카카오맵
+  // 링크로 안내한다(PilgrimagePage.jsx). odsay.js는 지우지 않는다 — 쿼터가 복구되면 되살릴 수 있게.
   return null
 }
