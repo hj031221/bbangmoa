@@ -39,7 +39,7 @@ function summarize(origin, orderedStops, travelMode) {
   let totalMinutes = 0
   let prev = origin
   for (const stop of orderedStops) {
-    totalDistanceKm += estimateKm(prev, stop)
+    totalDistanceKm += estimateKm(prev, stop, travelMode)
     totalMinutes += travelMin(prev, stop, travelMode)
     prev = stop
   }

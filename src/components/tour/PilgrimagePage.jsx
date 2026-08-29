@@ -9,6 +9,7 @@ import { buildRoute, recalcRoute, summarizeOrder } from '../../lib/routePlan'
 import { estimateActualRoute } from '../../lib/travelTime'
 import { formatDistance, midpointOf, hasValidCoords } from '../../lib/distance'
 import { sanitizeOriginForSave } from '../../lib/originPrivacy'
+import { fetchDestinationsMatrix } from '../../api'
 import { getRegion } from '../../config/regions'
 import { supabase } from '../../lib/supabase'
 import { useAttractions } from '../../hooks/useAttractions'
@@ -44,6 +45,15 @@ function CompletionMark() {
 // 허용), origin은 "그때그때 어디서 출발했는지"일 뿐 코스 자체의 정체성은 아니라고 판단했다.
 function stopsSignature(stops) {
   return (stops || []).map((s) => `${s.type}:${s.id}`).join('|')
+}
+
+// CP12 — 대중교통 구간의 "실제 경로 보기" 링크. 카카오맵이 외부 사이트용으로 공식 제공하는
+// 웹 링크(API 키 불필요, PC/모바일 자동 대응, 실 호출 302 확인됨) — 앱 스킴(kakaomap://)은
+// by 파라미터가 무시되고 CAR로 열린다는 버그 리포트가 여럿이라 웹 링크를 쓴다. 대중교통 모드는
+// 경유지를 지원하지 않아 코스 전체가 아니라 구간별로 건다.
+function kakaoTransitLink(from, to) {
+  const enc = (v) => encodeURIComponent(v || '')
+  return `https://map.kakao.com/link/by/traffic/${enc(from.name)},${from.lat},${from.lng}/${enc(to.name)},${to.lat},${to.lng}`
 }
 
 function formatMinutes(min) {
@@ -171,15 +181,70 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
     }
   }, [baseRoute, customStops, bakeriesLoading, attractionsLoading])
 
+  // CP12 — car 모드에서만: haversine 그리디(recalcRoute)로 먼저 즉시 렌더한 뒤, 카카오 1:N
+  // 목적지 API로 매 스텝(마지막 방문지 → 남은 stop들) 실주행시간을 받아 그리디를 다시 돈다.
+  // "직선으로 가까워 보이지만 실제로는 하천 건너편이라 크게 도는" 사례(대전 갑천·대전천에서
+  // 실제로 겪음)를 바로잡는다. 수동으로 순서를 바꾼 뒤(manualOrderIds)엔 안 건드린다.
+  //
+  // 리뷰 발견 2건 반영:
+  //  - fetchDestinationsMatrix는 카카오모빌리티의 자동차 전용 엔드포인트다. travelMode가
+  //    도보/대중교통일 때도 이 재정렬을 적용하면 자동차 기준 거리를 다른 모드에 잘못 씌우는
+  //    꼴이라(이 PR이 고치려던 문제를 형태만 바꿔 재현) car 모드에서만 돈다 — deps에 travelMode
+  //    추가, 모드가 바뀌면 realOrderIds를 비우고(위 setRealOrderIds(null)) 도보/대중교통은
+  //    기존 haversine 그리디를 그대로 쓴다.
+  //  - origin 한 곳 기준으로 한 번에 정렬하면(단순 정렬) "A·C가 양끝, B가 그 사이"인 배치에서
+  //    최적(O→A→C→B)이 아니라 O→A→B→C를 낼 수 있다 — 매 스텝 "마지막 방문지"를 새 기준점으로
+  //    다시 조회하는 진짜 최근접 이웃 체이닝으로 바꿨다(buildGreedyOrder와 동일한 구조, haversine
+  //    대신 실주행시간만 다르다).
+  // 한 스텝이라도 API가 실패하면 전체를 포기한다(realOrderIds는 null로 남아 그리디 폴백) —
+  // 부분 성공을 짜깁기하면 "일부만 실측"인 애매한 순서가 되어 오히려 신뢰도만 떨어뜨린다.
+  //
+  // 리뷰 발견 — 이 재정렬은 스텝마다 fetchDestinationsMatrix를 호출하는 순차 체이닝이라
+  // 코스당 최대 N-1회(스톱 N개) 라운드트립이 나간다(kakaoMobility.js 주석 참고). 추가/제거를
+  // 연달아 누르면(customStops가 빠르게 여러 번 바뀌면) 그때마다 새 체인이 돌아 쿼터를
+  // 불필요하게 많이 쓴다 — 300ms 디바운스로 묶어서 연속 조작이 끝난 뒤 한 번만 돌게 한다
+  // (LocationStep.jsx의 검색 디바운스와 동일 패턴).
+  const [realOrderIds, setRealOrderIds] = useState(null)
+  useEffect(() => {
+    setRealOrderIds(null)
+    if (travelMode !== 'car' || !origin || manualOrderIds || !customStops || customStops.length === 0) {
+      return
+    }
+    let alive = true
+    const timer = setTimeout(() => {
+      ;(async () => {
+        const remaining = [...customStops]
+        const ordered = []
+        let cur = origin
+        while (remaining.length > 0) {
+          const result = await fetchDestinationsMatrix(cur, remaining)
+          if (!alive) return
+          if (!result || result.length === 0) return // 실패 — realOrderIds는 null로 남는다(그리디 폴백)
+          const byId = new Map(result.map((r) => [r.id, r]))
+          remaining.sort((a, b) => (byId.get(a.id)?.minutes ?? Infinity) - (byId.get(b.id)?.minutes ?? Infinity))
+          const next = remaining.shift()
+          ordered.push(next)
+          cur = next
+        }
+        if (alive) setRealOrderIds(ordered.map((s) => s.id))
+      })()
+    }, 300)
+    return () => {
+      alive = false
+      clearTimeout(timer)
+    }
+  }, [origin, customStops, manualOrderIds, travelMode])
+
   const route = useMemo(() => {
     if (!customStops || !origin) return null
-    if (manualOrderIds) {
+    const orderIds = manualOrderIds || realOrderIds
+    if (orderIds) {
       const byId = new Map(customStops.map((s) => [s.id, s]))
-      const ordered = manualOrderIds.map((id) => byId.get(id)).filter(Boolean)
+      const ordered = orderIds.map((id) => byId.get(id)).filter(Boolean)
       if (ordered.length > 0) return summarizeOrder(origin, ordered, travelMode)
     }
     return recalcRoute(origin, customStops, travelMode)
-  }, [customStops, manualOrderIds, travelMode, origin])
+  }, [customStops, manualOrderIds, realOrderIds, travelMode, origin])
 
   const excludeIds = useMemo(() => new Set((customStops || []).map((s) => s.id)), [customStops])
 
@@ -226,6 +291,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
   const [legEstimated, setLegEstimated] = useState(null)
   const [legMinutesEstimated, setLegMinutesEstimated] = useState(null)
   const [legDistanceEstimated, setLegDistanceEstimated] = useState(null)
+  const [taxiFare, setTaxiFare] = useState(null) // CP12 — car 모드 다중경유지 성공 시에만 옴
   useEffect(() => {
     setPreciseMinutes(null)
     setPreciseDistanceKm(null)
@@ -235,6 +301,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
     setLegEstimated(null)
     setLegMinutesEstimated(null)
     setLegDistanceEstimated(null)
+    setTaxiFare(null)
     if (!route || route.stops.length === 0) return
     let alive = true
     estimateActualRoute(origin, route.stops, travelMode)
@@ -248,6 +315,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
         setLegEstimated(result?.legEstimated ?? null)
         setLegMinutesEstimated(result?.legMinutesEstimated ?? null)
         setLegDistanceEstimated(result?.legDistanceEstimated ?? null)
+        setTaxiFare(result?.taxiFare ?? null)
       })
       // 리뷰 발견: estimateActualRoute 내부 어딘가(특히 findNearbyParking)가 던지면 여기 .catch()가
       // 없어 unhandled rejection이 나고, 화면은 아무 에러 표시 없이 preciseMinutes=null(근사치)
@@ -280,6 +348,10 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
   const addStop = (stop) => {
     setCustomStops((prev) => [...(prev || []), stop])
     setManualOrderIds((prev) => (prev ? [...prev, stop.id] : prev))
+    // manualOrderIds와 똑같이 realOrderIds도 미러링한다 — 안 하면 실주행 재정렬이 활성인
+    // 상태에서 추가한 stop이 realOrderIds엔 없어서, 재정렬 effect가 새로 돌기 전까지 한
+    // 프레임 동안 route memo가 방금 추가한 stop이 빠진 목록으로 그려진다(리뷰 발견).
+    setRealOrderIds((prev) => (prev ? [...prev, stop.id] : prev))
     setAddOpen(false)
     setHighlightIndex(null)
   }
@@ -425,9 +497,21 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
               <b>{route.stops.length}곳</b>
               <span>방문 예정</span>
             </div>
+            {travelMode === 'car' && Number.isFinite(taxiFare) && (
+              <div>
+                <b>{taxiFare.toLocaleString()}원</b>
+                <span>예상 택시요금</span>
+              </div>
+            )}
           </div>
         ) : (
           <p className="pil-empty-msg">코스가 비었어요 — 아래 "추가하기"로 빵집·관광지를 넣어보세요.</p>
+        )}
+
+        {travelMode === 'transit' && (
+          <p className="pil-transit-notice">
+            대중교통 시간은 추정치입니다. 정확한 시간표·환승은 각 경유지의 카카오맵 링크에서 확인하세요.
+          </p>
         )}
 
         <ol className="pil-stops">
@@ -471,6 +555,21 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
                   )}
                 </span>
               </button>
+              {travelMode === 'transit' && (
+                <a
+                  className="pil-stop-transit-link"
+                  href={kakaoTransitLink(
+                    index === 0 ? { name: origin.label || '출발지', lat: origin.lat, lng: origin.lng } : route.stops[index - 1],
+                    stop,
+                  )}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`${stop.name} 카카오맵에서 실제 경로 보기`}
+                  title="카카오맵에서 실제 경로 보기"
+                >
+                  ↗
+                </a>
+              )}
               <button
                 type="button"
                 className="pil-stop-remove"

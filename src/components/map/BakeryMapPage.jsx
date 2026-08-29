@@ -91,13 +91,24 @@ export default function BakeryMapPage({
       {loading && <div className="banner">불러오는 중…</div>}
 
       {!nearbyMode && (
-        <input
-          type="text"
-          className="bm-map-search-input"
-          placeholder="빵집 이름 검색…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+        <form
+          className="bm-map-search-form"
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (filtered.length > 0) setSelectedId(filtered[0].id)
+          }}
+        >
+          <input
+            type="text"
+            className="bm-map-search-input"
+            placeholder="빵집 이름 검색…"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value)
+              setSelectedId(null)
+            }}
+          />
+        </form>
       )}
 
       {nearbyMode ? (

@@ -66,6 +66,10 @@ export async function fetchDrivingMultiWaypoint(points) {
         destination: { x: destination.lng, y: destination.lat },
         waypoints: waypoints.map((p) => ({ x: p.lng, y: p.lat })),
         priority: 'RECOMMEND',
+        // CP12: summary:true는 넣지 않는다 — fare.taxi/fare.toll은 이 플래그 없이도 기본 응답
+        // route.summary.fare에 그대로 들어온다(실측 재확인). summary:true를 넣으면 오히려
+        // sections[]에서 roads가 빠져(distance/duration만 남음) legPaths가 빈 배열이 되어
+        // 지도에 경로선이 안 그려진다(리뷰 발견 — fare를 받으려던 목적에 불필요했고 부작용만 있었음).
       }),
     })
     if (!res.ok) return null
@@ -74,6 +78,7 @@ export async function fetchDrivingMultiWaypoint(points) {
     if (route?.result_code !== 0) return null // 예: 103 = 경유지 중 하나 근처 도로망 탐색 불가
     const duration = route?.summary?.duration
     const distance = route?.summary?.distance
+    const taxiFare = route?.summary?.fare?.taxi
     if (!Number.isFinite(duration)) return null
 
     // sections[i] = origin/waypoint[i-1] → waypoint[i]/destination 구간. points와 1:1 대응.
@@ -126,7 +131,47 @@ export async function fetchDrivingMultiWaypoint(points) {
       // 분배한 근사값이다 — 호출부(travelTime.js)가 legEstimated로 그대로 넘겨써서 지도에
       // 정확히 실선/점선을 구분하게 한다(리뷰 발견: 전엔 이 구분 없이 항상 실측 취급했음).
       legEstimated: legPaths.map(() => !hasSectionMetrics),
+      taxiFare: Number.isFinite(taxiFare) ? taxiFare : null,
     }
+  } catch {
+    return null
+  }
+}
+
+// CP12 — 1:N 실주행시간/거리 매트릭스(POST /v1/destinations/directions). 코스 순서 결정에 쓴다 —
+// buildGreedyOrder(routePlan.js)의 직선거리 그리디는 "직선으로 가까워 보이지만 실제로는 하천
+// 건너편이라 크게 도는" 경우를 못 잡는다(대전 갑천·대전천에서 실제로 겪음). 이 함수 자체는
+// 호출 1회로 origin→destinations 전체 실주행시간을 받는다(실측 확인: 목적지 3곳 → 정상 응답,
+// 하나가 radius 밖이면 그 destination만 result_code 304로 빠지고 나머지는 정상 응답).
+// 다만 호출부(PilgrimagePage.jsx)는 진짜 최근접 이웃 순서를 만들려고 이 함수를 스텝마다
+// (매번 "마지막 방문지"를 새 origin으로) 반복 호출한다 — 코스당 총 N-1회(스톱 N개) 순차
+// 라운드트립이 나간다는 뜻이다. "호출 1회"는 이 함수 자체에 대한 설명이지 전체 재정렬
+// 흐름에 대한 설명이 아니다(리뷰 발견 — 이전 주석이 혼동을 줌).
+// destinations: [{ id, lat, lng }, ...] (id를 API의 key로 그대로 씀, 응답 매칭용)
+// → [{ id, distanceKm, minutes }] | null (radius 밖이거나 실패한 목적지는 배열에서 빠진다 —
+//   호출부가 못 찾은 stop을 별도 처리해야 함)
+export async function fetchDestinationsMatrix(origin, destinations) {
+  if (!REST_KEY || destinations.length === 0) return null
+  try {
+    const res = await fetch('https://apis-navi.kakaomobility.com/v1/destinations/directions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `KakaoAK ${REST_KEY}` },
+      body: JSON.stringify({
+        origin: { x: origin.lng, y: origin.lat },
+        destinations: destinations.map((d) => ({ x: d.lng, y: d.lat, key: d.id })),
+        radius: 10000, // API 상한(10km, 이보다 크면 요청 자체가 400) — 대전 시내 코스는 보통 이 안
+      }),
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    const routes = data?.routes || []
+    return routes
+      .filter((r) => r.result_code === 0 && r.summary)
+      .map((r) => ({
+        id: r.key,
+        distanceKm: r.summary.distance / 1000,
+        minutes: Math.round(r.summary.duration / 60),
+      }))
   } catch {
     return null
   }

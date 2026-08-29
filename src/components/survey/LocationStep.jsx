@@ -8,6 +8,11 @@ import { searchPlace } from '../../api'
 // 그 아래 큰 지도(클릭해서 직접 찍기도 가능) → 검색 중엔 지도 위로 결과 리스트가 덮인다.
 // 프리셋(대전역 등)은 지도 아래 작은 칩으로.
 //
+// GPS·검색 결과·지도 클릭 어느 경로로 고르든 바로 확정하지 않는다 — 지도에 위치를 표시하고
+// "이 위치로 시작 →" 버튼을 직접 눌러야 다음 단계로 넘어간다(#58). 확인 없이 곧장 넘어가면
+// 사용자가 어디가 잡혔는지 볼 새도 없이 화면이 바뀌어버리는 문제가 있었다 — 특히 GPS는
+// 실내/다중경로 반사 등으로 오차가 클 수 있어 바로잡을 기회가 필요하다.
+//
 // 여기서 고른 origin이 결과(거리·정렬)로 흐르고, "대전한바퀴" 코스 저장 시 DB에도 들어간다.
 // GPS(자동 취득 개인위치정보)는 화면 계산에만 쓰고, 저장 시엔 가장 가까운 프리셋으로 치환해
 // 원본 좌표가 서버로 나가지 않게 막는다(originPrivacy.js) — 위치정보법상 "서버로 전송하는
@@ -22,6 +27,57 @@ export default function LocationStep({ onDone }) {
     onDone?.()
   }
 
+  // 지도 위에 찍힌(아직 확정 전) 위치. 지도 클릭/GPS/검색 결과 클릭 모두 여길 거쳐가고,
+  // "이 위치로 시작 →" 버튼을 눌러야 choose() 로 확정된다.
+  const mapRef = useRef(null)
+  const { loaded } = useKakaoLoader()
+  const mapInstanceRef = useRef(null)
+  const markerRef = useRef(null)
+  const [picked, setPicked] = useState(null) // { lat, lng, label, source }
+
+  // 지도 생성 — 클릭하면 직접 찍기. 아래 마커 그리기 effect보다 반드시 먼저 선언한다: 둘 다
+  // deps에 loaded가 있어서 loaded가 true로 바뀌는 렌더에서 React가 선언 순서대로 실행하는데,
+  // 이 effect(지도 생성)가 나중에 선언돼 있으면 마커 그리기 effect가 먼저 실행되면서
+  // mapInstanceRef.current가 아직 null이라 조용히 return해버린다 — 그 뒤로 loaded/picked가
+  // 더 안 바뀌면 재실행 기회가 없어 GPS 등으로 이미 잡힌 picked가 있어도 마커가 영영 안
+  // 그려진다(리뷰 발견 — #58이 막으려던 "확인 기회"가 이 선언 순서 때문에 무력화됨).
+  useEffect(() => {
+    if (!loaded || !mapRef.current) return
+    const { kakao } = window
+    const map = new kakao.maps.Map(mapRef.current, {
+      center: new kakao.maps.LatLng(region.center.lat, region.center.lng),
+      level: 6,
+    })
+    const marker = new kakao.maps.Marker()
+    mapInstanceRef.current = map
+    markerRef.current = marker
+    kakao.maps.event.addListener(map, 'click', (e) => {
+      const ll = e.latLng
+      placePick(ll.getLat(), ll.getLng(), '지도에서 선택', 'pick')
+    })
+  }, [loaded, region])
+
+  // "어디가 찍혔는지"(picked 상태)와 "그걸 지도에 실제로 그리는 것"을 분리한다 — 이 스텝
+  // 진입 직후 카카오 SDK 로딩(loaded)과 GPS 응답이 경합하면(특히 enableHighAccuracy라 GPS가
+  // 늦게 안 오는 편이라 보통은 안전하지만, 로딩이 느린 환경에선 반대로 될 수 있음) GPS가 먼저
+  // 도착해 지도/마커가 아직 없는 채로 호출될 수 있다 — 위 지도 생성 effect가 항상 먼저
+  // 실행되도록 선언 순서를 맞춰뒀지만(리뷰 발견), 그래도 이 effect를 loaded/picked 둘 다에
+  // 반응하게 해서 어느 쪽이 늦게 오든 최종적으로 마커가 그려지도록 이중으로 보장한다.
+  const placePick = (lat, lng, label, source) => setPicked({ lat, lng, label, source })
+
+  useEffect(() => {
+    if (!picked || !loaded) return
+    const { kakao } = window
+    const map = mapInstanceRef.current
+    const marker = markerRef.current
+    if (!kakao || !map || !marker) return
+    const ll = new kakao.maps.LatLng(picked.lat, picked.lng)
+    marker.setPosition(ll)
+    marker.setMap(map)
+    map.panTo(ll)
+    map.setLevel(4)
+  }, [picked, loaded])
+
   const [gpsMsg, setGpsMsg] = useState('')
   const useGps = () => {
     if (!navigator.geolocation) {
@@ -30,8 +86,10 @@ export default function LocationStep({ onDone }) {
     }
     setGpsMsg('위치 확인 중…')
     navigator.geolocation.getCurrentPosition(
-      (p) =>
-        choose({ lat: p.coords.latitude, lng: p.coords.longitude, label: '현재 위치', source: 'gps' }),
+      (p) => {
+        setGpsMsg('')
+        placePick(p.coords.latitude, p.coords.longitude, '현재 위치', 'gps')
+      },
       () => setGpsMsg('위치를 못 받았어요. 아래 출발지를 골라주세요.'),
       { enableHighAccuracy: true, timeout: 8000 },
     )
@@ -43,7 +101,10 @@ export default function LocationStep({ onDone }) {
   const [searching, setSearching] = useState(false)
   const reqId = useRef(0)
   useEffect(() => {
-    if (!query.trim()) {
+    // picked가 있으면(검색 결과를 이미 골라 확정 대기 중) 결과 패널 자체가 안 뜬다
+    // (아래 렌더의 `!picked` 가드) — 검색 결과 클릭 시 setQuery(r.name)이 이 effect를 다시
+    // 트리거해서 쓸모없는 API 호출이 한 번 더 나가던 걸 여기서 막는다(리뷰 발견).
+    if (!query.trim() || picked) {
       setResults([])
       setSearching(false)
       return
@@ -63,29 +124,14 @@ export default function LocationStep({ onDone }) {
         })
     }, 300)
     return () => clearTimeout(timer)
-  }, [query])
+  }, [query, picked])
 
-  // 지도 — 직접 클릭해서 찍기(핀 표시 후 확정 버튼)
-  const mapRef = useRef(null)
-  const { loaded } = useKakaoLoader()
-  const markerRef = useRef(null)
-  const [picked, setPicked] = useState(null)
-  useEffect(() => {
-    if (!loaded || !mapRef.current) return
-    const { kakao } = window
-    const map = new kakao.maps.Map(mapRef.current, {
-      center: new kakao.maps.LatLng(region.center.lat, region.center.lng),
-      level: 6,
-    })
-    const marker = new kakao.maps.Marker()
-    markerRef.current = marker
-    kakao.maps.event.addListener(map, 'click', (e) => {
-      const ll = e.latLng
-      marker.setPosition(ll)
-      marker.setMap(map)
-      setPicked({ lat: ll.getLat(), lng: ll.getLng() })
-    })
-  }, [loaded, region])
+  const confirmLabel =
+    picked?.source === 'gps'
+      ? '현재 위치에서 시작 →'
+      : picked?.source === 'search'
+        ? `${picked.label}에서 시작 →`
+        : '이 위치로 시작 →'
 
   return (
     <div className="survey-step">
@@ -101,12 +147,23 @@ export default function LocationStep({ onDone }) {
           <input
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value)
+              setPicked(null)
+            }}
             placeholder="장소명·주소로 출발지 검색"
             aria-label="출발지 검색"
           />
           {query.trim() && (
-            <button type="button" className="loc-map-clear" onClick={() => setQuery('')} aria-label="지우기">
+            <button
+              type="button"
+              className="loc-map-clear"
+              onClick={() => {
+                setQuery('')
+                setPicked(null)
+              }}
+              aria-label="지우기"
+            >
               ✕
             </button>
           )}
@@ -122,7 +179,7 @@ export default function LocationStep({ onDone }) {
 
         <div className="loc-map-wrap">
           <div className="loc-map-canvas" ref={mapRef} />
-          {query.trim() && (
+          {query.trim() && !picked && (
             <div className="loc-map-results">
               {searching && <div className="loc-map-empty">검색 중…</div>}
               {!searching && results.length === 0 && (
@@ -134,7 +191,10 @@ export default function LocationStep({ onDone }) {
                     key={`${r.name}-${i}`}
                     type="button"
                     className="loc-map-result-row"
-                    onClick={() => choose({ lat: r.lat, lng: r.lng, label: r.name, source: 'search' })}
+                    onClick={() => {
+                      setQuery(r.name)
+                      placePick(r.lat, r.lng, r.name, 'search')
+                    }}
                   >
                     <span className="loc-map-result-name">{r.name}</span>
                     {r.address && <span className="loc-map-result-addr">{r.address}</span>}
@@ -142,13 +202,9 @@ export default function LocationStep({ onDone }) {
                 ))}
             </div>
           )}
-          {!query.trim() && picked && (
-            <button
-              type="button"
-              className="loc-map-confirm"
-              onClick={() => choose({ lat: picked.lat, lng: picked.lng, label: '지도에서 선택', source: 'pick' })}
-            >
-              이 위치로 시작 →
+          {picked && (
+            <button type="button" className="loc-map-confirm" onClick={() => choose(picked)}>
+              {confirmLabel}
             </button>
           )}
         </div>

@@ -434,14 +434,14 @@ a{ color:var(--accent-text); }
 
 .loc-map-wrap{ position:relative; }
 .loc-map-canvas{ width:100%; height:340px; border-radius:0 0 16px 16px; overflow:hidden; background:#eef0f2; }
-.loc-map-results{ position:absolute; inset:0; overflow-y:auto; background:#fff; border-radius:0 0 16px 16px; box-shadow:inset 0 1px 0 var(--line); }
+.loc-map-results{ position:absolute; inset:0; z-index:5; overflow-y:auto; background:#fff; border-radius:0 0 16px 16px; box-shadow:inset 0 1px 0 var(--line); }
 .loc-map-result-row{ display:flex; flex-direction:column; align-items:flex-start; gap:2px; width:100%; padding:12px 16px; text-align:left; border-bottom:1px solid var(--line); }
 .loc-map-result-row:last-child{ border-bottom:none; }
 .loc-map-result-row:hover{ background:var(--card2); }
 .loc-map-result-name{ font-size:.92rem; font-weight:600; color:var(--ink); }
 .loc-map-result-addr{ font-size:.78rem; color:var(--muted); }
 .loc-map-empty{ padding:20px; text-align:center; color:var(--muted); font-size:.85rem; }
-.loc-map-confirm{ position:absolute; left:14px; right:14px; bottom:14px; padding:13px; border:none; border-radius:14px; background:var(--accent); color:#fff; font-weight:700; box-shadow:0 8px 20px rgba(0,0,0,.2); }
+.loc-map-confirm{ position:absolute; z-index:5; left:14px; right:14px; bottom:14px; padding:13px; border:none; border-radius:14px; background:var(--accent); color:#fff; font-weight:700; box-shadow:0 8px 20px rgba(0,0,0,.2); }
 .loc-map-confirm:hover{ background:var(--accent-deep); }
 
 .loc-map-gps-notice{ margin:8px 2px 0; font-size:.76rem; color:var(--muted); }
@@ -706,6 +706,7 @@ a{ color:var(--accent-text); }
 .pil-leg-label{ background:#fff; border:1px solid var(--line); border-radius:8px; padding:3px 8px; font-size:.72rem; font-weight:700; color:var(--brown); box-shadow:0 4px 10px rgba(76,49,13,.18); white-space:nowrap; }
 .pil-summary{ display:flex; gap:6px; background:var(--card2); border-radius:10px; padding:10px 4px; }
 .pil-empty-msg{ background:var(--card2); border-radius:10px; padding:14px 12px; font-size:.85rem; color:var(--muted); text-align:center; }
+.pil-transit-notice{ background:#FBEFC9; color:#7a5a00; font-size:.78rem; padding:8px 10px; border-radius:8px; margin:8px 0 0; }
 .pil-summary div{ flex:1; text-align:center; }
 .pil-summary b{ display:block; font-size:.9rem; color:var(--brown); }
 /* 리뷰 발견: 커밋 메시지가 흰 배경 기준 6.55:1로 인용했는데, .pil-summary의 실제 배경은
@@ -714,6 +715,11 @@ a{ color:var(--accent-text); }
 .pil-summary span{ font-size:.7rem; color:var(--ink); }
 .pil-stops{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; }
 .pil-stop{ display:flex; align-items:center; gap:10px; border:1px solid var(--line); border-radius:12px; padding:8px 10px; background:#fff; transition:border-color .12s, background .12s; }
+/* CP12 — 대중교통 모드에서만 뜨는 구간별 카카오맵 링크. 텍스트 라벨로 한 줄 다 차지하게 했더니
+   목록이 너무 늘어져서(리뷰 지적) 아이콘 하나로 줄였다 — .pil-stop-remove와 동일한 44×44
+   터치영역 패턴(박스는 44px, 음수 마진으로 레이아웃엔 원래 아이콘 크기만큼만 기여). */
+.pil-stop-transit-link{ border:none; background:none; color:var(--accent-text); font-size:.85rem; flex-shrink:0; display:flex; align-items:center; justify-content:center; width:44px; height:44px; margin:-12px; border-radius:8px; text-decoration:none; }
+.pil-stop-transit-link:hover{ background:var(--card2); }
 .pil-stop.drag-over{ border-color:var(--accent); background:var(--card2); }
 .pil-stop-handle{ cursor:grab; color:var(--muted); font-size:1rem; flex-shrink:0; line-height:1; touch-action:none; display:flex; align-items:center; justify-content:center; width:32px; height:32px; margin:-6px; border-radius:8px; }
 .pil-stop-handle:hover{ background:var(--card2); }
