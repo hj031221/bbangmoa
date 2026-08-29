@@ -15,22 +15,30 @@ export function useDiaryComments(entryId) {
   const [comments, setComments] = useState([])
   const [loading, setLoading] = useState(false)
 
-  // reload 는 effect(entry 전환)에서도, add/remove 이후에도 호출된다 — 같은 entry 안에서도
-  // 겹쳐 호출될 수 있다(예: 초기 조회가 끝나기 전에 댓글을 등록하면 add() 가 또 reload() 를 부름).
-  // 그래서 entryId 비교만으로는 부족하다 — 늦게 도착한 "먼저 보낸" 요청이 나중에 보낸 요청의
-  // 결과를 덮어쓸 수 있기 때문. 매 reload() 마다 증가하는 요청 번호를 매겨, 응답이 왔을 때
-  // "가장 최근에 보낸 요청"인지 확인해서 아니면 버린다 — entry 전환이든 같은 entry 내 중복
-  // 호출이든 이 하나로 전부 걸러진다.
+  // reload 는 effect(entry 전환)에서도, add/remove 이후(요청 도중 entry 전환 가능)에도 호출된다.
+  // 두 가드가 각자 다른 경우를 막는다 — 하나만 쓰면 안 된다:
+  //  - currentEntryIdRef: entry 전환. A 에 댓글을 달고 응답을 기다리는 사이 B 로 넘어가면, A 의
+  //    reload() 가 나중에 끝나도 "지금 보고 있는 entry" 가 아니므로 버린다(요청을 보내기도 전에
+  //    걸러 카운터도 건드리지 않는다 — 그래야 A 의 reload 가 counter 를 올려 "가장 최신"인 척
+  //    B 의 정상 응답을 덮어쓰는 걸 막을 수 있다).
+  //  - latestRequestIdRef: 같은 entry 안에서 reload() 가 겹치는 경우(초기 조회가 끝나기 전에
+  //    댓글을 등록하면 add() 가 또 reload() 를 부름) — entryId 는 같아서 위 가드로는 못 거른다.
   const latestRequestIdRef = useRef(0)
+  const currentEntryIdRef = useRef(entryId)
+  currentEntryIdRef.current = entryId
 
   const reload = () => {
     const requestEntryId = entryId
-    const requestId = ++latestRequestIdRef.current
-    const isStale = () => latestRequestIdRef.current !== requestId
+    // 이 reload 가 만들어졌을 때의 entry 가 이미 "지금 보고 있는 entry" 가 아니면, 네트워크
+    // 요청도 보내지 않고 여기서 끝낸다 — counter 도 올리지 않아야 뒤늦게 도착해도 최신 행세를 못 한다.
+    if (requestEntryId !== currentEntryIdRef.current) return
     if (!requestEntryId) {
       setComments([])
       return
     }
+    const requestId = ++latestRequestIdRef.current
+    const isStale = () =>
+      latestRequestIdRef.current !== requestId || currentEntryIdRef.current !== requestEntryId
     setLoading(true)
     supabase
       .from('diary_comments')
