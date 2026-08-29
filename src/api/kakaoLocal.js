@@ -35,6 +35,31 @@ export async function findNearbyParking(lat, lng, radiusM = 1500) {
   return { lat: plat, lng: plng }
 }
 
+// 장소명/주소로 좌표를 찾는다 (설문 0단계 "출발지 검색"). bbox로 지역을 한정하지 않는다 —
+// 대전 밖에서 출발하는 사용자도 있을 수 있어(PickMap과 동일 전제) 전국 검색 결과를 그대로 준다.
+// → [{ name, address, lat, lng }] (최대 8건)
+export async function searchPlace(query) {
+  if (!kakaoLocalEnabled() || !query?.trim()) return []
+  const headers = { Authorization: `KakaoAK ${REST_KEY}` }
+  const data = await getJson(ENDPOINT, {
+    params: { query: query.trim(), size: 8 },
+    headers,
+  })
+  return (data?.documents ?? [])
+    .map((d) => {
+      const lat = parseFloat(d.y)
+      const lng = parseFloat(d.x)
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+      return {
+        name: d.place_name,
+        address: d.road_address_name || d.address_name || '',
+        lat,
+        lng,
+      }
+    })
+    .filter(Boolean)
+}
+
 // 좌표 → 행정구역명 (예: "대전광역시 유성구"). GPS 로 얻은 좌표가 어디쯤인지 사용자에게 보여줄 때 사용.
 export async function reverseGeocode(lat, lng) {
   if (!kakaoLocalEnabled()) return null

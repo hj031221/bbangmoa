@@ -8,6 +8,8 @@ import { getTourRecommendation, isTourSurveyComplete } from '../../lib/tourRecom
 import { buildRoute, recalcRoute, summarizeOrder } from '../../lib/routePlan'
 import { estimateActualRoute } from '../../lib/travelTime'
 import { formatDistance, midpointOf, hasValidCoords } from '../../lib/distance'
+import { sanitizeOriginForSave } from '../../lib/originPrivacy'
+import { getRegion } from '../../config/regions'
 import { supabase } from '../../lib/supabase'
 import { useAttractions } from '../../hooks/useAttractions'
 import { useSavedCourses } from '../../hooks/useSavedCourses'
@@ -329,12 +331,16 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
     if (!user || !route || savingRef.current || isDuplicateOfSaved || savedCoursesLoading) return
     savingRef.current = true
     setSaveState('saving')
+    // #39 — GPS 원본 좌표는 서버로 절대 보내지 않는다(전송 자체만으로 위치정보법 신고
+    // 대상이 될 수 있음). 화면(라이브 계산)에는 정밀 GPS를 계속 쓰되, 저장하는 값만
+    // 가장 가까운 프리셋으로 치환한다 — preset/pick/search 출처는 그대로 저장된다.
+    const safeOrigin = sanitizeOriginForSave(origin, getRegion(regionId))
     const { error } = await supabase.from('saved_courses').insert({
       user_id: user.id,
       title: '대전한바퀴',
       travel_mode: travelMode,
       stops: route.stops,
-      origin,
+      origin: safeOrigin,
     })
     savingRef.current = false
     if (error) {
