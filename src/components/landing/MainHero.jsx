@@ -185,9 +185,11 @@ export default function MainHero({ onStart, onOpenMap, onOpenTour, onSearch }) {
                   aria-label="이전 관광지"
                   onClick={() => goTo(-1)}
                 >
-                  <svg viewBox="0 0 16 28" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <polyline points="13 4 3 14 13 24" />
-                  </svg>
+                  <span className="bm-tour-showcase-nav-glyph">
+                    <svg viewBox="0 0 16 28" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <polyline points="13 4 3 14 13 24" />
+                    </svg>
+                  </span>
                 </button>
                 <button
                   type="button"
@@ -195,9 +197,11 @@ export default function MainHero({ onStart, onOpenMap, onOpenTour, onSearch }) {
                   aria-label="다음 관광지"
                   onClick={() => goTo(1)}
                 >
-                  <svg viewBox="0 0 16 28" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <polyline points="3 4 13 14 3 24" />
-                  </svg>
+                  <span className="bm-tour-showcase-nav-glyph">
+                    <svg viewBox="0 0 16 28" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <polyline points="3 4 13 14 3 24" />
+                    </svg>
+                  </span>
                 </button>
               </>
             )}

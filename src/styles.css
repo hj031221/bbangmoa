@@ -38,6 +38,11 @@ body{ margin:0; font-family:"HakgyoansimDunggeunmisoTTF-R","Pretendard","Apple S
   background-image:linear-gradient(180deg, var(--bg-top) 0%, var(--bg-top) 38%, var(--bg-bottom) 100%);
   background-repeat:no-repeat;
   background-size:100% 100vh;
+  /* 이슈 #60 — 기본 word-break가 한글을 음절 단위로 끊어서(예: "해돋이전망대" -> "해돋"/"이전망대")
+     모바일·데스크톱 곳곳에서 단어 중간 줄바꿈이 났다. keep-all로 한글은 어절 단위로만 끊고,
+     overflow-wrap:break-word로 긴 영단어/URL은 기존처럼 컨테이너를 넘지 않게 유지한다. */
+  word-break:keep-all;
+  overflow-wrap:break-word;
 }
 button{ cursor:pointer; font:inherit; }
 a{ color:var(--accent-text); }
@@ -83,7 +88,10 @@ a{ color:var(--accent-text); }
 .auth-btn.google:hover{ background:#F6F6F6; }
 .auth-btn.kakao{ background:#FEE500; color:#3C1E1E; }
 .auth-btn.kakao:hover{ background:#F5D900; }
-.auth-btn.signout{ background:var(--card2); color:var(--brown); }
+/* 이슈 #60 — CP11-7 터치영역: 시각 크기(약 29px 높이)는 유지하고 세로 히트박스만 44px로.
+   .auth-menu가 align-items:center라 늘어난 패딩만큼 안 보이는 여백이 위아래로 생기고,
+   음수 마진이 그만큼 다시 당겨서 줄 안에서 차지하는 실제 높이는 그대로다. */
+.auth-btn.signout{ background:var(--card2); color:var(--brown); padding-top:16px; padding-bottom:16px; margin-top:-8px; margin-bottom:-8px; }
 .auth-btn.signout:hover{ background:var(--line); }
 .auth-user{ font-size:.85rem; font-weight:600; color:var(--brown); max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .auth-menu.compact .auth-btn{ padding:6px 10px; font-size:.75rem; }
@@ -285,7 +293,9 @@ a{ color:var(--accent-text); }
    이 없어서) 검색 후에도 확대된 채로 남는다 — 그래서 16px 고정(이슈 #46). */
 .bm-mhero-search input{ flex:1; min-width:0; border:none; outline:none; background:none; font:inherit; font-size:16px; color:var(--bm-ink); }
 .bm-mhero-search input::placeholder{ color:var(--bm-muted); }
-.bm-mhero-search button{ flex:0 0 auto; width:38px; height:38px; border:none; border-radius:50%; background:var(--bm-gold); color:#fff; font-size:15px; display:flex; align-items:center; justify-content:center; }
+/* 이슈 #60 — CP11-7 터치영역: 이 버튼은 히어로의 실제 CTA라 시각 크기를 그냥 44x44로 키운다
+   (다른 항목들과 달리 커 보이는 게 오히려 자연스러운 주요 버튼). */
+.bm-mhero-search button{ flex:0 0 auto; width:44px; height:44px; border:none; border-radius:50%; background:var(--bm-gold); color:#fff; font-size:15px; display:flex; align-items:center; justify-content:center; }
 .bm-mhero-search button svg{ width:18px; height:18px; fill:none; stroke:#fff; stroke-width:3.5; stroke-linecap:round; stroke-linejoin:round; }
 .bm-mhero-search button:hover{ background:#DE9E2E; }
 .bm-mhero-actions{ display:flex; gap:var(--bm-sp-2); flex-wrap:wrap; justify-content:center; }
@@ -308,17 +318,24 @@ a{ color:var(--accent-text); }
   /* 넘기는 아이콘(이전/다음)만 글래스모피즘 — 반투명 + 블러로 배경 이미지가 비쳐 보이게.
      화살표 모양은 빵 지도 헤더의 뒤로가기 아이콘(.result-back)과 동일한 쉐브론. */
   /* 세로 중앙에서 아주 살짝만 위로 — 좌하단 카피와 숨 쉴 틈을 준다(이슈 #46). */
+  /* 이슈 #60 — CP11-7 터치영역: 보이는 유리질감 원(26px)은 그대로 두고, 버튼 자체(히트박스)만
+     44px로 키운다. border/backdrop-filter 같은 글래스모피즘 효과가 background-clip으로는
+     같이 안 줄어들어서(테두리·블러는 항상 박스 전체 크기로 그려짐) .loc-map-clear 패턴 대신
+     바깥 <button>은 투명한 44px 히트박스, 안쪽 <span class="...-glyph">가 실제 보이는 원을
+     맡는 2단 구조로 바꿨다(MainHero.jsx). left/right는 원래 26px 박스 기준 중심이 그대로
+     유지되도록 (44-26)/2=9px만큼 바깥으로 당김. */
   .bm-tour-showcase-nav{ position:absolute; top:46%; transform:translateY(-50%); z-index:2;
-    width:26px; height:26px; display:flex; align-items:center; justify-content:center;
-    border:1px solid rgba(255,255,255,.4); border-radius:50%;
+    width:44px; height:44px; display:flex; align-items:center; justify-content:center;
+    background:none; border:none; padding:0; cursor:pointer; }
+  .bm-tour-showcase-nav.prev{ left:-1px; }
+  .bm-tour-showcase-nav.next{ right:-1px; }
+  .bm-tour-showcase-nav-glyph{ display:flex; align-items:center; justify-content:center;
+    width:26px; height:26px; border:1px solid rgba(255,255,255,.4); border-radius:50%;
     background:rgba(255,255,255,.16); color:#fff;
     box-shadow:0 4px 14px rgba(20,14,6,.28);
-    -webkit-backdrop-filter:blur(10px) saturate(140%); backdrop-filter:blur(10px) saturate(140%);
-    cursor:pointer; }
-  .bm-tour-showcase-nav svg{ width:8px; height:14px; filter:drop-shadow(0 1px 2px rgba(20,14,6,.45)); }
-  .bm-tour-showcase-nav:hover{ background:rgba(255,255,255,.3); }
-  .bm-tour-showcase-nav.prev{ left:8px; }
-  .bm-tour-showcase-nav.next{ right:8px; }
+    -webkit-backdrop-filter:blur(10px) saturate(140%); backdrop-filter:blur(10px) saturate(140%); }
+  .bm-tour-showcase-nav-glyph svg{ width:8px; height:14px; filter:drop-shadow(0 1px 2px rgba(20,14,6,.45)); }
+  .bm-tour-showcase-nav:hover .bm-tour-showcase-nav-glyph{ background:rgba(255,255,255,.3); }
   .bm-tour-showcase-card::after{ content:''; position:absolute; inset:0;
     background:linear-gradient(90deg, rgba(48,30,8,.78) 0%, rgba(48,30,8,.4) 58%, rgba(48,30,8,.08) 100%); }
   /* 카피 전체를 카드 하단으로 더 내려, 세로 중앙에 있는 넘김 화살표
@@ -413,7 +430,11 @@ a{ color:var(--accent-text); }
 .survey-option{ padding:16px 20px; border:1.5px solid var(--line); border-radius:20px; background:var(--card); text-align:left; font-size:1rem; font-weight:600; color:var(--ink); box-shadow:0 8px 20px rgba(76,49,13,.06); transition:.15s; }
 .survey-option:hover{ border-color:var(--accent); transform:translateY(-2px); box-shadow:0 12px 26px rgba(76,49,13,.1); }
 .survey-option.selected{ border-color:var(--accent); background:var(--card2); box-shadow:0 8px 20px rgba(249,118,88,.18); }
-.survey-nav{ display:flex; justify-content:space-between; margin-top:28px; }
+.survey-nav{ display:flex; align-items:center; justify-content:space-between; margin-top:28px; }
+/* 이슈 #60 검토 — "이전"/"건너뛰고 결과 보기"가 38px라는 제보와 달리, 실측(getBoundingClientRect)
+   해보니 이 화면의 body 폰트(커스텀 한글 웹폰트)의 line-height:normal이 이미 커서 실제로는
+   70px로 44px 기준을 이미 만족했다. 여기에 패딩을 더 얹으면 오히려 시각 크기만 불필요하게
+   커지므로(원 취지인 "시각 크기 유지"에 반함) 손대지 않는다. */
 
 /* 출발 위치 선택 (설문 0단계) — 카카오맵 길찾기 출발지 화면 톤: 검색바가 최상단 고정 →
    그 아래 큰 지도(클릭해서 직접 찍기도 가능) → 검색 중엔 지도 위로 결과 리스트가 덮인다.
@@ -529,7 +550,6 @@ a{ color:var(--accent-text); }
   .mobile-map-summary strong{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.92rem; }
   .mobile-map-summary span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.72rem; color:#6b5a44; }
   .mobile-map-summary small{ font-size:.68rem; font-weight:700; color:var(--accent-text); }
-  .mobile-map-summary.empty{ display:block; text-align:center; font-size:.76rem; color:var(--muted); }
 }
 
 /* 빵집찾기 결과(MapResult) 전용: 시안(대전 웹사이트4.pdf 6p) 스타일 — 지도(넓게) / 추천 리스트 / 상세 카드
@@ -721,7 +741,11 @@ a{ color:var(--accent-text); }
 .pil-stop-transit-link{ border:none; background:none; color:var(--accent-text); font-size:.85rem; flex-shrink:0; display:flex; align-items:center; justify-content:center; width:44px; height:44px; margin:-12px; border-radius:8px; text-decoration:none; }
 .pil-stop-transit-link:hover{ background:var(--card2); }
 .pil-stop.drag-over{ border-color:var(--accent); background:var(--card2); }
-.pil-stop-handle{ cursor:grab; color:var(--muted); font-size:1rem; flex-shrink:0; line-height:1; touch-action:none; display:flex; align-items:center; justify-content:center; width:32px; height:32px; margin:-6px; border-radius:8px; }
+/* 이슈 #60 — 같은 줄의 삭제(.pil-stop-remove)/이동수단 링크(.pil-stop-transit-link)는 이미
+   44px 터치영역(박스 44px + 음수 마진, 시각 크기는 그대로)인데 정작 핵심 조작인 드래그
+   핸들만 32px였다 — 같은 패턴으로 맞춘다. 마진은 이전 실제 레이아웃 기여분(32-6*2=20px)을
+   그대로 유지하도록 -(44-20)/2 = -12px. */
+.pil-stop-handle{ cursor:grab; color:var(--muted); font-size:1rem; flex-shrink:0; line-height:1; touch-action:none; display:flex; align-items:center; justify-content:center; width:44px; height:44px; margin:-12px; border-radius:8px; }
 .pil-stop-handle:hover{ background:var(--card2); }
 .pil-stop-handle:active{ cursor:grabbing; }
 .pil-stop-num{ width:22px; height:22px; border-radius:50%; color:#fff; font-size:.75rem; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
@@ -734,11 +758,14 @@ a{ color:var(--accent-text); }
 .pil-stop-info:focus-visible{ outline:2px solid var(--accent); outline-offset:1px; }
 .pil-stop.leg-highlight .pil-stop-info{ background:var(--card2); }
 .pil-stop-name{ display:block; font-weight:700; color:var(--ink); font-size:.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.pil-stop-type{ font-size:.72rem; color:var(--muted); word-break:keep-all; }
+.pil-stop-type{ font-size:.72rem; color:var(--muted); }
 /* CP11-4 — 44x44 터치 영역 확보(.result-back에서 쓴 것과 동일한 패턴): 박스 자체를 44px로
    키우고 음수 마진으로 레이아웃에 기여하는 시각적 크기는 그대로 유지한다. */
 .pil-stop-remove{ border:none; background:none; color:var(--muted); font-size:.9rem; flex-shrink:0; display:flex; align-items:center; justify-content:center; width:44px; height:44px; margin:-12px; border-radius:8px; }
-.pil-stop-remove:hover{ color:#ef4444; }
+/* 이슈 #60 — 순수 CSS :hover였는데, 삭제로 목록이 재배치되며 다음 줄이 커서 아래로 밀려
+   들어오면 브라우저가 그 자리 :hover를 못 떼서 엉뚱한 줄이 빨간 호버색에 고착됐다 —
+   JS(onMouseEnter/Leave)로 상태를 관리하는 .is-hover 클래스로 교체(PilgrimagePage.jsx). */
+.pil-stop-remove.is-hover{ color:#ef4444; }
 .pil-add-btn{ border:1.5px dashed var(--line); background:none; color:var(--brown); border-radius:10px; padding:10px; font-size:.85rem; }
 .pil-add-btn:hover{ border-color:var(--accent); }
 .pil-modes{ display:flex; gap:6px; }
@@ -853,7 +880,11 @@ a{ color:var(--accent-text); }
 .mypage-course-map{ height:360px; margin-bottom:16px; }
 .mypage-course-stops{ margin:0 0 16px; padding-left:20px; color:var(--ink); }
 .mypage-course-stops li{ margin-bottom:4px; }
-.mypage-course-item-btn{ display:block; width:100%; text-align:left; background:none; border:none; font-weight:700; color:var(--brown); cursor:pointer; padding:0; font-size:1rem; }
+/* 요청 반영 — 이름을 강조하고 날짜/스탑 수는 작게 오른쪽에 붙인다(자동차 등 이동수단은 뺌).
+   .rec-list-item의 .rl-name(flex:1)/.rl-dist(작게, 오른쪽) 패턴과 동일. */
+.mypage-course-item-btn{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; width:100%; text-align:left; background:none; border:none; cursor:pointer; padding:0; }
+.mypage-course-name{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:700; color:var(--brown); font-size:1rem; }
+.mypage-course-meta{ flex:0 0 auto; font-size:.78rem; color:var(--muted); }
 
 .rec-actions{ margin-top:6px; }
 .diary-modal-form{ display:flex; flex-direction:column; gap:12px; width:100%; }

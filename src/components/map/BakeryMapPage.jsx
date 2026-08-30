@@ -119,7 +119,16 @@ export default function BakeryMapPage({
         </div>
       ) : searchMode ? (
         <div className="bm-district-filters">
-          <button type="button" className="bm-district-chip" onClick={() => setSearch('')}>
+          <button
+            type="button"
+            className="bm-district-chip"
+            onClick={() => {
+              setSearch('')
+              // 이슈 #60 — 구 필터를 걸어둔 채 검색했다가 이 버튼을 누르면, 검색만 지워지고
+              // 이전 구 필터로 돌아가 "전체로" 라벨과 실제 동작(구 필터 유지)이 어긋났다.
+              setDistrict(null)
+            }}
+          >
             ← 전체 빵 지도 보기
           </button>
         </div>
@@ -153,6 +162,8 @@ export default function BakeryMapPage({
             onSelect={setSelectedId}
             attractions={originAttraction}
             highlightDistrict={district}
+            search={search}
+            nearbyMode={nearbyMode}
           />
           <MapSelectionSummary bakery={selected} />
         </section>

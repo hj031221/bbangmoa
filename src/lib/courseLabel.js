@@ -10,3 +10,12 @@ export function formatCourseLabel(row) {
   const modeLabel = MODE_LABEL[row.travel_mode] || row.travel_mode
   return `${row.title} · ${dateLabel} 저장 · ${stopCount}곳 · ${modeLabel}`
 }
+
+// 목록 줄에서 이름을 강조하고 나머지는 작게 붙이기 위한 짧은 메타 텍스트 — 날짜·스탑 수만.
+// 이동수단/"저장" 단어는 뺀다(요청: 자동차 같은 건 빼고 이름이 강조되게).
+export function formatCourseMeta(row) {
+  const date = new Date(row.created_at)
+  const dateLabel = `${date.getMonth() + 1}/${date.getDate()}`
+  const stopCount = row.stops?.length ?? 0
+  return `${dateLabel} · ${stopCount}곳`
+}

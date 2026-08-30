@@ -115,12 +115,16 @@ function getSmoothedDistrict(name) {
 
 // 카카오맵 컨테이너 + 대전 마스킹(스포트라이트) + 마커 레이어 + 확장기능 실행기.
 // highlightDistrict: 구 이름을 주면 그 구의 행정경계를 색칠해서 보여준다.
+// search: 검색어가 있으면(빵 지도 검색) 결과(bakeries) bounds로 시점을 맞춘다.
+// nearbyMode: 관광지 상세 "근처 빵집 보기" 등 origin+bakeries 기준으로 시점을 맞춰야 할 때.
 export default function MapView({
   bakeries,
   selectedId,
   onSelect,
   attractions = [],
   highlightDistrict = null,
+  search = '',
+  nearbyMode = false,
 }) {
   const { loaded, error } = useKakaoLoader()
   const regionId = useAppStore((s) => s.regionId)
@@ -130,6 +134,12 @@ export default function MapView({
   const [clusterer, setClusterer] = useState(null)
   const highlightRef = useRef(null)
   const boundsRef = useRef(null)
+  // 시점 재조정 effect가 매번 다시 돌지 않도록(아래 설명) bakeries/attractions는 ref로만 최신값을
+  // 읽는다 — deps에는 안 넣는다.
+  const bakeriesRef = useRef(bakeries)
+  bakeriesRef.current = bakeries
+  const attractionsRef = useRef(attractions)
+  attractionsRef.current = attractions
 
   // 지도 생성 + 대전 외곽 딤 + 시점 고정 (1회)
   useEffect(() => {
@@ -179,12 +189,62 @@ export default function MapView({
     setMap(m)
   }, [loaded, map, region])
 
-  // 대전 전체 시점으로 복귀하는 건 구 필터가 바뀐 경우만이다.
-  // 빈 지도 클릭으로 선택만 풀면 현재 위치와 줌을 유지한다.
+  // 시점 재조정 — 구 필터/검색/근처모드 중 활성인 것 기준으로 bounds를 맞추고, 아무것도
+  // 없으면 대전 전체로 돌아간다. 빈 지도 클릭으로 선택만 풀면(selectedId만 null) 여긴 안 돈다 —
+  // 사용자가 직접 팬/줌한 현재 위치를 존중한다.
+  //
+  // 리뷰 대비 — bakeries를 deps에 직접 넣지 않는 이유: useSavedBakeries().isSaved가 매 렌더
+  // 새 함수라 그걸 참조하는 filtered(useMemo)가 거의 매 렌더 새 배열이 된다. deps에 배열을
+  // 그대로 넣으면 사용자가 지도를 손으로 옮기자마자(다른 이유로 부모가 리렌더되는 순간) 도로
+  // 확대/이동해버리는 회귀가 생긴다 — search(문자열)/nearbyMode(불리언)/bakeries.length(개수)처럼
+  // "진짜 바뀐 시점에만" 바뀌는 안정적인 값만 deps로 쓰고, 실제 좌표는 ref에서 최신값을 읽는다.
   useEffect(() => {
-    if (!map || !boundsRef.current || selectedId) return
-    map.setBounds(boundsRef.current)
-  }, [map, highlightDistrict])
+    if (!map || selectedId) return
+    const { kakao } = window
+
+    if (highlightDistrict && DISTRICT_RINGS[highlightDistrict]) {
+      const bounds = new kakao.maps.LatLngBounds()
+      getSmoothedDistrict(highlightDistrict).forEach(([lat, lng]) => bounds.extend(new kakao.maps.LatLng(lat, lng)))
+      map.setBounds(bounds)
+      return
+    }
+
+    if (search.trim()) {
+      const bounds = new kakao.maps.LatLngBounds()
+      let has = false
+      bakeriesRef.current.forEach((b) => {
+        if (Number.isFinite(b.lat) && Number.isFinite(b.lng)) {
+          bounds.extend(new kakao.maps.LatLng(b.lat, b.lng))
+          has = true
+        }
+      })
+      if (has) {
+        map.setBounds(bounds)
+        return
+      }
+    }
+
+    if (nearbyMode) {
+      const bounds = new kakao.maps.LatLngBounds()
+      let has = false
+      attractionsRef.current.forEach((a) => {
+        bounds.extend(new kakao.maps.LatLng(a.lat, a.lng))
+        has = true
+      })
+      bakeriesRef.current.forEach((b) => {
+        if (Number.isFinite(b.lat) && Number.isFinite(b.lng)) {
+          bounds.extend(new kakao.maps.LatLng(b.lat, b.lng))
+          has = true
+        }
+      })
+      if (has) {
+        map.setBounds(bounds)
+        return
+      }
+    }
+
+    if (boundsRef.current) map.setBounds(boundsRef.current)
+  }, [map, highlightDistrict, search, nearbyMode, selectedId, bakeries.length])
 
   // 구 필터 색칠: highlightDistrict 가 있으면 그 구의 경계를 채워 그리고, 없으면 지운다.
   useEffect(() => {
