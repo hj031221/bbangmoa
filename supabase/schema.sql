@@ -45,6 +45,11 @@ create policy "saved_courses_insert_own" on saved_courses
 create policy "saved_courses_delete_own" on saved_courses
   for delete using (auth.uid() = user_id);
 
+-- 이슈 #60: 저장된 코스 이름 나중에 수정하기 — update 정책이 없어 RLS가 기본 거부하므로
+-- 프론트에서 renameCourse를 호출해도 항상 권한 오류로 실패했다.
+create policy "saved_courses_update_own" on saved_courses
+  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
 -- 마이페이지 "기록장": 빵집 상세에서 남기는 짧은 기록. 사진 첨부는 이번 범위에서 제외.
 create table if not exists diary_entries (
   id uuid primary key default gen_random_uuid(),

@@ -415,7 +415,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
     // savingRef: state(saveState)로 disabled를 걸어도 리렌더가 한 박자 늦어서, 아주 빠른 연속
     // 클릭(더블클릭 등)은 둘 다 disabled 반영 전에 통과해 insert가 두 번 나갈 수 있다 — ref는
     // 동기적으로 바로 반영되니 여기서 즉시 막는다.
-    if (!user || !route || savingRef.current || isDuplicateOfSaved || savedCoursesLoading) return
+    if (!user || !route || savingRef.current || isDuplicateOfSaved || savedCoursesLoading) return { error: true }
     savingRef.current = true
     setSaveState('saving')
     // #39 — GPS 원본 좌표는 서버로 절대 보내지 않는다(전송 자체만으로 위치정보법 신고
@@ -568,7 +568,16 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
                 onPointerLeave={(e) => {
                   if (e.pointerType === 'mouse') setHighlightIndex(null)
                 }}
-                onClick={() => setHighlightIndex((prev) => (prev === index ? null : index))}
+                onClick={(e) => {
+                  // 마우스는 호버가 이미 담당하므로 클릭으로 토글하면 안 된다 — 호버 중인
+                  // 행(prev===index)을 클릭하면 마우스가 그대로 위에 있어도 꺼져버린다.
+                  // 터치/펜만 토글(호버 이벤트가 안 오므로 클릭이 유일한 신호).
+                  if (e.pointerType === 'mouse') {
+                    setHighlightIndex(index)
+                    return
+                  }
+                  setHighlightIndex((prev) => (prev === index ? null : index))
+                }}
               >
                 <span className="pil-stop-name">{stop.name}</span>
                 <span className="pil-stop-type">

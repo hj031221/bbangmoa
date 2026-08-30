@@ -244,7 +244,11 @@ export default function MapView({
     }
 
     if (boundsRef.current) map.setBounds(boundsRef.current)
-  }, [map, highlightDistrict, search, nearbyMode, selectedId, bakeries.length])
+    // selectedId는 위 가드에서만 읽고 deps엔 넣지 않는다 — 넣으면 "빈 지도 클릭으로 선택만
+    // 풀 때는 시점을 그대로 둔다"는 이 effect의 목적과 반대로, 선택 해제마다 effect가 재실행돼
+    // 사용자가 직접 확대/이동해둔 시점을 매번 리셋해버린다. 가드는 effect가 다른 이유로
+    // 재실행될 때 클로저의 최신 selectedId를 그대로 읽으므로 deps 없이도 정확하다.
+  }, [map, highlightDistrict, search, nearbyMode, bakeries.length])
 
   // 구 필터 색칠: highlightDistrict 가 있으면 그 구의 경계를 채워 그리고, 없으면 지운다.
   useEffect(() => {
