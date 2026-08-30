@@ -9,6 +9,7 @@ import { buildRoute, recalcRoute, summarizeOrder } from '../../lib/routePlan'
 import { estimateActualRoute } from '../../lib/travelTime'
 import { formatDistance, midpointOf, hasValidCoords } from '../../lib/distance'
 import { sanitizeOriginForSave } from '../../lib/originPrivacy'
+import { uniqueDefaultTitle } from '../../lib/courseLabel'
 import { fetchDestinationsMatrix } from '../../api'
 import { getRegion } from '../../config/regions'
 import { supabase } from '../../lib/supabase'
@@ -639,6 +640,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
           onClick={() => setNameModalOpen(true)}
           disabled={
             !user ||
+            !route ||
             saveState === 'saving' ||
             saveState === 'saved' ||
             isDuplicateOfSaved ||
@@ -685,7 +687,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
       {nameModalOpen && (
         <CourseNameModal
           heading="코스 이름 짓기"
-          initialValue="대전한바퀴"
+          initialValue={uniqueDefaultTitle('대전한바퀴', [...savedCourses, ...justSaved].map((c) => c.title))}
           existingNames={[...savedCourses, ...justSaved].map((c) => c.title)}
           onClose={() => setNameModalOpen(false)}
           onSubmit={handleSave}

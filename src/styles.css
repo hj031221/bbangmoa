@@ -88,10 +88,13 @@ a{ color:var(--accent-text); }
 .auth-btn.google:hover{ background:#F6F6F6; }
 .auth-btn.kakao{ background:#FEE500; color:#3C1E1E; }
 .auth-btn.kakao:hover{ background:#F5D900; }
-/* 이슈 #60 — CP11-7 터치영역: 시각 크기(약 29px 높이)는 유지하고 세로 히트박스만 44px로.
-   .auth-menu가 align-items:center라 늘어난 패딩만큼 안 보이는 여백이 위아래로 생기고,
-   음수 마진이 그만큼 다시 당겨서 줄 안에서 차지하는 실제 높이는 그대로다. */
-.auth-btn.signout{ background:var(--card2); color:var(--brown); padding-top:16px; padding-bottom:16px; margin-top:-8px; margin-bottom:-8px; }
+/* 이슈 #60 — CP11-7 터치영역: 세로 패딩을 늘려 44px대 높이를 만든다. 원래는 음수 마진으로
+   레이아웃 상 높이를 29px로 눌러뒀는데, 배경색이 outer 버튼 자체에 칠해져 있어 음수 마진이
+   가리는 8px 위아래로 배경이 그대로 페인트돼 인접 요소 위로 삐져나왔다(리뷰 지적). 로그아웃
+   상태의 .login-toggle도 이미 44px로 행 높이를 그대로 키우는 방식이라, 여기도 음수 마진을
+   빼고 시각 크기 자체를 44px대로 키우는 쪽으로 맞춘다 — 페인트 오버플로우가 없어지고 둘의
+   행 높이도 일관돼진다. */
+.auth-btn.signout{ background:var(--card2); color:var(--brown); padding-top:16px; padding-bottom:16px; }
 .auth-btn.signout:hover{ background:var(--line); }
 .auth-user{ font-size:.85rem; font-weight:600; color:var(--brown); max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .auth-menu.compact .auth-btn{ padding:6px 10px; font-size:.75rem; }

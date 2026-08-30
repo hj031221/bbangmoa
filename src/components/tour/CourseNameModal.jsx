@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 // 이슈 #60 — "대전한바퀴" 코스 저장/이름 수정 공용 입력 모달. DiaryEntryModal과 같은 구조
@@ -10,15 +10,20 @@ export default function CourseNameModal({ heading, initialValue, existingNames =
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
+  // onClose는 부모가 매 렌더 새로 만드는 인라인 함수라, deps에 넣으면 이름 입력 한 글자마다
+  // 리스너를 뗐다 다시 붙인다. ref로 최신 함수만 갱신해 받고, 이 effect는 마운트/언마운트에만 반응.
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
+
   useEffect(() => {
-    const onKey = (e) => e.key === 'Escape' && onClose()
+    const onKey = (e) => e.key === 'Escape' && onCloseRef.current()
     document.addEventListener('keydown', onKey)
     document.body.style.overflow = 'hidden'
     return () => {
       document.removeEventListener('keydown', onKey)
       document.body.style.overflow = ''
     }
-  }, [onClose])
+  }, [])
 
   const submit = async (e) => {
     e.preventDefault()

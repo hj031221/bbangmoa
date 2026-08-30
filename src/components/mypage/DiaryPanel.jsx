@@ -182,7 +182,7 @@ export default function DiaryPanel({ onBack, targetUserId, readOnly = false, fri
       ) : entries.length === 0 ? (
         <p className="saved-empty">
           {readOnly
-            ? `${friendNickname}님이 아직 남긴 기록이 없어요.`
+            ? `${friendNickname || '친구'}님이 아직 남긴 기록이 없어요.`
             : '아직 기록이 없어요. 빵집 상세에서 "기록 남기기"로 남겨보세요.'}
         </p>
       ) : (

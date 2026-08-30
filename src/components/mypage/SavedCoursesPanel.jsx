@@ -77,7 +77,7 @@ export default function SavedCoursesPanel({ onBack, targetUserId, readOnly = fal
       ) : courses.length === 0 ? (
         <p className="saved-empty">
           {readOnly
-            ? `${friendNickname}님이 아직 저장한 코스가 없어요.`
+            ? `${friendNickname || '친구'}님이 아직 저장한 코스가 없어요.`
             : '아직 저장한 코스가 없어요. 대전한바퀴에서 코스를 저장해보세요.'}
         </p>
       ) : (

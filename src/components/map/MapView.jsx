@@ -134,6 +134,12 @@ export default function MapView({
   const [clusterer, setClusterer] = useState(null)
   const highlightRef = useRef(null)
   const boundsRef = useRef(null)
+  // 이슈 #60 리뷰 — 필터 모드(구/검색/근처)가 하나도 없을 때 대전 전체로 돌아가는 폴백을
+  // "아직 한 번도 안 돌았을 때만" 실행한다. 이게 없으면 MapResult처럼 필터 모드를 아예 안 쓰는
+  // 화면에서 bakeries.length만 바뀌어도(예: breadResult 비동기 확정으로 후보 수 변화) 매번
+  // 전체 시점으로 스냅돼 사용자가 해둔 팬/줌이 날아간다. 필터 모드가 실제로 한 번 적용되면
+  // false로 풀어서, 나중에 그 모드가 꺼질 때(예: 검색 지우기)는 다시 한 번 정상적으로 복귀한다.
+  const hasFallbackFitRef = useRef(false)
   // 시점 재조정 effect가 매번 다시 돌지 않도록(아래 설명) bakeries/attractions는 ref로만 최신값을
   // 읽는다 — deps에는 안 넣는다.
   const bakeriesRef = useRef(bakeries)
@@ -206,9 +212,14 @@ export default function MapView({
       const bounds = new kakao.maps.LatLngBounds()
       getSmoothedDistrict(highlightDistrict).forEach(([lat, lng]) => bounds.extend(new kakao.maps.LatLng(lat, lng)))
       map.setBounds(bounds)
+      hasFallbackFitRef.current = false
       return
     }
 
+    // search가 활성 상태(빈 문자열이 아님)인 동안엔 매치가 0건이어도 대전 전체로 폴백하지
+    // 않는다 — 폴백하면 오타/미완성 입력 중에 매 글자 지도가 대전 전체로 튀었다가 다음
+    // 글자에서 복귀하는 것처럼 보였다(리뷰 지적). "검색 중"이라는 사실 자체로 아래 분기들을
+    // 막고 여기서 끝낸다.
     if (search.trim()) {
       const bounds = new kakao.maps.LatLngBounds()
       let has = false
@@ -220,16 +231,21 @@ export default function MapView({
       })
       if (has) {
         map.setBounds(bounds)
-        return
+        hasFallbackFitRef.current = false
       }
+      return
     }
 
+    // nearbyMode도 동일한 이유로: 활성 상태인데 아직 좌표가 없다고 대전 전체로 폴백하면
+    // 데이터가 늦게 도착할 때마다 시점이 튄다.
     if (nearbyMode) {
       const bounds = new kakao.maps.LatLngBounds()
       let has = false
       attractionsRef.current.forEach((a) => {
-        bounds.extend(new kakao.maps.LatLng(a.lat, a.lng))
-        has = true
+        if (Number.isFinite(a.lat) && Number.isFinite(a.lng)) {
+          bounds.extend(new kakao.maps.LatLng(a.lat, a.lng))
+          has = true
+        }
       })
       bakeriesRef.current.forEach((b) => {
         if (Number.isFinite(b.lat) && Number.isFinite(b.lng)) {
@@ -239,15 +255,20 @@ export default function MapView({
       })
       if (has) {
         map.setBounds(bounds)
-        return
+        hasFallbackFitRef.current = false
       }
+      return
     }
 
-    if (boundsRef.current) map.setBounds(boundsRef.current)
-    // selectedId는 위 가드에서만 읽고 deps엔 넣지 않는다 — 넣으면 "빈 지도 클릭으로 선택만
-    // 풀 때는 시점을 그대로 둔다"는 이 effect의 목적과 반대로, 선택 해제마다 effect가 재실행돼
-    // 사용자가 직접 확대/이동해둔 시점을 매번 리셋해버린다. 가드는 effect가 다른 이유로
-    // 재실행될 때 클로저의 최신 selectedId를 그대로 읽으므로 deps 없이도 정확하다.
+    // 필터 모드가 하나도 없는 상태 — 아직 한 번도 이 폴백을 안 돌았을 때만 대전 전체로 맞춘다
+    // (위 설명 참고). selectedId는 이 가드에서만 읽고 deps엔 넣지 않는다 — 넣으면 "빈 지도
+    // 클릭으로 선택만 풀 때는 시점을 그대로 둔다"는 이 effect의 목적과 반대로, 선택 해제마다
+    // effect가 재실행돼 사용자가 직접 확대/이동해둔 시점을 매번 리셋해버린다. 가드는 effect가
+    // 다른 이유로 재실행될 때 클로저의 최신 selectedId를 그대로 읽으므로 deps 없이도 정확하다.
+    if (boundsRef.current && !hasFallbackFitRef.current) {
+      map.setBounds(boundsRef.current)
+      hasFallbackFitRef.current = true
+    }
   }, [map, highlightDistrict, search, nearbyMode, bakeries.length])
 
   // 구 필터 색칠: highlightDistrict 가 있으면 그 구의 경계를 채워 그리고, 없으면 지운다.
