@@ -22,6 +22,7 @@
   --bg-bottom:#FFF4C5;   /* 배경 그라데이션 하단 */
   --card:#FFFFFF;
   --card2:#F6DBA8;       /* 따뜻한 연한 면(태그/칩) */
+  --card3:#FCEFD2;       /* 더 옅은 크림 면(읽을거리 박스 등) */
   --ink:#4C310D;         /* 본문 다크브라운 */
   --muted:#BB9B74;       /* 보조 글자 */
   --line:#E2C1A3;        /* 테두리 */
@@ -627,7 +628,7 @@ a{ color:var(--accent-text); }
 .bread-reveal-tag{ font-size:.8rem; color:var(--accent-text); background:var(--card2); padding:5px 12px; border-radius:999px; }
 /* 💡 빵 이야기 — 해시태그(이 빵은 어떤 빵인가)와 빵집 목록(어디서 사지) 사이의 읽을거리 한 조각 */
 .bread-reveal-story{ max-width:480px; margin:0 auto 28px; padding:14px 18px;
-  background:#FCEFD2; border:1px solid var(--line); border-radius:14px; }
+  background:var(--card3); border:1px solid var(--line); border-radius:14px; }
 .bread-reveal-story-label{ display:inline-block; font-size:.78rem; font-weight:700; color:var(--accent-text); margin-bottom:6px; }
 /* text-wrap:balance — 짧은 문단의 줄 길이를 고르게 맞춰 가운데 정렬에서 마지막 줄 홀로 떨어짐을 줄인다.
    미지원 브라우저는 일반 줄바꿈으로 폴백(무해). */

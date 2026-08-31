@@ -22,7 +22,11 @@ export default function BreadReveal({ onRetake, onShowMap, tourDone, onGoToTour,
   const { bakeries, loading } = useBakeries({ regionId, answers: {}, origin, limit: Infinity })
   // "💡 빵 이야기"로 보여줄 후보(빵당 3개) 중 하나를 이 화면이 살아있는 동안 하나로 고정한다 —
   // 리렌더마다 문구가 바뀌지 않게. 홈으로 나갔다 새 결과를 받으면 다시 마운트되며 새로 뽑힌다.
-  const storySeed = useRef(Math.random()).current
+  // useRef(Math.random()) 로 쓰면 리렌더마다 Math.random() 이 호출되고 결과만 버려진다
+  // (useRef 는 첫 렌더 이후 인자를 무시). 첫 렌더에서 한 번만 굴리도록 지연 초기화한다.
+  const storySeedRef = useRef(null)
+  if (storySeedRef.current === null) storySeedRef.current = Math.random()
+  const storySeed = storySeedRef.current
 
   // 빵집 목록이 로딩 중일 땐 아직 안 고른다 — 로딩 전에 픽하면(빵집 0곳인 상태로 필터링) 나중에
   // 데이터가 도착했을 때 "오늘의 빵"이 바뀌어버리는 깜빡임이 생긴다(피드백3 대응, §CP10-2).
