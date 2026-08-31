@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useBakeries } from '../../hooks/useBakeries'
 import { useSavedBakeries } from '../../hooks/useSavedBakeries'
+import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { getRegion } from '../../config/regions'
 import { haversineKm, formatDistance } from '../../lib/distance'
 import MapView from './MapView'
@@ -26,6 +27,10 @@ export default function BakeryMapPage({
   const [district, setDistrict] = useState(null) // null = 전체
   const [selectedId, setSelectedId] = useState(initialSelectedId)
   const [search, setSearch] = useState(initialSearch.trim())
+  // 목록 필터링(filtered)은 매 키 입력마다 즉시 반응해야 하지만, 지도 재조정(MapView의
+  // search prop)까지 그대로 즉시 반응하면 타이핑 한 글자마다 지도가 움직인다(리뷰 지적) —
+  // 지도 쪽에만 디바운스된 값을 넘긴다.
+  const debouncedSearch = useDebouncedValue(search, 300)
   const { bakeries, loading, error, source } = useBakeries({
     regionId: undefined,
     answers: {},
@@ -119,7 +124,16 @@ export default function BakeryMapPage({
         </div>
       ) : searchMode ? (
         <div className="bm-district-filters">
-          <button type="button" className="bm-district-chip" onClick={() => setSearch('')}>
+          <button
+            type="button"
+            className="bm-district-chip"
+            onClick={() => {
+              setSearch('')
+              // 이슈 #60 — 구 필터를 걸어둔 채 검색했다가 이 버튼을 누르면, 검색만 지워지고
+              // 이전 구 필터로 돌아가 "전체로" 라벨과 실제 동작(구 필터 유지)이 어긋났다.
+              setDistrict(null)
+            }}
+          >
             ← 전체 빵 지도 보기
           </button>
         </div>
@@ -153,6 +167,8 @@ export default function BakeryMapPage({
             onSelect={setSelectedId}
             attractions={originAttraction}
             highlightDistrict={district}
+            search={debouncedSearch}
+            nearbyMode={nearbyMode}
           />
           <MapSelectionSummary bakery={selected} />
         </section>

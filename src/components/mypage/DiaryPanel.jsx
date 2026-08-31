@@ -9,7 +9,7 @@ import { formatDiaryDate as formatDate, formatDiaryDateTime } from '../../lib/fo
 // — 여기선 목록 보기 / 수정 / 삭제만 한다. targetUserId+readOnly 면 친구 기록장을 읽기 전용으로 본다.
 // readOnly 는 "이 기록을 수정/삭제할 수 없다"는 뜻일 뿐 — 좋아요/댓글은 본인/친구 기록장 모두 허용한다
 // (RLS 의 can_see_entry 가 실제 가시성을 판정하므로 여기선 항상 렌더링해도 안전하다).
-export default function DiaryPanel({ onBack, targetUserId, readOnly = false }) {
+export default function DiaryPanel({ onBack, targetUserId, readOnly = false, friendNickname }) {
   const { user } = useAuth()
   const { entries, loading, updateEntry, removeEntry } = useDiaryEntries(targetUserId)
   const [selectedId, setSelectedId] = useState(null)
@@ -180,7 +180,11 @@ export default function DiaryPanel({ onBack, targetUserId, readOnly = false }) {
       {loading ? (
         <p className="saved-empty">불러오는 중…</p>
       ) : entries.length === 0 ? (
-        <p className="saved-empty">아직 기록이 없어요. 빵집 상세에서 "기록 남기기"로 남겨보세요.</p>
+        <p className="saved-empty">
+          {readOnly
+            ? `${friendNickname || '친구'}님이 아직 남긴 기록이 없어요.`
+            : '아직 기록이 없어요. 빵집 상세에서 "기록 남기기"로 남겨보세요.'}
+        </p>
       ) : (
         <div className="diary-grid">
           {entries.map((entry) => (

@@ -103,6 +103,7 @@ export default function MyPage({ onLoadCourse, onViewBakeryOnMap }) {
       <SavedCoursesPanel
         targetUserId={friend.userId}
         readOnly
+        friendNickname={friend.nickname}
         onBack={() => setPanel('friendDetail')}
       />
     )
@@ -110,7 +111,12 @@ export default function MyPage({ onLoadCourse, onViewBakeryOnMap }) {
 
   if (panel === 'friendDiary' && friend) {
     return (
-      <DiaryPanel targetUserId={friend.userId} readOnly onBack={() => setPanel('friendDetail')} />
+      <DiaryPanel
+        targetUserId={friend.userId}
+        readOnly
+        friendNickname={friend.nickname}
+        onBack={() => setPanel('friendDetail')}
+      />
     )
   }
 

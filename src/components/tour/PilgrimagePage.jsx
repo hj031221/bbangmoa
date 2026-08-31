@@ -9,12 +9,14 @@ import { buildRoute, recalcRoute, summarizeOrder } from '../../lib/routePlan'
 import { estimateActualRoute } from '../../lib/travelTime'
 import { formatDistance, midpointOf, hasValidCoords } from '../../lib/distance'
 import { sanitizeOriginForSave } from '../../lib/originPrivacy'
+import { uniqueDefaultTitle } from '../../lib/courseLabel'
 import { fetchDestinationsMatrix } from '../../api'
 import { getRegion } from '../../config/regions'
 import { supabase } from '../../lib/supabase'
 import { useAttractions } from '../../hooks/useAttractions'
 import { useSavedCourses } from '../../hooks/useSavedCourses'
 import AddStopModal from './AddStopModal'
+import CourseNameModal from './CourseNameModal'
 
 const MODES = [
   { id: 'car', label: '🚗 자동차' },
@@ -337,6 +339,12 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
   // 탭이 항상 무효였다(리뷰 발견) — 그냥 "이 index로 고정"만 하도록 단순화해서 탭도 동작하게 함.
   const [highlightIndex, setHighlightIndex] = useState(null)
 
+  // 이슈 #60 — .pil-stop-remove(✕)가 순수 CSS :hover였는데, 삭제로 목록이 재배치될 때
+  // 커서 아래로 다음 줄이 밀려 들어오면 브라우저가 그 자리 :hover를 못 떼고 남겨서 엉뚱한
+  // 줄의 ✕가 빨간 호버색으로 고정돼 보였다. .pil-stop-info와 같은 방식(JS로 상태 관리)으로
+  // 바꾼다 — React가 실제 pointer 이벤트로만 상태를 바꾸므로 재배치돼도 고착되지 않는다.
+  const [hoveredRemoveId, setHoveredRemoveId] = useState(null)
+
   // 리뷰 발견: 경유지를 지우거나(removeStop) 추가하거나(addStop) 드래그로 순서를 바꾸면
   // (handlePointerUp) 배열이 재인덱싱되는데 highlightIndex는 그대로 남아있어서, 조작 이후엔
   // 엉뚱한 구간이 지도에 강조 표시됐다 — 셋 다 하이라이트를 초기화한다.
@@ -344,6 +352,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
     setCustomStops((prev) => (prev || []).filter((s) => s.id !== id))
     setManualOrderIds((prev) => (prev ? prev.filter((i) => i !== id) : prev))
     setHighlightIndex(null)
+    setHoveredRemoveId(null)
   }
   const addStop = (stop) => {
     setCustomStops((prev) => [...(prev || []), stop])
@@ -388,19 +397,26 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
     dragIndexRef.current = null
     dragOverIndexRef.current = null
     setDragOverIndex(null)
+    // 이슈 #60 — setHighlightIndex(null)이 원래 from!==to 분기 안에 있어서, 드래그했다가 같은
+    // 자리에 도로 놓으면(from===to) 여기서 그냥 return해버려 하이라이트가 리셋 안 되고
+    // .leg-highlight 스타일에 갇혔다. dragOverIndex처럼 조건 밖으로 빼서 무조건 실행한다.
+    setHighlightIndex(null)
     if (from == null || to == null || from === to || !route) return
     const ids = route.stops.map((s) => s.id)
     const [moved] = ids.splice(from, 1)
     ids.splice(to, 0, moved)
     setManualOrderIds(ids)
-    setHighlightIndex(null)
   }
 
-  const handleSave = async () => {
+  // 이슈 #60 — 저장 전에 이름을 직접 지을 수 있게, 버튼 클릭은 모달을 열기만 하고 실제 저장은
+  // 모달의 확인(title 확정) 시점에 한다.
+  const [nameModalOpen, setNameModalOpen] = useState(false)
+
+  const handleSave = async (title) => {
     // savingRef: state(saveState)로 disabled를 걸어도 리렌더가 한 박자 늦어서, 아주 빠른 연속
     // 클릭(더블클릭 등)은 둘 다 disabled 반영 전에 통과해 insert가 두 번 나갈 수 있다 — ref는
     // 동기적으로 바로 반영되니 여기서 즉시 막는다.
-    if (!user || !route || savingRef.current || isDuplicateOfSaved || savedCoursesLoading) return
+    if (!user || !route || savingRef.current || isDuplicateOfSaved || savedCoursesLoading) return { error: true }
     savingRef.current = true
     setSaveState('saving')
     // #39 — GPS 원본 좌표는 서버로 절대 보내지 않는다(전송 자체만으로 위치정보법 신고
@@ -409,7 +425,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
     const safeOrigin = sanitizeOriginForSave(origin, getRegion(regionId))
     const { error } = await supabase.from('saved_courses').insert({
       user_id: user.id,
-      title: '대전한바퀴',
+      title,
       travel_mode: travelMode,
       stops: route.stops,
       origin: safeOrigin,
@@ -418,9 +434,9 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
     if (error) {
       console.error('[대전한바퀴] 코스 저장 실패', error)
       setSaveState('error')
-      return
+      return { error }
     }
-    setJustSaved((prev) => [...prev, { stops: route.stops, travel_mode: travelMode }])
+    setJustSaved((prev) => [...prev, { stops: route.stops, travel_mode: travelMode, title }])
     setSaveState('saved')
   }
 
@@ -536,16 +552,33 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
               {/* 리뷰 발견: 이전엔 마우스 전용 <span>이라 키보드/스크린리더로는 이 화면의 핵심
                   인터랙션(리스트→지도 하이라이트)에 접근할 방법이 자체가 없었다. <button>으로
                   바꾸면 tabIndex/role/Enter·Space 활성화가 전부 브라우저 기본 동작으로 딸려온다
-                  (직접 onKeyDown을 짜서 흉내내는 것보다 안전). 클릭은 마우스든 터치든 키보드든
-                  전부 이 하나의 onClick으로 들어온다 — 예전에 onClick과 onMouseEnter가 터치에서
-                  충돌하던 문제(§CP11-4)도 이 구조에선 재발하지 않는다: 버튼 클릭은 호버 상태와
-                  무관하게 항상 같은 index로 고정하는 동작이라 순서가 꼬일 여지가 없다. */}
+                  (직접 onKeyDown을 짜서 흉내내는 것보다 안전).
+                  §CP11-4에서 onClick을 토글로 뒀다가 터치에서 mouseenter→click이 같은 제스처
+                  안에서 순서대로 발생해(mouseenter가 세팅한 값을 click이 바로 도로 지워버림)
+                  탭이 항상 무효였던 적이 있어 "항상 이 index로 고정"으로 단순화했었다.
+                  이번엔 호버 판정을 Pointer Events로 바꾸고 pointerType==='mouse'일 때만
+                  반응하게 해서(터치는 pointerEnter/Leave를 무시) 그 경합 자체를 없앴다 —
+                  터치에서는 click(토글)만 동작하므로 같은 카드를 다시 탭하면 꺼진다(요청 반영:
+                  드래그 후 하이라이트가 갇히는 문제의 연장선 — 재클릭으로도 빠져나올 수 있게). */}
               <button
                 type="button"
                 className="pil-stop-info"
-                onMouseEnter={() => setHighlightIndex(index)}
-                onMouseLeave={() => setHighlightIndex(null)}
-                onClick={() => setHighlightIndex(index)}
+                onPointerEnter={(e) => {
+                  if (e.pointerType === 'mouse') setHighlightIndex(index)
+                }}
+                onPointerLeave={(e) => {
+                  if (e.pointerType === 'mouse') setHighlightIndex(null)
+                }}
+                onClick={(e) => {
+                  // 마우스는 호버가 이미 담당하므로 클릭으로 토글하면 안 된다 — 호버 중인
+                  // 행(prev===index)을 클릭하면 마우스가 그대로 위에 있어도 꺼져버린다.
+                  // 터치/펜만 토글(호버 이벤트가 안 오므로 클릭이 유일한 신호).
+                  if (e.pointerType === 'mouse') {
+                    setHighlightIndex(index)
+                    return
+                  }
+                  setHighlightIndex((prev) => (prev === index ? null : index))
+                }}
               >
                 <span className="pil-stop-name">{stop.name}</span>
                 <span className="pil-stop-type">
@@ -572,7 +605,9 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
               )}
               <button
                 type="button"
-                className="pil-stop-remove"
+                className={'pil-stop-remove' + (hoveredRemoveId === stop.id ? ' is-hover' : '')}
+                onMouseEnter={() => setHoveredRemoveId(stop.id)}
+                onMouseLeave={() => setHoveredRemoveId(null)}
                 onClick={() => removeStop(stop.id)}
                 aria-label={`${stop.name} 코스에서 빼기`}
               >
@@ -602,9 +637,10 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
         <button
           type="button"
           className="pil-save-btn"
-          onClick={handleSave}
+          onClick={() => setNameModalOpen(true)}
           disabled={
             !user ||
+            !route ||
             saveState === 'saving' ||
             saveState === 'saved' ||
             isDuplicateOfSaved ||
@@ -646,6 +682,15 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
           suggestedAttractionIds={suggestedAttractionIds}
           onAdd={addStop}
           onClose={() => setAddOpen(false)}
+        />
+      )}
+      {nameModalOpen && (
+        <CourseNameModal
+          heading="코스 이름 짓기"
+          initialValue={uniqueDefaultTitle('대전한바퀴', [...savedCourses, ...justSaved].map((c) => c.title))}
+          existingNames={[...savedCourses, ...justSaved].map((c) => c.title)}
+          onClose={() => setNameModalOpen(false)}
+          onSubmit={handleSave}
         />
       )}
     </div>
