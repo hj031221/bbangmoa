@@ -33,6 +33,10 @@
   --green:#3FA877;       /* 영업중 */
 }
 *{ box-sizing:border-box; }
+/* 이슈 #65 — 삼성 기기의 "글꼴 크게" 설정·브라우저 자동 확대(font boosting)가 켜지면
+   px 글자까지 부풀어 히어로 텍스트/검색버튼이 고정 max-width 밖으로 밀려 화면 오른쪽이 잘렸다.
+   100%로 두면 자동 확대만 끄고 사용자 핀치 줌은 그대로 유지된다(none 은 접근성상 지양). */
+html{ -webkit-text-size-adjust:100%; text-size-adjust:100%; }
 body{ margin:0; font-family:"HakgyoansimDunggeunmisoTTF-R","Pretendard","Apple SD Gothic Neo",system-ui,sans-serif; color:var(--ink);
   background-color:var(--bg-bottom);
   background-image:linear-gradient(180deg, var(--bg-top) 0%, var(--bg-top) 38%, var(--bg-bottom) 100%);
@@ -207,8 +211,8 @@ a{ color:var(--accent-text); }
 .bm-hero-grid{ display:grid; gap:var(--bm-sp-6); align-items:center; }
 .bm-hero-copy{ display:flex; flex-direction:column; align-items:center; text-align:center; gap:var(--bm-sp-3); }
 .bm-badge{ display:inline-flex; align-items:center; gap:8px; background:#fff; border:1px solid var(--bm-halo1); color:var(--bm-accent-deep); font-size:var(--bm-fs-small); font-weight:700; padding:8px 16px; border-radius:var(--bm-radius-pill); }
-.bm-hero-copy h1{ margin:0; font-weight:700; font-size:var(--bm-fs-display); line-height:1.32; color:var(--bm-ink); }
-.bm-hero-copy p{ margin:0; font-size:var(--bm-fs-body); line-height:1.7; color:var(--bm-muted); max-width:480px; }
+.bm-hero-copy h1{ margin:0; font-weight:700; font-size:var(--bm-fs-display); line-height:1.32; color:var(--bm-ink); overflow-wrap:anywhere; }
+.bm-hero-copy p{ margin:0; font-size:var(--bm-fs-body); line-height:1.7; color:var(--bm-muted); max-width:min(480px, 100%); }
 .bm-hero-actions{ display:flex; gap:var(--bm-sp-2); flex-wrap:wrap; justify-content:center; }
 
 .bm-hero-visual{ position:relative; height:300px; display:flex; align-items:center; justify-content:center; }
@@ -285,11 +289,14 @@ a{ color:var(--accent-text); }
   display:flex; flex-direction:column; overflow:hidden;
   background:radial-gradient(circle at 15% 20%, var(--bm-halo1) 0%, rgba(255,219,161,0) 42%),
              radial-gradient(circle at 90% 10%, var(--bm-halo2) 0%, rgba(255,233,196,0) 38%), var(--bm-bg); }
-.bm-mhero-copy{ max-width:var(--bm-container); margin:0 auto; display:flex; flex-direction:column;
+/* 이슈 #65 — 자식 max-width 만으로는 부족: flex 아이템인 이 래퍼의 min-width:auto(=min-content)
+   때문에 글꼴 확대 시 래퍼 자체가 화면보다 넓어져 우측이 잘렸다. width:100% + min-width:0 으로
+   항상 부모(.bm-mhero) 폭 안으로 줄어들게 강제한다. */
+.bm-mhero-copy{ width:100%; min-width:0; max-width:var(--bm-container); margin:0 auto; display:flex; flex-direction:column;
   align-items:center; text-align:center; gap:var(--bm-sp-3); }
-.bm-mhero h1{ margin:0; font-weight:700; font-size:var(--bm-fs-display); line-height:1.32; color:var(--bm-ink); max-width:520px; }
-.bm-mhero p{ margin:0; font-size:var(--bm-fs-body); color:var(--bm-muted); max-width:480px; }
-.bm-mhero-search{ display:flex; align-items:center; gap:8px; width:100%; max-width:420px;
+.bm-mhero h1{ margin:0; font-weight:700; font-size:var(--bm-fs-display); line-height:1.32; color:var(--bm-ink); max-width:min(520px, 100%); overflow-wrap:anywhere; }
+.bm-mhero p{ margin:0; font-size:var(--bm-fs-body); color:var(--bm-muted); max-width:min(480px, 100%); overflow-wrap:anywhere; }
+.bm-mhero-search{ display:flex; align-items:center; gap:8px; width:100%; max-width:min(420px, 100%);
   background:var(--bm-card); border:1.5px solid var(--bm-gold); border-radius:var(--bm-radius-pill);
   padding:6px 8px 6px 20px; box-shadow:var(--bm-shadow-sm); }
 /* 16px 미만이면 iOS Safari 가 포커스 시 페이지를 자동 확대하고(viewport 에 maximum-scale
@@ -368,7 +375,9 @@ a{ color:var(--accent-text); }
   .bm-mhero h1{ font-size:27px; line-height:1.28; }
   .bm-mhero p{ font-size:14px; line-height:1.45; }
   .bm-mhero-search{ padding-left:16px; }
-  .bm-mhero-actions{ width:100%; flex-wrap:nowrap; gap:8px; }
+  /* 이슈 #65 — 글꼴 확대 시 두 버튼을 한 줄에 강제(nowrap)하면 가로가 화면을 넘는다.
+     좁은 화면에서도 wrap 을 허용해 안 맞으면 세로로 쌓이게 둔다(라벨 자체는 nowrap 유지). */
+  .bm-mhero-actions{ width:100%; flex-wrap:wrap; gap:8px; }
   .bm-mhero-actions .bm-btn-primary,
   .bm-mhero-actions .bm-btn-ghost{ padding:12px 15px; font-size:14px; white-space:nowrap; }
   .bm-tour-showcase{ margin-top:12px; transform:translateY(8px); }
