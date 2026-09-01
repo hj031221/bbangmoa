@@ -115,20 +115,30 @@ export default function VisitStampModal({ stamp, target, onTargetChange, editabl
               vectorEffect="non-scaling-stroke"
             />
           ))}
-          {DISTRICT_PATHS.map(({ name, cx, cy }) => (
-            <text
-              key={name + '-label'}
-              x={cx}
-              y={cy}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fontSize="12"
-              fill="var(--brown)"
-              style={{ pointerEvents: 'none' }}
-            >
-              {name}
-            </text>
-          ))}
+          {DISTRICT_PATHS.map(({ name, cx, cy }) => {
+            // 목표 달성 구는 채움이 진해져 갈색 글씨가 묻힌다.
+            // 진한 구는 흰 글씨, 옅은 구는 갈색 글씨 + 반대색 외곽선(paint-order)으로 항상 읽히게.
+            const dark = (pctByName[name] ?? 0) >= 55
+            return (
+              <text
+                key={name + '-label'}
+                x={cx}
+                y={cy}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fontSize="12"
+                fontWeight="700"
+                fill={dark ? '#fff' : 'var(--brown)'}
+                stroke={dark ? 'rgba(76,49,13,0.45)' : '#fff'}
+                strokeWidth="2.5"
+                strokeLinejoin="round"
+                paintOrder="stroke"
+                style={{ pointerEvents: 'none' }}
+              >
+                {name}
+              </text>
+            )
+          })}
         </svg>
 
         <div className="visit-stamp-modal-stats">
