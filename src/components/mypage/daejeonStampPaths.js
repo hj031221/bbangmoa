@@ -42,8 +42,29 @@ export function projectRing(ring) {
   )
 }
 
+// 라벨 앵커 = 링 자신의 bbox 중심(위/경도 min·max)을 투영한 점.
+// 꼭짓점 평균보다 라벨 배치가 안정적이다(오목한 형태에서도 튀지 않음).
+function ringLabelAnchor(ring) {
+  let lo = Infinity
+  let ha = -Infinity
+  let lg0 = Infinity
+  let lg1 = -Infinity
+  for (const [lat, lng] of ring) {
+    if (lat < lo) lo = lat
+    if (lat > ha) ha = lat
+    if (lng < lg0) lg0 = lng
+    if (lng > lg1) lg1 = lng
+  }
+  const [x, y] = projectPoint([(lo + ha) / 2, (lg0 + lg1) / 2]).split(' ').map(Number)
+  return { cx: x, cy: y }
+}
+
 export const STAMP_VIEWBOX = `0 0 ${WIDTH} ${HEIGHT}`
 
 export const DISTRICT_PATHS = Object.freeze(
-  Object.entries(DISTRICT_RINGS).map(([name, ring]) => ({ name, d: projectRing(ring) })),
+  Object.entries(DISTRICT_RINGS).map(([name, ring]) => ({
+    name,
+    d: projectRing(ring),
+    ...ringLabelAnchor(ring),
+  })),
 )

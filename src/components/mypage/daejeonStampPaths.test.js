@@ -32,6 +32,14 @@ test('모든 좌표가 유한하고 viewBox 범위 안에 있다', () => {
   }
 })
 
+test('각 구는 라벨 앵커 cx/cy 를 가지고 viewBox 범위 안에 있다', () => {
+  const [, , w, h] = STAMP_VIEWBOX.split(' ').map(Number)
+  for (const { name, cx, cy } of DISTRICT_PATHS) {
+    assert.ok(Number.isFinite(cx) && cx >= 0 && cx <= w, `${name}: cx=${cx} 범위 밖`)
+    assert.ok(Number.isFinite(cy) && cy >= 0 && cy <= h, `${name}: cy=${cy} 범위 밖`)
+  }
+})
+
 test('projectRing 은 점 개수만큼 좌표쌍을 만든다', () => {
   const ring = DISTRICT_RINGS['중구']
   const d = projectRing(ring)

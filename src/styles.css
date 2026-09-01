@@ -974,10 +974,11 @@ a{ color:var(--accent-text); }
 .visit-stamp-band-conquer{ color:var(--muted); font-size:.82rem; white-space:nowrap; }
 .visit-stamp-bar{ display:block; width:100%; height:8px; border-radius:999px; background:var(--card2); overflow:hidden; }
 .visit-stamp-bar-fill{ display:block; height:100%; background:linear-gradient(90deg, var(--gold), var(--accent)); transition:width .25s; }
-.visit-stamp-modal-map{ width:100%; height:auto; margin:4px 0 14px; }
+.auth-modal.visit-stamp-modal{ max-height:calc(100dvh - 40px); overflow-y:auto; }
+.visit-stamp-modal-map{ width:100%; height:auto; max-height:42vh; margin:4px 0 14px; }
 .visit-stamp-modal-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:10px; width:100%; }
 .visit-stamp-modal-row{ display:grid; grid-template-columns:52px 1fr 40px; align-items:center; gap:10px; font-size:.85rem; color:var(--ink); }
-.visit-stamp-modal-row .visit-stamp-bar{ height:8px; }
+.visit-stamp-modal-name{ font-weight:700; color:var(--brown); }
 .visit-stamp-modal-pct{ text-align:right; color:var(--muted); }
 .visit-stamp-modal-summary{ margin:14px 0 0; font-size:.85rem; font-weight:700; color:var(--brown); text-align:center; }
-.mypage-friend-diary{ display:flex; flex-direction:column; }
+.mypage-friend-diary{ display:flex; flex-direction:column; max-width:720px; margin:0 auto; }

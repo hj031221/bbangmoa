@@ -36,6 +36,7 @@ export default function VisitStampBand({ targetUserId, nickname }) {
               fillOpacity={fillOpacity(pctByName[name] ?? 0)}
               stroke="var(--brown)"
               strokeWidth="1"
+              vectorEffect="non-scaling-stroke"
             />
           ))}
         </svg>

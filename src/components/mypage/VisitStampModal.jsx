@@ -30,7 +30,7 @@ export default function VisitStampModal({ stamp, nickname, onClose }) {
 
   return createPortal(
     <div className="auth-modal-overlay" onClick={onClose}>
-      <div className="auth-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="auth-modal visit-stamp-modal" onClick={(e) => e.stopPropagation()}>
         <button type="button" className="auth-modal-close" aria-label="닫기" onClick={onClose}>
           ✕
         </button>
@@ -52,7 +52,22 @@ export default function VisitStampModal({ stamp, nickname, onClose }) {
               fillOpacity={fillOpacity(pctByName[name] ?? 0)}
               stroke="var(--brown)"
               strokeWidth="1"
+              vectorEffect="non-scaling-stroke"
             />
+          ))}
+          {DISTRICT_PATHS.map(({ name, cx, cy }) => (
+            <text
+              key={name + '-label'}
+              x={cx}
+              y={cy}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontSize="12"
+              fill="var(--brown)"
+              style={{ pointerEvents: 'none' }}
+            >
+              {name}
+            </text>
           ))}
         </svg>
 
