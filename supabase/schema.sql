@@ -562,7 +562,12 @@ begin
     exit when not v_exists;
   end loop;
 
-  update profiles set share_code = v_code where user_id = v_uid;
+  update profiles set share_code = coalesce(share_code, v_code)
+    where user_id = v_uid
+    returning share_code into v_code;
+  if not found then
+    raise exception 'profile not found' using errcode = 'P0002';
+  end if;
   return v_code;
 end;
 $$;
@@ -630,6 +635,8 @@ end;
 $$;
 
 alter function classify_daejeon_district(float8, float8) set search_path = public, pg_temp;
+revoke execute on function classify_daejeon_district(float8, float8) from public;
+grant execute on function classify_daejeon_district(float8, float8) to anon, authenticated;
 
 -- 비로그인 방문자가 공유 링크로 받는 공개 집계. 닉네임과 집계 수치만 반환한다.
 -- 노출 금지: 기록 원문, visit_lat/visit_lng, 빵집 id·이름·목록, friend_code, user_id.
@@ -711,7 +718,7 @@ begin
   from per;
 
   return jsonb_build_object(
-    'nickname', v_nickname,
+    'nickname', coalesce(nullif(btrim(v_nickname), ''), '이름 없음'),
     'targetPerDistrict', v_target,
     'stamp', jsonb_build_object(
       'perDistrict', v_per,

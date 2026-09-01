@@ -38,7 +38,9 @@ export async function shareStampCard({ nickname, stamp, targetPerDistrict }) {
         return { ok: true, mode: 'share' }
       } catch (err) {
         if (err?.name === 'AbortError') return { ok: false, mode: 'cancel' }
-        throw err
+        // canShare 가 true 여도 share() 가 거부될 수 있다(iOS transient activation 만료,
+        // 일부 안드로이드의 파일타입 거부). 아래 다운로드 폴백으로 흘려보낸다.
+        console.error('[스탬프공유] share 실패, 다운로드로 대체', err)
       }
     }
 

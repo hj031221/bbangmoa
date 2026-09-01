@@ -29,20 +29,20 @@ export function buildStampCardSvg({ nickname, stamp, targetPerDistrict }) {
   const mapPaths = DISTRICT_PATHS.map(
     ({ name, d }) =>
       `<path d="${d}" fill="${ACCENT}" fill-opacity="${fillOpacity(pctByName[name] ?? 0)}"` +
-      ` stroke="${BROWN}" stroke-width="1" vector-effect="non-scaling-stroke"/>`,
+      ` stroke="${BROWN}" stroke-width="1.5"/>`,
   ).join('')
 
   const mapLabels = DISTRICT_PATHS.map(({ name, cx, cy }) => {
     const dark = (pctByName[name] ?? 0) >= 55
     return (
       `<text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="middle"` +
-      ` font-size="11" font-weight="700" fill="${dark ? '#ffffff' : BROWN}">${esc(name)}</text>`
+      ` font-size="22" font-weight="700" fill="${dark ? '#ffffff' : BROWN}">${esc(name)}</text>`
     )
   }).join('')
 
   const rows = stamp.perDistrict
     .map((d, i) => {
-      const y = 1000 + i * 58
+      const y = 1030 + i * 50
       const barW = Math.round((Math.min(100, d.goalPct) / 100) * 560)
       return (
         `<text x="90" y="${y + 22}" font-size="26" font-weight="700" fill="${INK}">${esc(d.name)}</text>` +
@@ -61,13 +61,13 @@ export function buildStampCardSvg({ nickname, stamp, targetPerDistrict }) {
     ` font-family="${FONT}">` +
     `<rect width="${W}" height="${H}" fill="${BG}"/>` +
     `<text x="${W / 2}" y="120" text-anchor="middle" font-size="48" font-weight="800" fill="${INK}">${title}</text>` +
-    `<svg x="140" y="170" width="800" height="560" viewBox="${STAMP_VIEWBOX}" preserveAspectRatio="xMidYMid meet">` +
+    `<svg x="276" y="132" width="527" height="670" viewBox="${STAMP_VIEWBOX}" preserveAspectRatio="xMidYMid meet">` +
     `${mapPaths}${mapLabels}</svg>` +
-    `<text x="${W / 2}" y="830" text-anchor="middle" font-size="72" font-weight="800" fill="${ACCENT}">` +
+    `<text x="${W / 2}" y="885" text-anchor="middle" font-size="72" font-weight="800" fill="${ACCENT}">` +
     `스탬프 ${stamp.completedSlots}/${stamp.totalSlots}</text>` +
-    `<text x="${W / 2}" y="892" text-anchor="middle" font-size="36" font-weight="700" fill="${INK}">` +
+    `<text x="${W / 2}" y="948" text-anchor="middle" font-size="36" font-weight="700" fill="${INK}">` +
     `목표 달성률 ${stamp.goalPct}%</text>` +
-    `<text x="${W / 2}" y="945" text-anchor="middle" font-size="27" fill="${MUTED}">` +
+    `<text x="${W / 2}" y="991" text-anchor="middle" font-size="27" fill="${MUTED}">` +
     `${stamp.completedDistrictCount}/5개 구 목표 완료 · 목표 구마다 ${targetPerDistrict}곳</text>` +
     rows +
     `<text x="${W / 2}" y="${H - 48}" text-anchor="middle" font-size="26" font-weight="700" fill="${MUTED}">` +
