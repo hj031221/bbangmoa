@@ -908,16 +908,20 @@ a{ color:var(--accent-text); }
 
 .rec-actions{ margin-top:6px; }
 .diary-modal-form{ display:flex; flex-direction:column; gap:12px; width:100%; }
+.diary-modal-location-note{ margin:0; padding:9px 11px; border-radius:10px; background:var(--card2); color:var(--muted); font-size:.8rem; line-height:1.45; }
 .diary-modal-textarea{ width:100%; padding:12px; border:1.5px solid var(--line); border-radius:12px; font-family:inherit; font-size:.9rem; resize:vertical; }
 .diary-modal-error{ margin:0; font-size:.85rem; color:var(--accent-deep); }
 .diary-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; }
 .diary-card{ display:flex; flex-direction:column; gap:6px; align-items:flex-start; border:1px solid var(--line); border-radius:14px; padding:14px; background:var(--card); text-align:left; cursor:pointer; }
 .diary-card:hover{ border-color:var(--accent); }
 .diary-card-date{ font-size:.75rem; color:var(--muted); }
+.diary-card-bakery-row,.diary-detail-bakery-row,.mypage-preview-diary-meta{ display:flex; align-items:center; flex-wrap:wrap; gap:7px; }
 .diary-card-bakery{ font-weight:700; color:var(--brown); }
 .diary-card-text{ margin:0; font-size:.85rem; color:var(--ink); overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; }
 .diary-detail-meta{ display:flex; justify-content:space-between; margin-bottom:12px; color:var(--muted); font-size:.85rem; }
 .diary-detail-bakery{ font-weight:700; color:var(--brown); }
+.diary-verification{ display:inline-flex; align-items:center; min-height:20px; padding:2px 7px; border:1px solid var(--line); border-radius:999px; background:var(--card2); color:var(--muted); font-size:.7rem; font-weight:700; line-height:1; white-space:nowrap; }
+.diary-verification-verified{ border-color:var(--accent); background:color-mix(in srgb, var(--accent) 16%, var(--card)); color:var(--accent-deep); }
 .diary-detail-text{ white-space:pre-wrap; line-height:1.6; color:var(--ink); }
 
 .diary-social{ margin-top:20px; padding-top:16px; border-top:1px solid var(--line); display:flex; flex-direction:column; gap:14px; }

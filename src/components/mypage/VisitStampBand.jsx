@@ -16,7 +16,7 @@ export default function VisitStampBand({ targetUserId, nickname }) {
   const { entries, loading } = useDiaryEntries(targetUserId)
   const { target, setTarget, loading: targetLoading } = useStampTarget(targetUserId)
   const stamp = useMemo(
-    () => computeVisitStamps(entries, { targetPerDistrict: target }),
+    () => computeVisitStamps(entries, { targetPerDistrict: target, verifiedOnly: true }),
     [entries, target],
   )
   const [open, setOpen] = useState(false)

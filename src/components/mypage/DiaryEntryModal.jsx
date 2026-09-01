@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { captureVisitLocation } from '../../lib/visitLocation'
 
 // 빵집 상세 카드(RecommendCard)에서 "기록 남기기" 클릭 시 뜨는 텍스트 작성 모달.
 export default function DiaryEntryModal({ bakery, onClose, onSubmit }) {
@@ -23,7 +24,8 @@ export default function DiaryEntryModal({ bakery, onClose, onSubmit }) {
     if (!trimmed) return
     setSaving(true)
     setError(false)
-    const result = await onSubmit(trimmed)
+    const location = await captureVisitLocation()
+    const result = await onSubmit(trimmed, location)
     setSaving(false)
     if (result?.error) {
       setError(true)
@@ -43,6 +45,9 @@ export default function DiaryEntryModal({ bakery, onClose, onSubmit }) {
           <h3 className="auth-modal-title">{bakery.name} 기록 남기기</h3>
         </div>
         <form className="diary-modal-form" onSubmit={submit}>
+          <p className="diary-modal-location-note">
+            현재 위치가 확인되면 인증 방문으로 기록돼요. 위치를 확인하지 못해도 기록은 저장할 수 있어요.
+          </p>
           <textarea
             className="diary-modal-textarea"
             value={text}

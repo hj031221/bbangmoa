@@ -4,6 +4,7 @@ import { useDiaryEntries } from '../../hooks/useDiaryEntries'
 import { useDiaryLikes } from '../../hooks/useDiaryLikes'
 import { useDiaryComments } from '../../hooks/useDiaryComments'
 import { formatDiaryDate as formatDate, formatDiaryDateTime } from '../../lib/formatDate'
+import DiaryVerificationBadge from './DiaryVerificationBadge'
 
 // 마이페이지 기록장 패널. 작성은 RecommendCard(빵집 상세)의 "기록 남기기"에서만 가능
 // — 여기선 목록 보기 / 수정 / 삭제만 한다. targetUserId+readOnly 면 친구 기록장을 읽기 전용으로 본다.
@@ -58,7 +59,10 @@ export default function DiaryPanel({ onBack, targetUserId, readOnly = false, fri
         </div>
         <div className="diary-detail">
           <div className="diary-detail-meta">
-            <span className="diary-detail-bakery">{selected.bakery?.name}</span>
+            <span className="diary-detail-bakery-row">
+              <span className="diary-detail-bakery">{selected.bakery?.name}</span>
+              <DiaryVerificationBadge verified={selected.verified} />
+            </span>
             <span>{formatDate(selected.created_at)}</span>
           </div>
           {editing && !readOnly ? (
@@ -195,7 +199,10 @@ export default function DiaryPanel({ onBack, targetUserId, readOnly = false, fri
               onClick={() => openEntry(entry)}
             >
               <span className="diary-card-date">{formatDate(entry.created_at)}</span>
-              <span className="diary-card-bakery">{entry.bakery?.name}</span>
+              <span className="diary-card-bakery-row">
+                <span className="diary-card-bakery">{entry.bakery?.name}</span>
+                <DiaryVerificationBadge verified={entry.verified} />
+              </span>
               <p className="diary-card-text">{entry.text}</p>
             </button>
           ))}

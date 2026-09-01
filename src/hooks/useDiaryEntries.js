@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { useAuth } from './useAuth'
 import { supabase } from '../lib/supabase'
 
+const DIARY_SELECT = 'id,user_id,bakery_id,bakery,text,created_at,updated_at,verified,verified_at'
+
 // 빵집 연결 기록장. 로그인 필수 — 비로그인 시 항상 빈 배열.
 // targetUserId 가 있으면(친구 목록 읽기 전용 조회) 그 id 로 조회한다.
 export function useDiaryEntries(targetUserId) {
@@ -20,7 +22,7 @@ export function useDiaryEntries(targetUserId) {
     setLoading(true)
     supabase
       .from('diary_entries')
-      .select('*')
+      .select(DIARY_SELECT)
       .eq('user_id', queryUserId)
       .order('created_at', { ascending: false })
       .then(({ data, error }) => {
@@ -42,11 +44,15 @@ export function useDiaryEntries(targetUserId) {
     }
   }, [queryUserId])
 
-  const addEntry = (bakery, text) => {
+  const addEntry = (bakery, text, location = null) => {
     if (!user) return Promise.resolve({ error: new Error('로그인이 필요해요.') })
     return supabase
-      .from('diary_entries')
-      .insert({ user_id: user.id, bakery_id: bakery.id, bakery, text })
+      .rpc('create_diary_entry', {
+        p_bakery: bakery,
+        p_text: text,
+        p_lat: location?.lat ?? null,
+        p_lng: location?.lng ?? null,
+      })
       .then(({ error }) => {
         if (error) {
           console.error('[기록장] 작성 실패', error)

@@ -426,3 +426,99 @@ alter table profiles add constraint profiles_stamp_target_range
 -- 컬럼 단위 update grant 목록에 stamp_target 추가 (기존: nickname, avatar_url, avatar_version).
 revoke update on profiles from authenticated;
 grant update (nickname, avatar_url, avatar_version, stamp_target) on profiles to authenticated;
+
+-- ===== 이슈 #63 2단계: 방문 인증 =====
+
+alter table diary_entries add column if not exists visit_lat double precision;
+alter table diary_entries add column if not exists visit_lng double precision;
+alter table diary_entries add column if not exists verified boolean not null default false;
+alter table diary_entries add column if not exists verified_at timestamptz;
+
+-- 일반 API 사용자는 인증 관련 값을 직접 쓰지 못한다. 본문 수정만 허용하고,
+-- 새 기록의 인증 여부와 방문 좌표는 아래 security definer RPC만 결정한다.
+revoke insert, update on diary_entries from authenticated;
+grant insert (user_id, bakery_id, bakery, text) on diary_entries to authenticated;
+grant update (text, updated_at) on diary_entries to authenticated;
+
+drop policy if exists "diary_entries_insert_own" on diary_entries;
+create policy "diary_entries_insert_own" on diary_entries
+  for insert with check (auth.uid() = user_id and verified = false);
+
+-- 친구에게 기록은 보여주되 캡처한 실제 위치는 노출하지 않는다.
+revoke select on diary_entries from authenticated, anon;
+grant select (
+  id, user_id, bakery_id, bakery, text, created_at, updated_at, verified, verified_at
+) on diary_entries to authenticated;
+
+create or replace function create_diary_entry(
+  p_bakery jsonb,
+  p_text text,
+  p_lat double precision default null,
+  p_lng double precision default null
+)
+returns table(id uuid, verified boolean, verified_at timestamptz)
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_user_id uuid := auth.uid();
+  v_bakery_lat double precision;
+  v_bakery_lng double precision;
+  v_visit_lat double precision;
+  v_visit_lng double precision;
+  v_distance_m double precision;
+  v_verified boolean := false;
+begin
+  if v_user_id is null then
+    raise exception 'authentication required' using errcode = '42501';
+  end if;
+
+  if p_bakery is null
+    or jsonb_typeof(p_bakery) <> 'object'
+    or nullif(btrim(p_bakery ->> 'id'), '') is null then
+    raise exception 'invalid bakery' using errcode = '22023';
+  end if;
+
+  if nullif(btrim(p_text), '') is null then
+    raise exception 'text is required' using errcode = '22023';
+  end if;
+
+  if jsonb_typeof(p_bakery -> 'lat') = 'number'
+    and jsonb_typeof(p_bakery -> 'lng') = 'number' then
+    v_bakery_lat := (p_bakery ->> 'lat')::double precision;
+    v_bakery_lng := (p_bakery ->> 'lng')::double precision;
+  end if;
+
+  if p_lat between -90 and 90
+    and p_lng between -180 and 180 then
+    v_visit_lat := p_lat;
+    v_visit_lng := p_lng;
+
+    if v_bakery_lat between -90 and 90
+      and v_bakery_lng between -180 and 180 then
+      v_distance_m := 6371000 * 2 * asin(sqrt(least(1, greatest(0,
+        power(sin(radians(v_visit_lat - v_bakery_lat) / 2), 2)
+        + cos(radians(v_bakery_lat)) * cos(radians(v_visit_lat))
+        * power(sin(radians(v_visit_lng - v_bakery_lng) / 2), 2)
+      ))));
+      v_verified := v_distance_m <= 150;
+    end if;
+  end if;
+
+  return query
+    insert into diary_entries (
+      user_id, bakery_id, bakery, text,
+      visit_lat, visit_lng, verified, verified_at
+    ) values (
+      v_user_id, p_bakery ->> 'id', p_bakery, btrim(p_text),
+      v_visit_lat, v_visit_lng, v_verified, case when v_verified then now() else null end
+    )
+    returning diary_entries.id, diary_entries.verified, diary_entries.verified_at;
+end;
+$$;
+
+revoke execute on function create_diary_entry(jsonb, text, double precision, double precision)
+  from public, anon;
+grant execute on function create_diary_entry(jsonb, text, double precision, double precision)
+  to authenticated;

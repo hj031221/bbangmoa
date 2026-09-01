@@ -11,7 +11,7 @@ const clampTarget = (n) => Math.min(20, Math.max(1, Math.round(n)))
 //   goalPct(구)    = round(completedSlots / target * 100)
 //   completed      = count >= target
 //   goalPct(전체)  = round(Σ completedSlots / (target*5) * 100), 100 상한
-// verifiedOnly: 2단계(방문 인증)에서 verified 기록만 세기 위한 스위치. 지금 호출부는 false.
+// verifiedOnly: true이면 서버가 방문 인증한 기록만 스탬프에 포함한다.
 export function computeVisitStamps(
   entries,
   { targetPerDistrict = 3, verifiedOnly = false } = {},
