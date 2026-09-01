@@ -66,6 +66,7 @@ export default function VisitStampBand({ targetUserId, nickname }) {
         <VisitStampModal
           stamp={stamp}
           target={target}
+          targetPerDistrict={target}
           onTargetChange={setTarget}
           editable={!targetUserId}
           nickname={nickname}

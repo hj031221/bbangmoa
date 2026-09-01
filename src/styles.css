@@ -999,3 +999,7 @@ a{ color:var(--accent-text); }
 .visit-stamp-modal-headline{ font-size:1rem; font-weight:800; color:var(--brown); }
 .visit-stamp-modal-goalpct{ font-weight:700; color:var(--accent-text, var(--accent-deep)); }
 .visit-stamp-modal-check{ color:var(--accent-deep); font-weight:700; text-align:center; }
+.visit-stamp-share{ margin-top:14px; display:flex; flex-direction:column; gap:6px; }
+.visit-stamp-share-btn{ width:100%; padding:11px 14px; border:0; border-radius:12px; background:var(--accent); color:#fff; font-weight:700; font-size:.92rem; cursor:pointer; }
+.visit-stamp-share-btn:disabled{ opacity:.6; cursor:default; }
+.visit-stamp-share-msg{ margin:0; font-size:.8rem; color:var(--muted); text-align:center; }

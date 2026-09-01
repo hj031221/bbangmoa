@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { STAMP_VIEWBOX, DISTRICT_PATHS } from './daejeonStampPaths'
+import { shareStampCard } from '../../lib/stampShare'
 
 // 방문 스탬프 상세 모달. CourseNameModal 패턴(auth-modal 공용 클래스, Escape/배경 닫기,
 // body 스크롤 잠금). stamp = computeVisitStamps() 결과.
@@ -11,11 +12,13 @@ function fillOpacity(pct) {
 
 const PRESETS = [1, 3, 5]
 
-export default function VisitStampModal({ stamp, target, onTargetChange, editable, nickname, onClose }) {
+export default function VisitStampModal({ stamp, target, targetPerDistrict, onTargetChange, editable, nickname, onClose }) {
   const onCloseRef = useRef(onClose)
   onCloseRef.current = onClose
   const [customOpen, setCustomOpen] = useState(false)
   const [customValue, setCustomValue] = useState(String(target))
+  const [sharing, setSharing] = useState(false)
+  const [shareMsg, setShareMsg] = useState('')
 
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onCloseRef.current()
@@ -166,6 +169,32 @@ export default function VisitStampModal({ stamp, target, onTargetChange, editabl
             </li>
           ))}
         </ul>
+
+        {editable && (
+          <div className="visit-stamp-share">
+            <button
+              type="button"
+              className="visit-stamp-share-btn"
+              disabled={sharing}
+              onClick={async () => {
+                setSharing(true)
+                setShareMsg('')
+                const r = await shareStampCard({
+                  nickname: nickname ?? null,
+                  stamp,
+                  targetPerDistrict: targetPerDistrict ?? target,
+                })
+                setSharing(false)
+                if (r.mode === 'download') setShareMsg('이미지를 저장했어요. 링크도 복사했어요.')
+                else if (!r.ok && r.mode !== 'cancel') setShareMsg('공유에 실패했어요. 잠시 후 다시 시도해 주세요.')
+                else setShareMsg('')
+              }}
+            >
+              {sharing ? '만드는 중…' : '스탬프 공유하기'}
+            </button>
+            {shareMsg && <p className="visit-stamp-share-msg">{shareMsg}</p>}
+          </div>
+        )}
       </div>
     </div>,
     document.body,
