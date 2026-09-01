@@ -525,9 +525,9 @@ grant execute on function create_diary_entry(jsonb, text, double precision, doub
 
 -- ===== 이슈 #63 3단계: 공유 =====
 
--- 공유 링크 전용 코드. friend_code 와 분리 — friend_code 는 authenticated 전용이고
--- "낯선 사람에게 노출 금지" 원칙이 있어(위 find_user_by_friend_code 주석) 재사용하지 않는다.
--- 첫 공유 때 지연 생성되므로 nullable. 사용자가 직접 못 쓰게 update grant 목록에 넣지 않는다.
+-- 초기 3단계 시안은 share_code를 별도 생성했지만, 최종 계약은 기존 friend_code 재사용이다.
+-- 이미 초기 SQL을 적용한 환경과 발송된 링크를 깨지 않기 위해 nullable legacy 컬럼/함수는 남기되,
+-- 새 클라이언트는 더 이상 ensure_share_code를 호출하거나 share_code를 생성하지 않는다.
 alter table profiles add column if not exists share_code text unique;
 
 -- 내 share_code 를 반환한다. 없으면 generate_friend_code() 와 동일한 문자셋으로 8자리를
@@ -638,7 +638,8 @@ alter function classify_daejeon_district(float8, float8) set search_path = publi
 revoke execute on function classify_daejeon_district(float8, float8) from public;
 grant execute on function classify_daejeon_district(float8, float8) to anon, authenticated;
 
--- 비로그인 방문자가 공유 링크로 받는 공개 집계. 닉네임과 집계 수치만 반환한다.
+-- 비로그인 방문자가 공유 링크로 받는 공개 집계. 새 링크는 friend_code를 사용하고,
+-- 초기 3단계 시안에서 생성된 share_code도 기존 링크 호환 목적으로 함께 허용한다.
 -- 노출 금지: 기록 원문, visit_lat/visit_lng, 빵집 id·이름·목록, friend_code, user_id.
 -- 소유자 본인 화면(computeVisitStamps)이 빵집 좌표로 구를 분류하므로 여기서도 동일하게
 -- diary_entries.bakery 좌표를 쓴다(GPS visit 좌표 아님). verified 기록만 집계.
@@ -667,7 +668,10 @@ begin
   select user_id, nickname, stamp_target
     into v_uid, v_nickname, v_target
     from profiles
-    where share_code = upper(btrim(p_code));
+    where friend_code = upper(btrim(p_code))
+       or share_code = upper(btrim(p_code))
+    order by (friend_code = upper(btrim(p_code))) desc
+    limit 1;
 
   if v_uid is null then
     return null;

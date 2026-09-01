@@ -10,6 +10,23 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-01-visit-stamp-share-design.md`
 
+## 2026-09-01 리뷰 후 보완
+
+초기 계획보다 뒤의 최종 결정이며, 아래 기존 태스크와 충돌하면 이 절을 우선한다.
+
+- 새 공개 링크는 이슈 #63 계약대로 `profiles.friend_code`를 재사용한다. 초기 구현의 nullable
+  `share_code`와 `ensure_share_code()`는 이미 적용된 환경 및 기존 링크 호환을 위해서만 남긴다.
+- 공유 모달이 열릴 때 폰트·PNG·공개 링크를 미리 준비하고, 버튼 클릭 직후 첫 비동기 호출로
+  `navigator.share()`를 실행해 모바일 브라우저의 사용자 활성 상태를 보존한다.
+- 공개 링크 준비에 실패해도 PNG 저장은 계속 가능해야 하며, 클립보드 복사 성공 여부를 실제
+  반환값으로 안내한다.
+- 저장 이미지는 사이트의 regular/bold WOFF2를 SVG에 내장한다. 카드와 공개 페이지는 빵모아의
+  크림·코랄·브라운 팔레트와 기록지형 비대칭 레이아웃을 공유한다.
+- `og-stamp` Edge Function이 공개 집계 RPC로 사용자별 PNG를 생성한다. `/s/:code`는 Vercel
+  서버 함수에서 절대 `og:image` URL을 주입하며, 배포 전·실패 시 1200×630 정적 PNG를 사용한다.
+- 공개 RPC는 새 `friend_code`와 과거 `share_code`를 모두 조회하되, 기록 원문·좌표·빵집 목록은
+  반환하지 않고 현재 사용자 설정 목표 모델의 집계만 반환한다.
+
 ## Global Constraints
 
 - 브랜치는 `feature-stamp`. **별도 브랜치를 만들지 않는다.** base는 `develop`.

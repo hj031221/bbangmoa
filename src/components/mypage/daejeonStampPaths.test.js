@@ -63,3 +63,9 @@ test('projectRing 은 점 개수만큼 좌표쌍을 만든다', () => {
   const nums = d.match(/-?\d+(\.\d+)?/g).map(Number)
   assert.equal(nums.length, ring.length * 2)
 })
+
+test('중구 라벨은 bbox 중심에서 아주 약간 왼쪽으로 보정된다', () => {
+  const jung = DISTRICT_PATHS.find(({ name }) => name === '중구')
+  assert.equal(jung.cx, 169.28)
+  assert.equal(jung.cy, 281.5)
+})

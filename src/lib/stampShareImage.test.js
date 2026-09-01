@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { buildStampCardSvg } from './stampShareImage.js'
+import { buildStampCardSvg, getStampGoalMessage } from './stampShareImage.js'
 
 const STAMP = {
   perDistrict: [
@@ -43,4 +43,42 @@ test('닉네임의 특수문자를 이스케이프한다', () => {
   const svg = buildStampCardSvg({ nickname: '<b>&"x', stamp: STAMP, targetPerDistrict: 3 })
   assert.ok(!svg.includes('<b>'), '원본 태그가 그대로 들어가면 안 됨')
   assert.ok(svg.includes('&lt;b&gt;&amp;&quot;x'))
+})
+
+test('사이트 폰트 CSS를 SVG defs 안에 포함한다', () => {
+  const fontCss = '<style>@font-face{font-family:BbangMoa}</style>'
+  const svg = buildStampCardSvg({ nickname: '홍길동', stamp: STAMP, targetPerDistrict: 3, fontCss })
+  assert.ok(svg.includes(fontCss))
+  assert.ok(svg.includes('BbangMoa Round'))
+})
+
+test('실제 로고 data URL을 좌측 상단 심볼로 포함한다', () => {
+  const logoDataUrl = 'data:image/png;base64,logo-test'
+  const svg = buildStampCardSvg({
+    nickname: '홍길동',
+    stamp: STAMP,
+    targetPerDistrict: 3,
+    logoDataUrl,
+  })
+  assert.ok(svg.includes(`href="${logoDataUrl}"`))
+  assert.ok(svg.includes('viewBox="0 0 338 375"'))
+})
+
+test('목표 달성률 구간별로 카드 상단 문구가 달라진다', () => {
+  assert.equal(getStampGoalMessage(0), '첫 스탬프부터 시작해 볼까요?')
+  assert.equal(getStampGoalMessage(24), '한 곳씩 빵집을 발견하는 중')
+  assert.equal(getStampGoalMessage(49), '빵집을 차근차근 알아가는 중')
+  assert.equal(getStampGoalMessage(74), '어느새 절반 넘게 채웠어요')
+  assert.equal(getStampGoalMessage(99), '다섯 구 완주가 눈앞이에요')
+  assert.equal(getStampGoalMessage(100), '대전 5개 구를 모두 채웠어요')
+})
+
+test('이모지 경계에서 닉네임을 잘라도 깨진 surrogate를 만들지 않는다', () => {
+  const svg = buildStampCardSvg({
+    nickname: 'abcdefghijk😀더긴이름',
+    stamp: STAMP,
+    targetPerDistrict: 3,
+  })
+  assert.doesNotThrow(() => encodeURIComponent(svg))
+  assert.ok(svg.includes('abcdefghijk😀님의'))
 })

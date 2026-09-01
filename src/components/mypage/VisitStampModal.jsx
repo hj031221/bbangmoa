@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { STAMP_VIEWBOX, DISTRICT_PATHS } from './daejeonStampPaths'
-import { shareStampCard } from '../../lib/stampShare'
+import { prepareStampShare, sharePreparedStamp } from '../../lib/stampShare'
 
 // 방문 스탬프 상세 모달. CourseNameModal 패턴(auth-modal 공용 클래스, Escape/배경 닫기,
 // body 스크롤 잠금). stamp = computeVisitStamps() 결과.
@@ -19,6 +19,9 @@ export default function VisitStampModal({ stamp, target, targetPerDistrict, onTa
   const [customValue, setCustomValue] = useState(String(target))
   const [sharing, setSharing] = useState(false)
   const [shareMsg, setShareMsg] = useState('')
+  const [shareLink, setShareLink] = useState(null)
+  const [shareRetry, setShareRetry] = useState(0)
+  const [sharePrep, setSharePrep] = useState({ status: 'idle', value: null })
 
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onCloseRef.current()
@@ -29,6 +32,27 @@ export default function VisitStampModal({ stamp, target, targetPerDistrict, onTa
       document.body.style.overflow = ''
     }
   }, [])
+
+  useEffect(() => {
+    if (!editable) return undefined
+    let alive = true
+    setSharePrep({ status: 'preparing', value: null })
+    setShareMsg('')
+    setShareLink(null)
+
+    prepareStampShare({
+      nickname: nickname ?? null,
+      stamp,
+      targetPerDistrict: targetPerDistrict ?? target,
+    }).then((prepared) => {
+      if (!alive) return
+      setSharePrep({ status: prepared.ok ? 'ready' : 'error', value: prepared })
+    })
+
+    return () => {
+      alive = false
+    }
+  }, [editable, nickname, stamp, target, targetPerDistrict, shareRetry])
 
   const pctByName = Object.fromEntries(stamp.perDistrict.map((d) => [d.name, d.goalPct]))
   const heading = nickname ? `${nickname}님의 스탬프` : '내 스탬프'
@@ -175,24 +199,48 @@ export default function VisitStampModal({ stamp, target, targetPerDistrict, onTa
             <button
               type="button"
               className="visit-stamp-share-btn"
-              disabled={sharing}
+              disabled={sharing || sharePrep.status === 'preparing' || sharePrep.status === 'idle'}
               onClick={async () => {
+                if (sharePrep.status === 'error') {
+                  setShareRetry((count) => count + 1)
+                  return
+                }
+                if (sharePrep.status !== 'ready') return
                 setSharing(true)
                 setShareMsg('')
-                const r = await shareStampCard({
-                  nickname: nickname ?? null,
-                  stamp,
-                  targetPerDistrict: targetPerDistrict ?? target,
-                })
+                setShareLink(null)
+                const r = await sharePreparedStamp(sharePrep.value)
                 setSharing(false)
-                if (r.mode === 'download') setShareMsg('이미지를 저장했어요. 링크도 복사했어요.')
-                else if (!r.ok && r.mode !== 'cancel') setShareMsg('공유에 실패했어요. 잠시 후 다시 시도해 주세요.')
-                else setShareMsg('')
+                if (r.mode === 'download' && r.copied) {
+                  setShareMsg('이미지를 저장하고 공유 링크를 복사했어요.')
+                } else if (r.mode === 'download' && r.shareUrl) {
+                  setShareMsg('이미지를 저장했어요. 링크는 아래에서 직접 열 수 있어요.')
+                  setShareLink(r.shareUrl)
+                } else if (r.mode === 'download') {
+                  setShareMsg('이미지를 저장했어요. 공유 링크는 네트워크 연결 후 다시 준비해 주세요.')
+                } else if (!r.ok && r.mode !== 'cancel') {
+                  setShareMsg('공유에 실패했어요. 잠시 후 다시 시도해 주세요.')
+                } else {
+                  setShareMsg('')
+                }
               }}
             >
-              {sharing ? '만드는 중…' : '스탬프 공유하기'}
+              {sharing
+                ? '공유하는 중…'
+                : sharePrep.status === 'preparing'
+                  ? '공유 카드 준비 중…'
+                  : sharePrep.status === 'error'
+                    ? '공유 카드 다시 준비'
+                    : sharePrep.value?.shareUrl
+                      ? '스탬프 공유하기'
+                      : '스탬프 이미지 저장하기'}
             </button>
             {shareMsg && <p className="visit-stamp-share-msg">{shareMsg}</p>}
+            {shareLink && (
+              <a className="visit-stamp-share-link" href={shareLink} target="_blank" rel="noreferrer">
+                공유 링크 열기
+              </a>
+            )}
           </div>
         )}
       </div>

@@ -12,7 +12,7 @@ export default function FriendsPreview({ onExpand }) {
         <span className="mypage-preview-icon-badge" aria-hidden="true">
           <FriendsIcon />
         </span>
-        <span className="mypage-preview-title">친구목록</span>
+        <span className="mypage-preview-title">친구목록 ({friends.length}명)</span>
         {incomingRequests.length > 0 && (
           <span className="mypage-preview-badge">{incomingRequests.length}</span>
         )}

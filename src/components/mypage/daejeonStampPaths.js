@@ -47,6 +47,12 @@ export function projectRing(ring) {
 // 이 두 구만 면적 무게중심(폴리곤 centroid)을 쓴다 — "가장 중앙"에 가깝다.
 const CENTROID_DISTRICTS = new Set(['동구', '대덕구'])
 
+// 시각적 중심 보정. 중구는 오른쪽 경계가 길게 뻗어 bbox 중심보다 글자가 살짝
+// 오른쪽으로 보여서, 모든 스탬프 지도에서 약 2~4px 왼쪽으로 보이도록 이동한다.
+const LABEL_OFFSETS = Object.freeze({
+  중구: [-3, 0],
+})
+
 function ringBboxCenter(pts) {
   const xs = pts.map((p) => p[0])
   const ys = pts.map((p) => p[1])
@@ -72,7 +78,8 @@ function ringCentroid(pts) {
 function ringLabelAnchor(name, ring) {
   const pts = ring.map((pt) => projectPoint(pt).split(' ').map(Number))
   const [x, y] = CENTROID_DISTRICTS.has(name) ? ringCentroid(pts) : ringBboxCenter(pts)
-  return { cx: round2(x), cy: round2(y) }
+  const [offsetX = 0, offsetY = 0] = LABEL_OFFSETS[name] ?? []
+  return { cx: round2(x + offsetX), cy: round2(y + offsetY) }
 }
 
 export const STAMP_VIEWBOX = `0 0 ${WIDTH} ${HEIGHT}`

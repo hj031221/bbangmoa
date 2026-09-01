@@ -3,7 +3,7 @@ import { formatCourseLabel } from '../../lib/courseLabel'
 import PreviewChevron from './PreviewChevron'
 import { PinIcon } from './PreviewIcons'
 
-// 마이페이지 홈 미리보기 카드. 개수 제한 없이 저장한 만큼 세로로 늘어난다.
+// 마이페이지 홈 미리보기 카드. 헤더에서 전체 개수를 바로 확인할 수 있다.
 // 상세(경로/삭제)는 헤더 클릭 시 SavedCoursesPanel 로 이동해서 본다.
 export default function SavedCoursesPreview({ onExpand }) {
   const { courses, loading } = useSavedCourses()
@@ -14,7 +14,7 @@ export default function SavedCoursesPreview({ onExpand }) {
         <span className="mypage-preview-icon-badge" aria-hidden="true">
           <PinIcon />
         </span>
-        <span className="mypage-preview-title">찜한 코스 목록</span>
+        <span className="mypage-preview-title">찜한 코스 목록 ({courses.length}개)</span>
         <PreviewChevron />
       </button>
       <div className="mypage-preview-body">
