@@ -2,63 +2,103 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { computeVisitStamps } from './visitStamps.js'
 
-// 중구 안 좌표 (Task 1 테스트에서 검증된 값)
-const JUNG = { lat: 36.3277, lng: 127.4276 }
-const SEO = { lat: 36.3515, lng: 127.3781 }
+const JUNG = { lat: 36.3277, lng: 127.4276 } // 중구
+const SEO = { lat: 36.3515, lng: 127.3781 }  // 서구
+const DONG = { lat: 36.331, lng: 127.434 }   // 동구
 
-function entry(id, coords) {
-  return { bakery_id: id, bakery: { id, lat: coords?.lat, lng: coords?.lng } }
+function entry(id, coords, extra) {
+  return { bakery_id: id, bakery: { id, lat: coords?.lat, lng: coords?.lng }, ...extra }
 }
 
-test('빈 입력 — 5개 구 전부 0, overallPct 0, conqueredCount 0', () => {
+const byName = (r, name) => r.perDistrict.find((d) => d.name === name)
+
+test('빈 입력, 기본 목표 3', () => {
   const r = computeVisitStamps([])
-  assert.equal(r.perDistrict.length, 5)
   assert.deepEqual(r.perDistrict.map((d) => d.name), ['동구', '중구', '서구', '유성구', '대덕구'])
-  assert.ok(r.perDistrict.every((d) => d.count === 0 && d.pct === 0))
-  assert.equal(r.overallPct, 0)
-  assert.equal(r.conqueredCount, 0)
+  assert.ok(r.perDistrict.every((d) => d.count === 0 && d.completedSlots === 0 && d.goalPct === 0 && d.completed === false && d.target === 3))
+  assert.equal(r.visitedBakeryCount, 0)
+  assert.equal(r.completedSlots, 0)
+  assert.equal(r.totalSlots, 15)
+  assert.equal(r.goalPct, 0)
+  assert.equal(r.completedDistrictCount, 0)
 })
 
-test('null/undefined 입력도 빈 입력처럼 처리', () => {
-  assert.equal(computeVisitStamps(null).overallPct, 0)
-  assert.equal(computeVisitStamps(undefined).conqueredCount, 0)
+test('null / undefined 입력도 빈 입력과 동일', () => {
+  assert.equal(computeVisitStamps(null).totalSlots, 15)
+  assert.equal(computeVisitStamps(undefined).goalPct, 0)
 })
 
-test('한 구에 서로 다른 빵집 4곳 → 그 구 count 4, pct 100, 정복', () => {
+test('목표 3, 한 구 서로 다른 빵집 4곳 → completedSlots 3, goalPct 100, completed', () => {
+  const r = computeVisitStamps([entry('a', JUNG), entry('b', JUNG), entry('c', JUNG), entry('d', JUNG)])
+  const j = byName(r, '중구')
+  assert.equal(j.count, 4)
+  assert.equal(j.completedSlots, 3)
+  assert.equal(j.goalPct, 100)
+  assert.equal(j.completed, true)
+  assert.equal(r.visitedBakeryCount, 4)
+  assert.equal(r.completedSlots, 3)
+  assert.equal(r.totalSlots, 15)
+  assert.equal(r.goalPct, 20) // 3/15
+  assert.equal(r.completedDistrictCount, 1)
+})
+
+test('같은 빵집 3번 (목표 3) → count 1, completedSlots 1, goalPct 33, 미완료', () => {
+  const r = computeVisitStamps([entry('x', JUNG), entry('x', JUNG), entry('x', JUNG)])
+  const j = byName(r, '중구')
+  assert.equal(j.count, 1)
+  assert.equal(j.completedSlots, 1)
+  assert.equal(j.goalPct, 33)
+  assert.equal(j.completed, false)
+})
+
+test('좌표 없는 / 대전 밖 기록은 count·visitedBakeryCount 에서 제외', () => {
   const r = computeVisitStamps([
-    entry('b1', JUNG), entry('b2', JUNG), entry('b3', JUNG), entry('b4', JUNG),
+    entry('a', JUNG),
+    entry('b', null),
+    entry('c', { lat: 37.5665, lng: 126.978 }), // 서울
   ])
-  const jung = r.perDistrict.find((d) => d.name === '중구')
-  assert.equal(jung.count, 4)
-  assert.equal(jung.pct, 100)
-  assert.equal(r.conqueredCount, 1)
-  assert.equal(r.overallPct, 20) // 100 + 0*4 = 100 / 5
+  assert.equal(byName(r, '중구').count, 1)
+  assert.equal(r.visitedBakeryCount, 1)
 })
 
-test('같은 빵집 3번 기록 → count 1, pct 33 (중복 제거)', () => {
-  const r = computeVisitStamps([entry('b1', JUNG), entry('b1', JUNG), entry('b1', JUNG)])
-  const jung = r.perDistrict.find((d) => d.name === '중구')
-  assert.equal(jung.count, 1)
-  assert.equal(jung.pct, 33)
-  assert.equal(r.conqueredCount, 0)
+test('스펙 예제: 목표 5, 중구 5곳·서구 3곳·동구 2곳', () => {
+  const es = [
+    ...['j1', 'j2', 'j3', 'j4', 'j5'].map((id) => entry(id, JUNG)),
+    ...['s1', 's2', 's3'].map((id) => entry(id, SEO)),
+    ...['d1', 'd2'].map((id) => entry(id, DONG)),
+  ]
+  const r = computeVisitStamps(es, { targetPerDistrict: 5 })
+  assert.deepEqual(
+    [byName(r, '중구'), byName(r, '서구'), byName(r, '동구')].map((d) => [d.completedSlots, d.goalPct, d.completed]),
+    [[5, 100, true], [3, 60, false], [2, 40, false]],
+  )
+  assert.equal(r.visitedBakeryCount, 10)
+  assert.equal(r.completedSlots, 10)
+  assert.equal(r.totalSlots, 25)
+  assert.equal(r.goalPct, 40)
+  assert.equal(r.completedDistrictCount, 1)
 })
 
-test('좌표 없는 기록 / 경계 밖 기록은 제외, 분모는 항상 5', () => {
-  const r = computeVisitStamps([
-    entry('b1', JUNG),
-    entry('b2', null),                       // 좌표 없음
-    entry('b3', { lat: 37.5665, lng: 126.978 }), // 서울 (경계 밖)
-  ])
-  assert.equal(r.perDistrict.find((d) => d.name === '중구').count, 1)
-  const total = r.perDistrict.reduce((s, d) => s + d.count, 0)
-  assert.equal(total, 1) // b2, b3 는 어느 count 에도 안 잡힘
+test('targetPerDistrict 클램프: 0→1, 100→20, 2.6→3', () => {
+  assert.equal(computeVisitStamps([], { targetPerDistrict: 0 }).perDistrict[0].target, 1)
+  assert.equal(computeVisitStamps([], { targetPerDistrict: 100 }).totalSlots, 100)
+  assert.equal(computeVisitStamps([], { targetPerDistrict: 2.6 }).perDistrict[0].target, 3)
 })
 
-test('두 구에 각 3곳 → 두 구 정복, overallPct 40', () => {
-  const r = computeVisitStamps([
-    entry('a1', JUNG), entry('a2', JUNG), entry('a3', JUNG),
-    entry('c1', SEO), entry('c2', SEO), entry('c3', SEO),
-  ])
-  assert.equal(r.conqueredCount, 2)
-  assert.equal(r.overallPct, 40) // (100 + 100 + 0 + 0 + 0) / 5
+test('goalPct 100 상한', () => {
+  // 목표 1, 다섯 구 모두 2곳씩 → completedSlots 5 / totalSlots 5
+  const es = [JUNG, SEO, DONG, { lat: 36.362, lng: 127.356 } /*유성*/, { lat: 36.428, lng: 127.415 } /*대덕*/]
+    .flatMap((c, i) => [entry(`${i}a`, c), entry(`${i}b`, c)])
+  const r = computeVisitStamps(es, { targetPerDistrict: 1 })
+  assert.equal(r.completedSlots, 5)
+  assert.equal(r.totalSlots, 5)
+  assert.equal(r.goalPct, 100)
+  assert.equal(r.completedDistrictCount, 5)
+})
+
+test('verifiedOnly: verified 없는 기록은 제외, verified:true 만 포함', () => {
+  const mixed = [entry('a', JUNG), entry('b', JUNG, { verified: true })]
+  assert.equal(computeVisitStamps(mixed, { verifiedOnly: true }).visitedBakeryCount, 1)
+  assert.equal(computeVisitStamps(mixed, { verifiedOnly: true }).perDistrict.find((d) => d.name === '중구').count, 1)
+  assert.equal(computeVisitStamps(mixed, { verifiedOnly: false }).visitedBakeryCount, 2)
 })
