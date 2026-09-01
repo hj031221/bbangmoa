@@ -61,6 +61,7 @@ export default function MyPage({ onLoadCourse, onViewBakeryOnMap }) {
           </span>
           <h3>{friend.nickname}님의 마이페이지</h3>
         </div>
+        <VisitStampBand targetUserId={friend.userId} nickname={friend.nickname} />
         <div className="friend-detail-menu">
           <button
             type="button"
@@ -112,15 +113,12 @@ export default function MyPage({ onLoadCourse, onViewBakeryOnMap }) {
 
   if (panel === 'friendDiary' && friend) {
     return (
-      <div className="mypage-friend-diary">
-        <VisitStampBand targetUserId={friend.userId} nickname={friend.nickname} />
-        <DiaryPanel
-          targetUserId={friend.userId}
-          readOnly
-          friendNickname={friend.nickname}
-          onBack={() => setPanel('friendDetail')}
-        />
-      </div>
+      <DiaryPanel
+        targetUserId={friend.userId}
+        readOnly
+        friendNickname={friend.nickname}
+        onBack={() => setPanel('friendDetail')}
+      />
     )
   }
 

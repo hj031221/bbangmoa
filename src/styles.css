@@ -977,8 +977,22 @@ a{ color:var(--accent-text); }
 .auth-modal.visit-stamp-modal{ max-height:calc(100dvh - 40px); overflow-y:auto; }
 .visit-stamp-modal-map{ width:100%; height:auto; max-height:42vh; margin:4px 0 14px; }
 .visit-stamp-modal-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:10px; width:100%; }
-.visit-stamp-modal-row{ display:grid; grid-template-columns:52px 1fr 40px; align-items:center; gap:10px; font-size:.85rem; color:var(--ink); }
+.visit-stamp-modal-row{ display:grid; grid-template-columns:52px 1fr auto 16px; align-items:center; gap:10px; font-size:.85rem; color:var(--ink); }
 .visit-stamp-modal-name{ font-weight:700; color:var(--brown); }
 .visit-stamp-modal-pct{ text-align:right; color:var(--muted); }
 .visit-stamp-modal-summary{ margin:14px 0 0; font-size:.85rem; font-weight:700; color:var(--brown); text-align:center; }
-.mypage-friend-diary{ display:flex; flex-direction:column; max-width:720px; margin:0 auto; }
+
+/* 이슈 #63 — 스탬프 목표 모델 */
+.visit-stamp-band-sub{ font-size:.8rem; color:var(--muted); }
+.visit-stamp-goal{ display:flex; flex-wrap:wrap; align-items:center; gap:6px; width:100%; margin:2px 0 12px; }
+.visit-stamp-goal-label{ font-size:.85rem; color:var(--muted); margin-right:2px; }
+.visit-stamp-goal-btn{ border:1.5px solid var(--line); background:var(--card); color:var(--brown); font-size:.82rem; font-weight:700; padding:6px 12px; border-radius:999px; cursor:pointer; }
+.visit-stamp-goal-btn:hover{ border-color:var(--accent); }
+.visit-stamp-goal-btn.is-active{ background:var(--accent); border-color:var(--accent); color:#fff; }
+.visit-stamp-goal-input{ width:64px; padding:6px 10px; border:1.5px solid var(--line); border-radius:12px; font-family:inherit; font-size:.85rem; }
+.visit-stamp-goal-readonly{ margin:2px 0 12px; font-size:.85rem; color:var(--brown); font-weight:700; }
+.visit-stamp-modal-stats{ display:flex; flex-direction:column; gap:4px; width:100%; margin:4px 0 12px; text-align:center; font-size:.85rem; color:var(--muted); }
+.visit-stamp-modal-stats p{ margin:0; }
+.visit-stamp-modal-headline{ font-size:1rem; font-weight:800; color:var(--brown); }
+.visit-stamp-modal-goalpct{ font-weight:700; color:var(--accent-text, var(--accent-deep)); }
+.visit-stamp-modal-check{ color:var(--accent-deep); font-weight:700; text-align:center; }
