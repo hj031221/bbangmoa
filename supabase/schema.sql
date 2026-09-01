@@ -630,3 +630,102 @@ end;
 $$;
 
 alter function classify_daejeon_district(float8, float8) set search_path = public, pg_temp;
+
+-- 비로그인 방문자가 공유 링크로 받는 공개 집계. 닉네임과 집계 수치만 반환한다.
+-- 노출 금지: 기록 원문, visit_lat/visit_lng, 빵집 id·이름·목록, friend_code, user_id.
+-- 소유자 본인 화면(computeVisitStamps)이 빵집 좌표로 구를 분류하므로 여기서도 동일하게
+-- diary_entries.bakery 좌표를 쓴다(GPS visit 좌표 아님). verified 기록만 집계.
+create or replace function get_public_stamp(p_code text)
+returns jsonb
+language plpgsql
+security definer
+stable
+set search_path = public, pg_temp
+as $$
+declare
+  v_uid uuid;
+  v_nickname text;
+  v_target int;
+  v_names text[] := array['동구','중구','서구','유성구','대덕구'];
+  v_per jsonb;
+  v_completed_slots int;
+  v_total_slots int;
+  v_visited int;
+  v_completed_districts int;
+begin
+  if p_code is null or btrim(p_code) = '' then
+    return null;
+  end if;
+
+  select user_id, nickname, stamp_target
+    into v_uid, v_nickname, v_target
+    from profiles
+    where share_code = upper(btrim(p_code));
+
+  if v_uid is null then
+    return null;
+  end if;
+
+  v_target := least(20, greatest(1, coalesce(v_target, 3)));
+  v_total_slots := v_target * 5;
+
+  with visited as (
+    select distinct
+      classify_daejeon_district((bakery ->> 'lat')::float8, (bakery ->> 'lng')::float8) as district,
+      coalesce(bakery_id, bakery ->> 'id') as bakery_id
+    from diary_entries
+    where user_id = v_uid
+      and verified = true
+      and jsonb_typeof(bakery -> 'lat') = 'number'
+      and jsonb_typeof(bakery -> 'lng') = 'number'
+  ),
+  counted as (
+    select district, count(*)::int as cnt
+    from visited
+    where district is not null and bakery_id is not null
+    group by district
+  ),
+  per as (
+    select
+      names.n as name,
+      coalesce(c.cnt, 0) as count,
+      v_target as target,
+      least(coalesce(c.cnt, 0), v_target) as completed_slots,
+      round(least(coalesce(c.cnt, 0), v_target)::numeric / v_target * 100)::int as goal_pct,
+      (coalesce(c.cnt, 0) >= v_target) as completed,
+      names.ord as ord
+    from unnest(v_names) with ordinality as names(n, ord)
+    left join counted c on c.district = names.n
+  )
+  select
+    jsonb_agg(
+      jsonb_build_object(
+        'name', name, 'count', count, 'target', target,
+        'completedSlots', completed_slots, 'goalPct', goal_pct, 'completed', completed
+      ) order by ord
+    ),
+    coalesce(sum(completed_slots), 0)::int,
+    coalesce(sum(count), 0)::int,
+    count(*) filter (where completed)::int
+  into v_per, v_completed_slots, v_visited, v_completed_districts
+  from per;
+
+  return jsonb_build_object(
+    'nickname', v_nickname,
+    'targetPerDistrict', v_target,
+    'stamp', jsonb_build_object(
+      'perDistrict', v_per,
+      'visitedBakeryCount', v_visited,
+      'completedSlots', v_completed_slots,
+      'totalSlots', v_total_slots,
+      'goalPct', least(100, round(v_completed_slots::numeric / v_total_slots * 100)::int),
+      'completedDistrictCount', v_completed_districts
+    )
+  );
+end;
+$$;
+
+revoke execute on function get_public_stamp(text) from public;
+grant execute on function get_public_stamp(text) to anon, authenticated;
+
+alter function get_public_stamp(text) set search_path = public, pg_temp;
