@@ -522,3 +522,52 @@ revoke execute on function create_diary_entry(jsonb, text, double precision, dou
   from public, anon;
 grant execute on function create_diary_entry(jsonb, text, double precision, double precision)
   to authenticated;
+
+-- ===== 이슈 #63 3단계: 공유 =====
+
+-- 공유 링크 전용 코드. friend_code 와 분리 — friend_code 는 authenticated 전용이고
+-- "낯선 사람에게 노출 금지" 원칙이 있어(위 find_user_by_friend_code 주석) 재사용하지 않는다.
+-- 첫 공유 때 지연 생성되므로 nullable. 사용자가 직접 못 쓰게 update grant 목록에 넣지 않는다.
+alter table profiles add column if not exists share_code text unique;
+
+-- 내 share_code 를 반환한다. 없으면 generate_friend_code() 와 동일한 문자셋으로 8자리를
+-- 만들어 저장 후 반환한다. security definer 라 컬럼 update grant 를 우회해 share_code 를 쓴다.
+create or replace function ensure_share_code()
+returns text
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  chars text := 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  v_uid uuid := auth.uid();
+  v_code text;
+  v_exists boolean;
+begin
+  if v_uid is null then
+    raise exception 'authentication required' using errcode = '42501';
+  end if;
+
+  select share_code into v_code from profiles where user_id = v_uid;
+  if v_code is not null then
+    return v_code;
+  end if;
+
+  loop
+    v_code := '';
+    for i in 1..8 loop
+      v_code := v_code || substr(chars, floor(random() * length(chars) + 1)::int, 1);
+    end loop;
+    select exists(select 1 from profiles where share_code = v_code) into v_exists;
+    exit when not v_exists;
+  end loop;
+
+  update profiles set share_code = v_code where user_id = v_uid;
+  return v_code;
+end;
+$$;
+
+revoke execute on function ensure_share_code() from public, anon;
+grant execute on function ensure_share_code() to authenticated;
+
+alter function ensure_share_code() set search_path = public, pg_temp;
