@@ -14,14 +14,14 @@ function fillOpacity(pct) {
 // 로그인 게이트 불필요 — MyPage 의 로그인된 분기에서만 마운트된다.
 export default function VisitStampBand({ targetUserId, nickname }) {
   const { entries, loading } = useDiaryEntries(targetUserId)
-  const { target, setTarget } = useStampTarget(targetUserId)
+  const { target, setTarget, loading: targetLoading } = useStampTarget(targetUserId)
   const stamp = useMemo(
     () => computeVisitStamps(entries, { targetPerDistrict: target }),
     [entries, target],
   )
   const [open, setOpen] = useState(false)
 
-  const pending = loading && entries.length === 0
+  const pending = targetLoading || (loading && entries.length === 0)
   const pctByName = Object.fromEntries(stamp.perDistrict.map((d) => [d.name, d.goalPct]))
 
   return (
