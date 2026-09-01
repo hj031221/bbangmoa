@@ -32,11 +32,28 @@ test('모든 좌표가 유한하고 viewBox 범위 안에 있다', () => {
   }
 })
 
-test('각 구는 라벨 앵커 cx/cy 를 가지고 viewBox 범위 안에 있다', () => {
+test('각 구의 라벨 앵커 cx/cy 는 그 구 폴리곤 내부에 있다', () => {
   const [, , w, h] = STAMP_VIEWBOX.split(' ').map(Number)
-  for (const { name, cx, cy } of DISTRICT_PATHS) {
+  // path d 문자열에서 그 구의 투영된 꼭짓점을 되뽑아 point-in-polygon 검사.
+  const pointsOf = (d) => {
+    const nums = d.match(/-?\d+(\.\d+)?/g).map(Number)
+    const pts = []
+    for (let i = 0; i < nums.length; i += 2) pts.push([nums[i], nums[i + 1]])
+    return pts
+  }
+  const inPoly = (x, y, pts) => {
+    let inside = false
+    for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+      const [xi, yi] = pts[i]
+      const [xj, yj] = pts[j]
+      if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside
+    }
+    return inside
+  }
+  for (const { name, d, cx, cy } of DISTRICT_PATHS) {
     assert.ok(Number.isFinite(cx) && cx >= 0 && cx <= w, `${name}: cx=${cx} 범위 밖`)
     assert.ok(Number.isFinite(cy) && cy >= 0 && cy <= h, `${name}: cy=${cy} 범위 밖`)
+    assert.ok(inPoly(cx, cy, pointsOf(d)), `${name}: 라벨 앵커가 폴리곤 밖 (${cx},${cy})`)
   }
 })
 
