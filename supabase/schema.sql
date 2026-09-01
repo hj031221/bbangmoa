@@ -413,3 +413,16 @@ alter function get_diary_comment_authors(uuid) set search_path = public, pg_temp
 
 revoke execute on function get_diary_comment_authors(uuid) from public, anon;
 grant execute on function get_diary_comment_authors(uuid) to authenticated;
+
+-- ===== 이슈 #63: 스탬프 목표 =====
+-- 방문 스탬프 위젯의 "구별 목표"(1~20, 기본 3). 5개 구에 동일 적용.
+-- 친구/공유 화면은 기존 profiles_select_self_or_related 로 대상 사용자의 값을 읽는다.
+alter table profiles add column if not exists stamp_target int not null default 3;
+
+alter table profiles drop constraint if exists profiles_stamp_target_range;
+alter table profiles add constraint profiles_stamp_target_range
+  check (stamp_target between 1 and 20);
+
+-- 컬럼 단위 update grant 목록에 stamp_target 추가 (기존: nickname, avatar_url, avatar_version).
+revoke update on profiles from authenticated;
+grant update (nickname, avatar_url, avatar_version, stamp_target) on profiles to authenticated;
