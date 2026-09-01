@@ -31,8 +31,13 @@ export default function VisitStampModal({ stamp, target, onTargetChange, editabl
   const heading = nickname ? `${nickname}님의 스탬프` : '내 스탬프'
 
   const commitCustom = () => {
-    const n = Number(customValue)
-    if (Number.isFinite(n)) onTargetChange(n)
+    const raw = customValue.trim()
+    const n = Number(raw)
+    if (raw !== '' && Number.isFinite(n)) {
+      const clamped = Math.min(20, Math.max(1, Math.round(n)))
+      setCustomValue(String(clamped))
+      onTargetChange(clamped)
+    }
     setCustomOpen(false)
   }
 
@@ -81,7 +86,10 @@ export default function VisitStampModal({ stamp, target, onTargetChange, editabl
                 value={customValue}
                 onChange={(e) => setCustomValue(e.target.value)}
                 onBlur={commitCustom}
-                onKeyDown={(e) => e.key === 'Enter' && commitCustom()}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') commitCustom()
+                  else if (e.key === 'Escape') setCustomOpen(false)
+                }}
                 autoFocus
               />
             )}
