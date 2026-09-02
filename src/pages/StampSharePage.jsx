@@ -150,7 +150,7 @@ export default function StampSharePage({ code }) {
         </section>
 
         <footer className="stamp-share-footer">
-          <a className="stamp-share-cta" href="/">
+          <a className="stamp-share-cta" href={user ? '/mypage' : '/'}>
             {user ? '내 스탬프 보러가기' : '로그인하고 나도 시작하기'}
           </a>
           <p className="stamp-share-pitch">빵집을 방문하고, 기록하고, 대전을 채워요.</p>
