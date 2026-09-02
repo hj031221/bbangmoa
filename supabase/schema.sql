@@ -494,16 +494,24 @@ begin
     and p_lng between -180 and 180 then
     v_visit_lat := p_lat;
     v_visit_lng := p_lng;
+  end if;
 
-    if v_bakery_lat between -90 and 90
-      and v_bakery_lng between -180 and 180 then
-      v_distance_m := 6371000 * 2 * asin(sqrt(least(1, greatest(0,
-        power(sin(radians(v_visit_lat - v_bakery_lat) / 2), 2)
-        + cos(radians(v_bakery_lat)) * cos(radians(v_visit_lat))
-        * power(sin(radians(v_visit_lng - v_bakery_lng) / 2), 2)
-      ))));
-      v_verified := v_distance_m <= 150;
-    end if;
+  -- 인증(verified)은 대전 방문에만 부여한다. 이 앱엔 서버 소유 빵집 테이블이 없어
+  -- (외부 API 기반) 빵집 좌표도 클라이언트가 보낸 값이다. 최소한의 방어로, GPS 좌표와
+  -- 빵집 좌표가 둘 다 대전 광역 범위(대략 lat 36.0~36.7, lng 127.0~127.9) 안일 때만
+  -- 거리 계산을 신뢰한다. 이러면 (0,0) 같은 자명한 위조는 막히지만, 실제 대전 좌표를
+  -- 아는 호출자가 두 값을 붙여 넣는 위조는 여전히 가능하다(구조적 한계 — 완전 방어는
+  -- 서버가 bakery_id로 신뢰 좌표를 조회해야 함). docs 스펙의 "보안 한계" 절 참고.
+  if v_visit_lat between 36.0 and 36.7
+    and v_visit_lng between 127.0 and 127.9
+    and v_bakery_lat between 36.0 and 36.7
+    and v_bakery_lng between 127.0 and 127.9 then
+    v_distance_m := 6371000 * 2 * asin(sqrt(least(1, greatest(0,
+      power(sin(radians(v_visit_lat - v_bakery_lat) / 2), 2)
+      + cos(radians(v_bakery_lat)) * cos(radians(v_visit_lat))
+      * power(sin(radians(v_visit_lng - v_bakery_lng) / 2), 2)
+    ))));
+    v_verified := v_distance_m <= 150;
   end if;
 
   return query
@@ -525,9 +533,9 @@ grant execute on function create_diary_entry(jsonb, text, double precision, doub
 
 -- ===== 이슈 #63 3단계: 공유 =====
 
--- 초기 3단계 시안은 share_code를 별도 생성했지만, 최종 계약은 기존 friend_code 재사용이다.
--- 이미 초기 SQL을 적용한 환경과 발송된 링크를 깨지 않기 위해 nullable legacy 컬럼/함수는 남기되,
--- 새 클라이언트는 더 이상 ensure_share_code를 호출하거나 share_code를 생성하지 않는다.
+-- 공개 공유 링크(/s/:code)는 friend_code가 아니라 전용 share_code를 쓴다. friend_code는
+-- "친구 추가" 토큰이라 SNS 공유로 뿌려지면 안 되기 때문(동의 범위: "친구 추가"와 "공개"는 다르다).
+-- share_code는 첫 공유 때 ensure_share_code()로 지연 생성되고 재발급 여지를 남긴다.
 alter table profiles add column if not exists share_code text unique;
 
 -- 내 share_code 를 반환한다. 없으면 generate_friend_code() 와 동일한 문자셋으로 8자리를
@@ -638,8 +646,8 @@ alter function classify_daejeon_district(float8, float8) set search_path = publi
 revoke execute on function classify_daejeon_district(float8, float8) from public;
 grant execute on function classify_daejeon_district(float8, float8) to anon, authenticated;
 
--- 비로그인 방문자가 공유 링크로 받는 공개 집계. 새 링크는 friend_code를 사용하고,
--- 초기 3단계 시안에서 생성된 share_code도 기존 링크 호환 목적으로 함께 허용한다.
+-- 비로그인 방문자가 공유 링크로 받는 공개 집계. 코드는 전용 share_code만 받는다
+-- (friend_code는 친구 추가 토큰이라 공개 조회 경로에서 받지 않는다).
 -- 노출 금지: 기록 원문, visit_lat/visit_lng, 빵집 id·이름·목록, friend_code, user_id.
 -- 소유자 본인 화면(computeVisitStamps)이 빵집 좌표로 구를 분류하므로 여기서도 동일하게
 -- diary_entries.bakery 좌표를 쓴다(GPS visit 좌표 아님). verified 기록만 집계.
@@ -668,9 +676,7 @@ begin
   select user_id, nickname, stamp_target
     into v_uid, v_nickname, v_target
     from profiles
-    where friend_code = upper(btrim(p_code))
-       or share_code = upper(btrim(p_code))
-    order by (friend_code = upper(btrim(p_code))) desc
+    where share_code = upper(btrim(p_code))
     limit 1;
 
   if v_uid is null then
