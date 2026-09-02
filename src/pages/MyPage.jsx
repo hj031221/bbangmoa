@@ -9,6 +9,7 @@ import SavedCoursesPreview from '../components/mypage/SavedCoursesPreview'
 import DiaryPreview from '../components/mypage/DiaryPreview'
 import FriendsPreview from '../components/mypage/FriendsPreview'
 import FriendsPanel from '../components/mypage/FriendsPanel'
+import VisitStampBand from '../components/mypage/VisitStampBand'
 
 // 마이페이지 — 프로필 카드 + 찜한 빵/찜한 코스/기록장/친구목록 4개 패널.
 // 로그인 필수: 비로그인 상태면 안내만 보여준다(로그인은 상단 AuthMenu 에서).
@@ -60,6 +61,7 @@ export default function MyPage({ onLoadCourse, onViewBakeryOnMap }) {
           </span>
           <h3>{friend.nickname}님의 마이페이지</h3>
         </div>
+        <VisitStampBand targetUserId={friend.userId} nickname={friend.nickname} />
         <div className="friend-detail-menu">
           <button
             type="button"
@@ -140,6 +142,7 @@ export default function MyPage({ onLoadCourse, onViewBakeryOnMap }) {
           <h2>마이페이지</h2>
           <p>마음에 들었던 빵과 코스를 찜하고 기록장에 그 날의 빵을 기록해보세요!</p>
         </div>
+        <VisitStampBand />
         <div className="mypage-preview-grid">
           <SavedBakeriesPreview onExpand={() => setPanel('bakeries')} />
           <SavedCoursesPreview onExpand={() => setPanel('courses')} />

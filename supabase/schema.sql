@@ -413,3 +413,336 @@ alter function get_diary_comment_authors(uuid) set search_path = public, pg_temp
 
 revoke execute on function get_diary_comment_authors(uuid) from public, anon;
 grant execute on function get_diary_comment_authors(uuid) to authenticated;
+
+-- ===== 이슈 #63: 스탬프 목표 =====
+-- 방문 스탬프 위젯의 "구별 목표"(1~20, 기본 3). 5개 구에 동일 적용.
+-- 친구/공유 화면은 기존 profiles_select_self_or_related 로 대상 사용자의 값을 읽는다.
+alter table profiles add column if not exists stamp_target int not null default 3;
+
+alter table profiles drop constraint if exists profiles_stamp_target_range;
+alter table profiles add constraint profiles_stamp_target_range
+  check (stamp_target between 1 and 20);
+
+-- 컬럼 단위 update grant 목록에 stamp_target 추가 (기존: nickname, avatar_url, avatar_version).
+revoke update on profiles from authenticated;
+grant update (nickname, avatar_url, avatar_version, stamp_target) on profiles to authenticated;
+
+-- ===== 이슈 #63 2단계: 방문 인증 =====
+
+alter table diary_entries add column if not exists visit_lat double precision;
+alter table diary_entries add column if not exists visit_lng double precision;
+alter table diary_entries add column if not exists verified boolean not null default false;
+alter table diary_entries add column if not exists verified_at timestamptz;
+
+-- 일반 API 사용자는 인증 관련 값을 직접 쓰지 못한다. 본문 수정만 허용하고,
+-- 새 기록의 인증 여부와 방문 좌표는 아래 security definer RPC만 결정한다.
+revoke insert, update on diary_entries from authenticated;
+grant insert (user_id, bakery_id, bakery, text) on diary_entries to authenticated;
+grant update (text, updated_at) on diary_entries to authenticated;
+
+drop policy if exists "diary_entries_insert_own" on diary_entries;
+create policy "diary_entries_insert_own" on diary_entries
+  for insert with check (auth.uid() = user_id and verified = false);
+
+-- 친구에게 기록은 보여주되 캡처한 실제 위치는 노출하지 않는다.
+revoke select on diary_entries from authenticated, anon;
+grant select (
+  id, user_id, bakery_id, bakery, text, created_at, updated_at, verified, verified_at
+) on diary_entries to authenticated;
+
+create or replace function create_diary_entry(
+  p_bakery jsonb,
+  p_text text,
+  p_lat double precision default null,
+  p_lng double precision default null
+)
+returns table(id uuid, verified boolean, verified_at timestamptz)
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_user_id uuid := auth.uid();
+  v_bakery_lat double precision;
+  v_bakery_lng double precision;
+  v_visit_lat double precision;
+  v_visit_lng double precision;
+  v_distance_m double precision;
+  v_verified boolean := false;
+begin
+  if v_user_id is null then
+    raise exception 'authentication required' using errcode = '42501';
+  end if;
+
+  if p_bakery is null
+    or jsonb_typeof(p_bakery) <> 'object'
+    or nullif(btrim(p_bakery ->> 'id'), '') is null then
+    raise exception 'invalid bakery' using errcode = '22023';
+  end if;
+
+  if nullif(btrim(p_text), '') is null then
+    raise exception 'text is required' using errcode = '22023';
+  end if;
+
+  if jsonb_typeof(p_bakery -> 'lat') = 'number'
+    and jsonb_typeof(p_bakery -> 'lng') = 'number' then
+    v_bakery_lat := (p_bakery ->> 'lat')::double precision;
+    v_bakery_lng := (p_bakery ->> 'lng')::double precision;
+  end if;
+
+  if p_lat between -90 and 90
+    and p_lng between -180 and 180 then
+    v_visit_lat := p_lat;
+    v_visit_lng := p_lng;
+  end if;
+
+  -- 인증(verified)은 대전 방문에만 부여한다. 이 앱엔 서버 소유 빵집 테이블이 없어
+  -- (외부 API 기반) 빵집 좌표도 클라이언트가 보낸 값이다. 최소한의 방어로, GPS 좌표와
+  -- 빵집 좌표가 둘 다 대전 광역 범위(대략 lat 36.0~36.7, lng 127.0~127.9) 안일 때만
+  -- 거리 계산을 신뢰한다. 이러면 (0,0) 같은 자명한 위조는 막히지만, 실제 대전 좌표를
+  -- 아는 호출자가 두 값을 붙여 넣는 위조는 여전히 가능하다(구조적 한계 — 완전 방어는
+  -- 서버가 bakery_id로 신뢰 좌표를 조회해야 함). docs 스펙의 "보안 한계" 절 참고.
+  if v_visit_lat between 36.0 and 36.7
+    and v_visit_lng between 127.0 and 127.9
+    and v_bakery_lat between 36.0 and 36.7
+    and v_bakery_lng between 127.0 and 127.9 then
+    v_distance_m := 6371000 * 2 * asin(sqrt(least(1, greatest(0,
+      power(sin(radians(v_visit_lat - v_bakery_lat) / 2), 2)
+      + cos(radians(v_bakery_lat)) * cos(radians(v_visit_lat))
+      * power(sin(radians(v_visit_lng - v_bakery_lng) / 2), 2)
+    ))));
+    v_verified := v_distance_m <= 150;
+  end if;
+
+  return query
+    insert into diary_entries (
+      user_id, bakery_id, bakery, text,
+      visit_lat, visit_lng, verified, verified_at
+    ) values (
+      v_user_id, p_bakery ->> 'id', p_bakery, btrim(p_text),
+      v_visit_lat, v_visit_lng, v_verified, case when v_verified then now() else null end
+    )
+    returning diary_entries.id, diary_entries.verified, diary_entries.verified_at;
+end;
+$$;
+
+revoke execute on function create_diary_entry(jsonb, text, double precision, double precision)
+  from public, anon;
+grant execute on function create_diary_entry(jsonb, text, double precision, double precision)
+  to authenticated;
+
+-- ===== 이슈 #63 3단계: 공유 =====
+
+-- 공개 공유 링크(/s/:code)는 friend_code가 아니라 전용 share_code를 쓴다. friend_code는
+-- "친구 추가" 토큰이라 SNS 공유로 뿌려지면 안 되기 때문(동의 범위: "친구 추가"와 "공개"는 다르다).
+-- share_code는 첫 공유 때 ensure_share_code()로 지연 생성되고 재발급 여지를 남긴다.
+alter table profiles add column if not exists share_code text unique;
+
+-- 내 share_code 를 반환한다. 없으면 generate_friend_code() 와 동일한 문자셋으로 8자리를
+-- 만들어 저장 후 반환한다. security definer 라 컬럼 update grant 를 우회해 share_code 를 쓴다.
+create or replace function ensure_share_code()
+returns text
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  chars text := 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  v_uid uuid := auth.uid();
+  v_code text;
+  v_exists boolean;
+begin
+  if v_uid is null then
+    raise exception 'authentication required' using errcode = '42501';
+  end if;
+
+  select share_code into v_code from profiles where user_id = v_uid;
+  if v_code is not null then
+    return v_code;
+  end if;
+
+  loop
+    v_code := '';
+    for i in 1..8 loop
+      v_code := v_code || substr(chars, floor(random() * length(chars) + 1)::int, 1);
+    end loop;
+    select exists(select 1 from profiles where share_code = v_code) into v_exists;
+    exit when not v_exists;
+  end loop;
+
+  update profiles set share_code = coalesce(share_code, v_code)
+    where user_id = v_uid
+    returning share_code into v_code;
+  if not found then
+    raise exception 'profile not found' using errcode = 'P0002';
+  end if;
+  return v_code;
+end;
+$$;
+
+revoke execute on function ensure_share_code() from public, anon;
+grant execute on function ensure_share_code() to authenticated;
+
+alter function ensure_share_code() set search_path = public, pg_temp;
+
+-- src/lib/districtFromPoint.js 의 ray-casting 을 그대로 포팅. 좌표 출처:
+-- src/data/daejeonDistricts.js 의 DISTRICT_RINGS ([lat, lng] 링). 좌표 수정 시 양쪽 동기화.
+-- 순회 순서(동구→중구→서구→유성구→대덕구)가 경계 공유 지점의 귀속을 결정하므로
+-- jsonb 객체가 아니라 배열로 저장해 순서를 보존한다.
+create or replace function classify_daejeon_district(p_lat float8, p_lng float8)
+returns text
+language plpgsql
+immutable
+set search_path = public, pg_temp
+as $$
+declare
+  v_rings jsonb := '[
+    {"name":"동구","ring":[[36.41936,127.51778],[36.41782,127.54454],[36.39179,127.55633],[36.38413,127.52680],[36.36636,127.52899],[36.33036,127.50335],[36.28373,127.49943],[36.25629,127.48832],[36.23514,127.49490],[36.22030,127.46965],[36.21184,127.47068],[36.19110,127.44494],[36.20534,127.42449],[36.23599,127.44464],[36.25439,127.43232],[36.26511,127.44076],[36.28715,127.43274],[36.29774,127.45798],[36.34076,127.41490],[36.35755,127.46803],[36.37798,127.45344],[36.40004,127.45951],[36.42977,127.49135],[36.40527,127.50470],[36.41936,127.51778]]},
+    {"name":"중구","ring":[[36.34715,127.40503],[36.34076,127.41490],[36.29774,127.45798],[36.28715,127.43274],[36.26511,127.44076],[36.25439,127.43232],[36.23599,127.44464],[36.20534,127.42449],[36.20993,127.41040],[36.24781,127.38852],[36.26192,127.39151],[36.26923,127.37453],[36.31762,127.38804],[36.34715,127.40503]]},
+    {"name":"서구","ring":[[36.36974,127.39712],[36.34715,127.40503],[36.31762,127.38804],[36.26923,127.37453],[36.26625,127.36483],[36.21702,127.36684],[36.18136,127.33355],[36.21841,127.31735],[36.22668,127.29455],[36.24112,127.28019],[36.26124,127.29389],[36.26937,127.30902],[36.31159,127.34194],[36.32925,127.34033],[36.34691,127.35120],[36.36993,127.38255],[36.36974,127.39712]]},
+    {"name":"유성구","ring":[[36.45277,127.40475],[36.43896,127.39331],[36.41363,127.42065],[36.37873,127.41323],[36.36974,127.39712],[36.36993,127.38255],[36.34691,127.35120],[36.32925,127.34033],[36.31159,127.34194],[36.26937,127.30902],[36.26124,127.29389],[36.28048,127.25157],[36.29329,127.26132],[36.32427,127.26187],[36.34600,127.28000],[36.41161,127.28443],[36.41927,127.29635],[36.41898,127.32886],[36.44498,127.35521],[36.48247,127.36128],[36.49710,127.38329],[36.48869,127.39780],[36.48040,127.40634],[36.45277,127.40475]]},
+    {"name":"대덕구","ring":[[36.42977,127.49135],[36.40004,127.45951],[36.37798,127.45344],[36.35755,127.46803],[36.34076,127.41490],[36.34715,127.40503],[36.36974,127.39712],[36.37873,127.41323],[36.41363,127.42065],[36.43896,127.39331],[36.45277,127.40475],[36.45372,127.43839],[36.44717,127.45534],[36.45491,127.48148],[36.44638,127.50478],[36.42977,127.49135]]}
+  ]'::jsonb;
+  v_entry jsonb;
+  v_ring jsonb;
+  v_n int; v_i int; v_j int;
+  v_yi float8; v_xi float8; v_yj float8; v_xj float8;
+  v_inside boolean;
+begin
+  if p_lat is null or p_lng is null then
+    return null;
+  end if;
+
+  for v_entry in select * from jsonb_array_elements(v_rings)
+  loop
+    v_ring := v_entry -> 'ring';
+    v_n := jsonb_array_length(v_ring);
+    v_inside := false;
+    v_j := v_n - 1;
+    for v_i in 0 .. v_n - 1 loop
+      -- ring 좌표는 [lat, lng] → 0=lat(y), 1=lng(x)
+      v_yi := (v_ring -> v_i ->> 0)::float8;
+      v_xi := (v_ring -> v_i ->> 1)::float8;
+      v_yj := (v_ring -> v_j ->> 0)::float8;
+      v_xj := (v_ring -> v_j ->> 1)::float8;
+      -- 첫 조건이 false 면 PG 의 AND 단축평가로 나눗셈을 건너뛴다.
+      -- 그 조건이 true 이면 v_yi <> v_yj 이므로 (v_yj - v_yi) 는 0 이 아니다.
+      if ((v_yi > p_lat) <> (v_yj > p_lat))
+         and (p_lng < (v_xj - v_xi) * (p_lat - v_yi) / (v_yj - v_yi) + v_xi) then
+        v_inside := not v_inside;
+      end if;
+      v_j := v_i;
+    end loop;
+    if v_inside then
+      return v_entry ->> 'name';
+    end if;
+  end loop;
+
+  return null;
+end;
+$$;
+
+alter function classify_daejeon_district(float8, float8) set search_path = public, pg_temp;
+revoke execute on function classify_daejeon_district(float8, float8) from public;
+grant execute on function classify_daejeon_district(float8, float8) to anon, authenticated;
+
+-- 비로그인 방문자가 공유 링크로 받는 공개 집계. 코드는 전용 share_code만 받는다
+-- (friend_code는 친구 추가 토큰이라 공개 조회 경로에서 받지 않는다).
+-- 노출 금지: 기록 원문, visit_lat/visit_lng, 빵집 id·이름·목록, friend_code, user_id.
+-- 소유자 본인 화면(computeVisitStamps)이 빵집 좌표로 구를 분류하므로 여기서도 동일하게
+-- diary_entries.bakery 좌표를 쓴다(GPS visit 좌표 아님). verified 기록만 집계.
+create or replace function get_public_stamp(p_code text)
+returns jsonb
+language plpgsql
+security definer
+stable
+set search_path = public, pg_temp
+as $$
+declare
+  v_uid uuid;
+  v_nickname text;
+  v_target int;
+  v_names text[] := array['동구','중구','서구','유성구','대덕구'];
+  v_per jsonb;
+  v_completed_slots int;
+  v_total_slots int;
+  v_visited int;
+  v_completed_districts int;
+begin
+  if p_code is null or btrim(p_code) = '' then
+    return null;
+  end if;
+
+  select user_id, nickname, stamp_target
+    into v_uid, v_nickname, v_target
+    from profiles
+    where share_code = upper(btrim(p_code))
+    limit 1;
+
+  if v_uid is null then
+    return null;
+  end if;
+
+  v_target := least(20, greatest(1, coalesce(v_target, 3)));
+  v_total_slots := v_target * 5;
+
+  with visited as (
+    select distinct
+      classify_daejeon_district((bakery ->> 'lat')::float8, (bakery ->> 'lng')::float8) as district,
+      coalesce(bakery_id, bakery ->> 'id') as bakery_id
+    from diary_entries
+    where user_id = v_uid
+      and verified = true
+      and jsonb_typeof(bakery -> 'lat') = 'number'
+      and jsonb_typeof(bakery -> 'lng') = 'number'
+  ),
+  counted as (
+    select district, count(*)::int as cnt
+    from visited
+    where district is not null and bakery_id is not null
+    group by district
+  ),
+  per as (
+    select
+      names.n as name,
+      coalesce(c.cnt, 0) as count,
+      v_target as target,
+      least(coalesce(c.cnt, 0), v_target) as completed_slots,
+      round(least(coalesce(c.cnt, 0), v_target)::numeric / v_target * 100)::int as goal_pct,
+      (coalesce(c.cnt, 0) >= v_target) as completed,
+      names.ord as ord
+    from unnest(v_names) with ordinality as names(n, ord)
+    left join counted c on c.district = names.n
+  )
+  select
+    jsonb_agg(
+      jsonb_build_object(
+        'name', name, 'count', count, 'target', target,
+        'completedSlots', completed_slots, 'goalPct', goal_pct, 'completed', completed
+      ) order by ord
+    ),
+    coalesce(sum(completed_slots), 0)::int,
+    coalesce(sum(count), 0)::int,
+    count(*) filter (where completed)::int
+  into v_per, v_completed_slots, v_visited, v_completed_districts
+  from per;
+
+  return jsonb_build_object(
+    'nickname', coalesce(nullif(btrim(v_nickname), ''), '이름 없음'),
+    'targetPerDistrict', v_target,
+    'stamp', jsonb_build_object(
+      'perDistrict', v_per,
+      'visitedBakeryCount', v_visited,
+      'completedSlots', v_completed_slots,
+      'totalSlots', v_total_slots,
+      'goalPct', least(100, round(v_completed_slots::numeric / v_total_slots * 100)::int),
+      'completedDistrictCount', v_completed_districts
+    )
+  );
+end;
+$$;
+
+revoke execute on function get_public_stamp(text) from public;
+grant execute on function get_public_stamp(text) to anon, authenticated;
+
+alter function get_public_stamp(text) set search_path = public, pg_temp;

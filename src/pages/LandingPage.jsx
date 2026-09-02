@@ -1,4 +1,4 @@
-import { useLayoutEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { isSurveyComplete } from '../lib/breadRecommend'
 import SurveyFlow from '../components/survey/SurveyFlow'
@@ -17,6 +17,7 @@ import { resolveDistrict, isTourSurveyComplete } from '../lib/tourRecommend'
 import { useFriends } from '../hooks/useFriends'
 import { useInviteLink } from '../hooks/useInviteLink'
 import InviteFriendModal from '../components/mypage/InviteFriendModal'
+import { getAppPath, getAppView } from '../lib/appRoute'
 
 // 랜딩 = 마케팅 사이트. 상단 메뉴바(NavBar)는 어떤 화면에서도 항상 떠 있고,
 // 메뉴 클릭에 따라 그 아래 본문만 바뀐다. "취향 테스트 시작" 계열 버튼을 누르면
@@ -24,18 +25,13 @@ import InviteFriendModal from '../components/mypage/InviteFriendModal'
 export default function LandingPage() {
   const { sendRequestByCode } = useFriends()
   const { invite, notice, confirm, dismiss, dismissNotice } = useInviteLink(sendRequestByCode)
-  const [featureOpen, setFeatureOpen] = useState(false)
+  const [view, setView] = useState(() => getAppView(window.location.pathname))
   const [stage, setStage] = useState('survey') // 'survey' | 'reveal' | 'map'
-  const [showMyPage, setShowMyPage] = useState(false)
   // MyPage 는 기록장 상세 등 내부 화면 전환을 자체 상태(panel/selectedId)로 관리한다.
   // 이미 마이페이지 안(예: 기록장 상세)에 있을 때 메뉴바 "마이페이지"를 다시 누르면
-  // showMyPage 는 그대로 true 라 리렌더가 안 일어나 화면이 안 바뀌었다 — key 를 바꿔 강제로
+  // view 는 그대로라 리렌더가 안 일어나 화면이 안 바뀌었다 — key 를 바꿔 강제로
   // MyPage 를 새로 마운트해서 항상 홈으로 돌아가게 한다.
   const [myPageResetKey, setMyPageResetKey] = useState(0)
-  const [showInfo, setShowInfo] = useState(false)
-  const [showMap, setShowMap] = useState(false)
-  const [showTour, setShowTour] = useState(false)
-  const [showPilgrimage, setShowPilgrimage] = useState(false)
   const [tourStage, setTourStage] = useState('survey') // 'survey' | 'reveal' | 'hub'
   const [tourSelectedId, setTourSelectedId] = useState(null) // hub 진입 시 바로 선택할 관광지
   const [tourHubFromReveal, setTourHubFromReveal] = useState(false) // 결과 카드 → 상세로 진입했는가(뒤로가기 목적지 판단)
@@ -51,7 +47,32 @@ export default function LandingPage() {
 
   const surveyDone = !!origin && isSurveyComplete(answers)
   const tourSurveyDone = isTourSurveyComplete(tourAnswers)
-  const isHome = !showInfo && !showMap && !showTour && !showPilgrimage && !showMyPage && !featureOpen
+  const isHome = view === 'home'
+
+  const navigateToView = (nextView) => {
+    setView(nextView)
+    const nextPath = getAppPath(nextView)
+    if (window.location.pathname !== nextPath) {
+      window.history.pushState(null, '', `${nextPath}${window.location.search}${window.location.hash}`)
+    }
+  }
+
+  useEffect(() => {
+    const restoreViewFromHistory = () => {
+      const nextView = getAppView(window.location.pathname)
+      setView(nextView)
+      setNearbyOrigin(null)
+      setMapSearch('')
+      setMapSelectId(null)
+      if (nextView === 'home') {
+        resetAnswers()
+        resetTourAnswers()
+      }
+    }
+
+    window.addEventListener('popstate', restoreViewFromHistory)
+    return () => window.removeEventListener('popstate', restoreViewFromHistory)
+  }, [resetAnswers, resetTourAnswers])
 
   // 서비스 소개처럼 스크롤 가능한 화면에서 새로고침하면 브라우저가 이전 scrollY를 복원한다.
   // 앱 상태는 홈으로 초기화되므로 홈에 들어올 때 항상 상단으로 되돌린다.
@@ -79,12 +100,7 @@ export default function LandingPage() {
   // 될 게 없어서 JS 잠금 없이도 한 화면이 유지된다.
 
   const enterBreadFlow = (nextStage) => {
-    setFeatureOpen(true)
-    setShowMyPage(false)
-    setShowInfo(false)
-    setShowMap(false)
-    setShowTour(false)
-    setShowPilgrimage(false)
+    navigateToView('bread')
     setStage(nextStage)
   }
   // 홈 히어로 CTA·교차 링크 등: 진행 중이던 결과가 있으면 그 리빌부터 이어 본다.
@@ -97,20 +113,10 @@ export default function LandingPage() {
   }
   const openMyPage = () => {
     setMyPageResetKey((k) => k + 1)
-    setShowMyPage(true)
-    setFeatureOpen(false)
-    setShowInfo(false)
-    setShowMap(false)
-    setShowTour(false)
-    setShowPilgrimage(false)
+    navigateToView('mypage')
   }
   const openInfo = () => {
-    setShowInfo(true)
-    setFeatureOpen(false)
-    setShowMyPage(false)
-    setShowMap(false)
-    setShowTour(false)
-    setShowPilgrimage(false)
+    navigateToView('info')
   }
   // attraction 이 주어지면(관광지 상세의 "근처 빵집 보기") 그 위치 기준 거리순 모드로 진입한다.
   const openBakeryMap = (attraction) => {
@@ -119,34 +125,19 @@ export default function LandingPage() {
     )
     setMapSearch('')
     setMapSelectId(null)
-    setShowMap(true)
-    setFeatureOpen(false)
-    setShowMyPage(false)
-    setShowInfo(false)
-    setShowTour(false)
-    setShowPilgrimage(false)
+    navigateToView('map')
   }
   // 랜딩 히어로 검색창: 이름 검색어를 들고 빵 지도로 이동.
   const searchBakeryMap = (query) => {
     setNearbyOrigin(null)
     setMapSearch(query)
     setMapSelectId(null)
-    setShowMap(true)
-    setFeatureOpen(false)
-    setShowMyPage(false)
-    setShowInfo(false)
-    setShowTour(false)
-    setShowPilgrimage(false)
+    navigateToView('map')
   }
   const enterTourFlow = (nextStage) => {
-    setShowTour(true)
+    navigateToView('tour')
     setTourSelectedId(null)
     setTourHubFromReveal(false)
-    setFeatureOpen(false)
-    setShowMyPage(false)
-    setShowInfo(false)
-    setShowMap(false)
-    setShowPilgrimage(false)
     setTourStage(nextStage)
   }
   const openTour = () => enterTourFlow(tourSurveyDone ? 'reveal' : 'survey')
@@ -163,35 +154,20 @@ export default function LandingPage() {
     setTourStage('hub')
   }
   const openTourAttraction = (selectedId) => {
-    setShowTour(true)
+    navigateToView('tour')
     setTourStage('hub')
     setTourSelectedId(selectedId)
     setTourHubFromReveal(false) // 홈 위젯에서 진입 — 상세 뒤로가기는 허브 그리드로
-    setFeatureOpen(false)
-    setShowMyPage(false)
-    setShowInfo(false)
-    setShowMap(false)
-    setShowPilgrimage(false)
   }
   // 마이페이지 찜한 빵 목록에서 항목을 누르면 그 빵집이 선택된 상태로 빵 지도를 연다.
   const viewBakeryOnMap = (bakery) => {
     setNearbyOrigin(null)
     setMapSearch(bakery.name || '') // 검색 필터에 포함시켜 목록/지도에 뜨게
     setMapSelectId(bakery.id ?? null)
-    setShowMap(true)
-    setFeatureOpen(false)
-    setShowMyPage(false)
-    setShowInfo(false)
-    setShowTour(false)
-    setShowPilgrimage(false)
+    navigateToView('map')
   }
   const openPilgrimage = () => {
-    setShowPilgrimage(true)
-    setFeatureOpen(false)
-    setShowMyPage(false)
-    setShowInfo(false)
-    setShowMap(false)
-    setShowTour(false)
+    navigateToView('pilgrimage')
   }
   // 마이페이지 "찜한 코스"에서 "불러오기" → 그 코스를 스토어에 담아두고 대전한바퀴로 이동한다.
   // PilgrimagePage가 마운트되면서 pendingCourseLoad를 소비해 화면을 채운다(§CP10-3).
@@ -204,12 +180,7 @@ export default function LandingPage() {
   // (아래 handleSurveyComplete/handleTourSurveyComplete, 리빌 화면의 교차 링크) 홈을 거치지
   // 않으니 영향 없다 — 리셋은 "홈으로 나가는 행동" 자체에만 건다.
   const goHome = () => {
-    setFeatureOpen(false)
-    setShowMyPage(false)
-    setShowInfo(false)
-    setShowMap(false)
-    setShowTour(false)
-    setShowPilgrimage(false)
+    navigateToView('home')
     resetAnswers()
     resetTourAnswers()
   }
@@ -253,9 +224,9 @@ export default function LandingPage() {
         </div>
       )}
 
-      {showInfo && <InfoPage onStart={startTest} />}
+      {view === 'info' && <InfoPage onStart={startTest} />}
 
-      {showMap && (
+      {view === 'map' && (
         <div className="page">
           <BakeryMapPage
             origin={nearbyOrigin}
@@ -267,7 +238,7 @@ export default function LandingPage() {
         </div>
       )}
 
-      {showTour && (
+      {view === 'tour' && (
         <div className="page">
           {tourStage === 'survey' && (
             <TourSurveyFlow onComplete={handleTourSurveyComplete} onSkip={() => openTourHub(null)} />
@@ -297,19 +268,19 @@ export default function LandingPage() {
         </div>
       )}
 
-      {showPilgrimage && (
+      {view === 'pilgrimage' && (
         <div className="page">
           <PilgrimagePage onStartBreadSurvey={startTest} onStartTourSurvey={openTour} />
         </div>
       )}
 
-      {showMyPage && (
+      {view === 'mypage' && (
         <div className="page">
           <MyPage key={myPageResetKey} onLoadCourse={loadCourseIntoPilgrimage} onViewBakeryOnMap={viewBakeryOnMap} />
         </div>
       )}
 
-      {featureOpen && (
+      {view === 'bread' && (
         <div className="page">
           {stage === 'survey' && <SurveyFlow onComplete={handleSurveyComplete} />}
           {stage === 'reveal' && (

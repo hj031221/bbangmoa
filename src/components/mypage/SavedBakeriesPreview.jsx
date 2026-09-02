@@ -3,7 +3,7 @@ import PreviewChevron from './PreviewChevron'
 import { HeartIcon } from './PreviewIcons'
 import { getBreadById, getBreadByName } from '../../data/breadCandidates'
 
-// 마이페이지 홈 미리보기 카드. 개수 제한 없이 찜한 만큼 세로로 늘어난다.
+// 마이페이지 홈 미리보기 카드. 헤더에서 전체 개수를 바로 확인할 수 있다.
 // 상세 조작(찜 해제 등)은 헤더 클릭 시 SavedBakeriesPanel 로 이동해서 한다.
 export default function SavedBakeriesPreview({ onExpand }) {
   const { saved } = useSavedBakeries()
@@ -15,7 +15,7 @@ export default function SavedBakeriesPreview({ onExpand }) {
         <span className="mypage-preview-icon-badge" aria-hidden="true">
           <HeartIcon />
         </span>
-        <span className="mypage-preview-title">찜한 빵 목록</span>
+        <span className="mypage-preview-title">찜한 빵 목록 ({saved.length}개)</span>
         <PreviewChevron />
       </button>
       <div className="mypage-preview-body">

@@ -84,7 +84,7 @@ export default function RecommendCard({ bakery }) {
         <DiaryEntryModal
           bakery={bakery}
           onClose={() => setDiaryOpen(false)}
-          onSubmit={(text) => addEntry(bakery, text)}
+          onSubmit={(text, location) => addEntry(bakery, text, location)}
         />
       )}
     </div>

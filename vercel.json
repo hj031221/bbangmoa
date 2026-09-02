@@ -2,6 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     { "source": "/tourapi/:path*", "destination": "https://apis.data.go.kr/:path*" },
-    { "source": "/((?!tourapi/|assets/|.*\\..*).*)", "destination": "/index.html" }
+    { "source": "/s/:code", "destination": "/api/share-page?code=:code" },
+    { "source": "/((?!tourapi/|api/|assets/|.*\\..*).*)", "destination": "/index.html" }
   ]
 }
