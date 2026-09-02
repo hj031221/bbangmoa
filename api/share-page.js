@@ -20,7 +20,7 @@ export default async function handler(request, response) {
   const forwardedProto = String(request.headers['x-forwarded-proto'] || 'https').split(',')[0].trim()
   const publicOrigin = `${forwardedProto === 'http' ? 'http' : 'https'}://${forwardedHost}`
   const deploymentOrigin = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : publicOrigin
-  const shareUrl = `${publicOrigin}/s/${encodeURIComponent(safeCode || code)}`
+  const shareUrl = `${publicOrigin}/s/${encodeURIComponent(safeCode)}`
 
   const supabaseUrl = (process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '').replace(/\/$/, '')
   const ogImage = supabaseUrl && safeCode

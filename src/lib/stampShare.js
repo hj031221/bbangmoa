@@ -9,21 +9,16 @@ import {
 const FILE_NAME = 'daejeon-bread-stamp.png'
 const SHARE_TEXT = '대전 빵 스탬프 도전 중이에요. 나도 함께 채워볼래요?'
 
-// 이슈 #63 계약대로 기존 friend_code를 공개 링크 코드로 재사용한다.
-// 본인 profiles 행은 기존 RLS로 읽을 수 있고, 별도 공유 토큰 생성/DB 쓰기는 하지 않는다.
+// 공개 링크는 friend_code(친구 추가 토큰)가 아니라 전용 share_code를 쓴다. SNS로 카드를
+// 뿌려도 친구 추가 토큰이 함께 노출되지 않게 한다. ensure_share_code()가 지연 생성/조회를
+// 맡고(security definer), 비로그인이면 함수가 예외를 던져 이미지 공유만 이어진다.
 async function resolveShareUrl() {
   if (!supabase) throw new Error('supabase 미설정')
-  const { data: auth } = await supabase.auth.getUser()
-  const uid = auth?.user?.id
-  if (!uid) throw new Error('로그인이 필요해요.')
-
-  const { data: row, error } = await supabase
-    .from('profiles')
-    .select('friend_code')
-    .eq('user_id', uid)
-    .maybeSingle()
-  if (row?.friend_code) return `${window.location.origin}/s/${row.friend_code}`
-  throw error || new Error('공유 코드를 찾지 못했어요.')
+  const { data: code, error } = await supabase.rpc('ensure_share_code')
+  if (error) throw error
+  const trimmed = typeof code === 'string' ? code.trim() : ''
+  if (trimmed) return `${window.location.origin}/s/${trimmed}`
+  throw new Error('공유 코드를 찾지 못했어요.')
 }
 
 async function resolveOptionalShareUrl() {
