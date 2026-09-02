@@ -746,3 +746,109 @@ revoke execute on function get_public_stamp(text) from public;
 grant execute on function get_public_stamp(text) to anon, authenticated;
 
 alter function get_public_stamp(text) set search_path = public, pg_temp;
+
+-- ===== 이슈 #69: 방문 인증 좌표 서버 신뢰값 =====
+
+-- 서버가 보유하는 신뢰 가능한 빵집 좌표 캐시. create_diary_entry 의 거리 검증은 오직 이
+-- 테이블의 좌표만 쓰고, 클라이언트가 보낸 p_bakery.lat/lng 는 검증에 쓰지 않는다.
+-- 채우는 주체: resolve-bakery-coords Edge Function (service-role 로 upsert).
+create table if not exists bakery_coords (
+  bakery_id  text primary key,                 -- 'tour:{contentid}' | 'kakao:{doc.id}'
+  lat        double precision not null,
+  lng        double precision not null,
+  source     text not null check (source in ('tour', 'kakao')),
+  fetched_at timestamptz not null default now()
+);
+
+alter table bakery_coords enable row level security;
+-- 정책을 만들지 않는다 = authenticated/anon 직접 접근 전면 거부.
+--   읽기: create_diary_entry (security definer — 함수 소유자 권한이라 RLS 우회)
+--   쓰기: resolve-bakery-coords Edge Function (service-role 키 — RLS 우회)
+
+-- 기존 verified=true 기록은 소급 재검증하지 않는다. #68 의 대전 광역 bbox 게이트로 이미
+-- 대전 범위 좌표만 통과했고, 이 기능엔 아직 금전/보상이 없어 과거 데이터 위조 이득이 없다.
+-- 신규 기록부터 bakery_coords 기준으로 판정한다. (필요해지면 별도 재검증 스크립트 이슈.)
+
+create or replace function create_diary_entry(
+  p_bakery jsonb,
+  p_text text,
+  p_lat double precision default null,
+  p_lng double precision default null
+)
+returns table(id uuid, verified boolean, verified_at timestamptz)
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_user_id uuid := auth.uid();
+  v_bakery_id text;
+  v_bakery_lat double precision;
+  v_bakery_lng double precision;
+  v_visit_lat double precision;
+  v_visit_lng double precision;
+  v_distance_m double precision;
+  v_verified boolean := false;
+begin
+  if v_user_id is null then
+    raise exception 'authentication required' using errcode = '42501';
+  end if;
+
+  if p_bakery is null
+    or jsonb_typeof(p_bakery) <> 'object'
+    or nullif(btrim(p_bakery ->> 'id'), '') is null then
+    raise exception 'invalid bakery' using errcode = '22023';
+  end if;
+
+  if nullif(btrim(p_text), '') is null then
+    raise exception 'text is required' using errcode = '22023';
+  end if;
+
+  v_bakery_id := p_bakery ->> 'id';
+
+  -- GPS 좌표 새너티만 확인한다. 이건 사용자 본인 기기가 보고한 "지금 내 위치"이고,
+  -- 검증이 판정하려는 대상 그 자체다(빵집 좌표와 달리 서버가 대체 출처를 가질 수 없다).
+  if p_lat between -90 and 90 and p_lng between -180 and 180 then
+    v_visit_lat := p_lat;
+    v_visit_lng := p_lng;
+  end if;
+
+  -- 이슈 #69: 신뢰 가능한 빵집 좌표는 오직 서버가 보유한 bakery_coords 에서만 온다.
+  -- 클라이언트가 보낸 p_bakery.lat/lng 는 검증에 쓰지 않는다(위조 가능).
+  -- 캐시 미스(resolve-bakery-coords 가 아직 못 채웠거나 좌표 미해결)면 v_verified 는
+  -- false 로 남고, 기록 자체는 그대로 저장된다.
+  select lat, lng into v_bakery_lat, v_bakery_lng
+    from bakery_coords
+    where bakery_id = v_bakery_id;
+
+  if v_bakery_lat is not null and v_visit_lat is not null then
+    v_distance_m := 6371000 * 2 * asin(sqrt(least(1, greatest(0,
+      power(sin(radians(v_visit_lat - v_bakery_lat) / 2), 2)
+      + cos(radians(v_bakery_lat)) * cos(radians(v_visit_lat))
+      * power(sin(radians(v_visit_lng - v_bakery_lng) / 2), 2)
+    ))));
+    v_verified := v_distance_m <= 150;
+  end if;
+
+  return query
+    insert into diary_entries (
+      user_id, bakery_id, bakery, text,
+      visit_lat, visit_lng, verified, verified_at
+    ) values (
+      v_user_id, v_bakery_id, p_bakery, btrim(p_text),
+      v_visit_lat, v_visit_lng, v_verified,
+      case when v_verified then now() else null end
+    )
+    returning diary_entries.id, diary_entries.verified, diary_entries.verified_at;
+end;
+$$;
+
+-- 시그니처가 그대로라 아래 grant/revoke 재실행은 사실상 no-op 이지만, 이 섹션만 따로
+-- 실행해도 되도록 다시 명시한다 (이슈 #63 2단계 블록과 동일).
+revoke execute on function create_diary_entry(jsonb, text, double precision, double precision)
+  from public, anon;
+grant execute on function create_diary_entry(jsonb, text, double precision, double precision)
+  to authenticated;
+
+alter function create_diary_entry(jsonb, text, double precision, double precision)
+  set search_path = public, pg_temp;
