@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { useEffect, useState } from 'react'
 import { STAMP_VIEWBOX, DISTRICT_PATHS } from './daejeonStampPaths'
 import { prepareStampShare, sharePreparedStamp } from '../../lib/stampShare'
+import Modal from '../common/Modal'
 
-// 방문 스탬프 상세 모달. CourseNameModal 패턴(auth-modal 공용 클래스, Escape/배경 닫기,
-// body 스크롤 잠금). stamp = computeVisitStamps() 결과.
+// 방문 스탬프 상세 모달. 공용 Modal 껍데기(포털·배경/Escape 닫기·스크롤 잠금·포커스 관리).
+// stamp = computeVisitStamps() 결과.
 // editable=true(본인)면 목표 프리셋 컨트롤, false(친구)면 '목표: 구마다 N곳' 읽기 전용.
 function fillOpacity(pct) {
   return 0.15 + (0.85 * pct) / 100 // pct 0 이어도 형태가 보이도록 최소 0.15
@@ -13,8 +13,6 @@ function fillOpacity(pct) {
 const PRESETS = [1, 3, 5]
 
 export default function VisitStampModal({ stamp, target, targetPerDistrict, onTargetChange, editable, nickname, onClose }) {
-  const onCloseRef = useRef(onClose)
-  onCloseRef.current = onClose
   const [customOpen, setCustomOpen] = useState(false)
   const [customValue, setCustomValue] = useState(String(target))
   const [sharing, setSharing] = useState(false)
@@ -22,16 +20,6 @@ export default function VisitStampModal({ stamp, target, targetPerDistrict, onTa
   const [shareLink, setShareLink] = useState(null)
   const [shareRetry, setShareRetry] = useState(0)
   const [sharePrep, setSharePrep] = useState({ status: 'idle', value: null })
-
-  useEffect(() => {
-    const onKey = (e) => e.key === 'Escape' && onCloseRef.current()
-    document.addEventListener('keydown', onKey)
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = ''
-    }
-  }, [])
 
   useEffect(() => {
     if (!editable) return undefined
@@ -68,16 +56,8 @@ export default function VisitStampModal({ stamp, target, targetPerDistrict, onTa
     setCustomOpen(false)
   }
 
-  return createPortal(
-    <div className="auth-modal-overlay" onClick={onClose}>
-      <div className="auth-modal visit-stamp-modal" onClick={(e) => e.stopPropagation()}>
-        <button type="button" className="auth-modal-close" aria-label="닫기" onClick={onClose}>
-          ✕
-        </button>
-        <div className="auth-modal-copy">
-          <h3 className="auth-modal-title">{heading}</h3>
-        </div>
-
+  return (
+    <Modal title={heading} className="visit-stamp-modal" onClose={onClose}>
         {editable ? (
           <div className="visit-stamp-goal">
             <span className="visit-stamp-goal-label">구마다</span>
@@ -243,8 +223,6 @@ export default function VisitStampModal({ stamp, target, targetPerDistrict, onTa
             )}
           </div>
         )}
-      </div>
-    </div>,
-    document.body,
+    </Modal>
   )
 }
