@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useAppStore } from '../../store/useAppStore'
 import { useBakeries } from '../../hooks/useBakeries'
 import { useCurrentLocation } from '../../hooks/useCurrentLocation'
@@ -30,6 +30,8 @@ export default function MapResult({ onRetake }) {
   const selectedBakeryId = useAppStore((s) => s.selectedBakeryId)
   const selectBakery = useAppStore((s) => s.selectBakery)
   const region = getRegion(regionId)
+  // 이슈 #70 1번: 모바일에서 sticky 지도 접기/펼치기 — 데스크톱에선 버튼 자체가 CSS로 숨는다.
+  const [mapCollapsed, setMapCollapsed] = useState(false)
 
   // answers 는 넘기지 않는다 — 옛 태그-가중치 정렬(recommend.js)은 새 Q1~Q5 응답과 안 맞아 항상
   // 무력화된다. limit: Infinity 로 전체 풀을 받아와서 아래에서 breadResult 기준으로 직접 추린다.
@@ -140,7 +142,7 @@ export default function MapResult({ onRetake }) {
       )}
 
       <div className="result-body">
-        <section className="result-map">
+        <section className={'result-map' + (mapCollapsed ? ' is-collapsed' : '')}>
           <MapView
             bakeries={bakeriesWithDist}
             selectedId={selectedBakeryId}
@@ -148,6 +150,13 @@ export default function MapResult({ onRetake }) {
             attractions={nearbyAttractions}
           />
           <MapSelectionSummary bakery={selected} />
+          <button
+            type="button"
+            className="result-map-toggle"
+            onClick={() => setMapCollapsed((v) => !v)}
+          >
+            {mapCollapsed ? '지도 펼치기 ▾' : '지도 접기 ▴'}
+          </button>
         </section>
 
         <aside className="result-list-col">

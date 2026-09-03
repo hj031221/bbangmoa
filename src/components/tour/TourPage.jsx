@@ -8,6 +8,26 @@ const DISTRICTS = getRegion().districts
 const DESC_MAX = 160
 const PAGE_SIZE = 21
 
+// 이슈 #70 3번: attractionTagging.js가 이미 부여해둔 themes/companion 태그를 구 필터와
+// 같은 칩 UI로 노출한다. companion은 0~100 점수라 동등 비교가 안 돼 처음엔 임계값(60점)
+// 필터 + 내림차순 정렬로 다뤘는데, 리뷰에서 고정 관광지 173곳 기준 (구×테마×동행) 125개
+// 조합 중 89개(71.2%)가 빈 결과로 나온다는 게 확인됐다 — "드물다"던 애초 판단이 틀렸다.
+// 필터로 결과를 아예 지우지 않도록 companion은 정렬 기준으로만 쓴다(이슈 #70에 명시된 대안).
+const THEME_OPTIONS = [
+  { id: 'nature', label: '자연' },
+  { id: 'history', label: '역사' },
+  { id: 'culture', label: '문화' },
+  { id: 'education', label: '교육' },
+  { id: 'etc', label: '기타' },
+]
+const COMPANION_OPTIONS = [
+  { id: 'solo', label: '혼자' },
+  { id: 'couple', label: '연인과' },
+  { id: 'friends', label: '친구와' },
+  { id: 'childrenFamily', label: '아이와' },
+  { id: 'parentsFamily', label: '부모님과' },
+]
+
 // 관광공사 개요 텍스트 끝에 흔히 붙는 "(출처 : OO)" 를 본문과 분리해 별도 표기한다.
 function splitOverview(raw) {
   const text = raw?.replace(/<[^>]+>/g, '').trim() || ''
@@ -28,12 +48,18 @@ export default function TourPage({
   const { tagged: ATTRACTIONS, loading } = useAttractions()
   const [selectedId, setSelectedId] = useState(initialSelectedId)
   const [district, setDistrict] = useState(initialDistrict) // null = 전체
+  const [theme, setTheme] = useState(null) // null = 전체
+  const [companion, setCompanion] = useState(null) // null = 전체
   const [page, setPage] = useState(1)
   const selected = ATTRACTIONS.find((a) => a.id === selectedId) || null
-  const filtered = useMemo(
-    () => (district ? ATTRACTIONS.filter((a) => (a.addr || '').includes(district)) : ATTRACTIONS),
-    [ATTRACTIONS, district],
-  )
+  const filtered = useMemo(() => {
+    let list = district ? ATTRACTIONS.filter((a) => (a.addr || '').includes(district)) : ATTRACTIONS
+    if (theme) list = list.filter((a) => a.themes?.includes(theme))
+    if (companion) {
+      list = [...list].sort((a, b) => (b.companion?.[companion] ?? 0) - (a.companion?.[companion] ?? 0))
+    }
+    return list
+  }, [ATTRACTIONS, district, theme, companion])
 
   // 딥링크(initialSelectedId)로 들어온 경우, 데이터가 아직 로딩 중이면 ATTRACTIONS가 비어있어
   // selected를 못 찾는다 — 그대로 두면 상세뷰 대신 허브 그리드가 잠깐 잘못 보였다가(§finding3)
@@ -63,9 +89,17 @@ export default function TourPage({
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
   const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
-  // 구를 바꾸면 목록이 새로 좁혀지므로 페이지도 1로 되돌린다.
+  // 필터를 바꾸면 목록이 새로 좁혀지므로 페이지도 1로 되돌린다.
   const selectDistrict = (d) => {
     setDistrict(d)
+    setPage(1)
+  }
+  const selectTheme = (t) => {
+    setTheme(t)
+    setPage(1)
+  }
+  const selectCompanion = (c) => {
+    setCompanion(c)
     setPage(1)
   }
 
@@ -94,6 +128,44 @@ export default function TourPage({
           </button>
         ))}
       </div>
+      <div className="bm-district-filters">
+        <button
+          type="button"
+          className={'bm-district-chip' + (!theme ? ' active' : '')}
+          onClick={() => selectTheme(null)}
+        >
+          테마 전체
+        </button>
+        {THEME_OPTIONS.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            className={'bm-district-chip' + (theme === t.id ? ' active' : '')}
+            onClick={() => selectTheme(t.id)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+      <div className="bm-district-filters">
+        <button
+          type="button"
+          className={'bm-district-chip' + (!companion ? ' active' : '')}
+          onClick={() => selectCompanion(null)}
+        >
+          동행 전체
+        </button>
+        {COMPANION_OPTIONS.map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            className={'bm-district-chip' + (companion === c.id ? ' active' : '')}
+            onClick={() => selectCompanion(c.id)}
+          >
+            {c.label}
+          </button>
+        ))}
+      </div>
       <div className="tour-grid">
         {pageItems.map((a) => (
           <button type="button" key={a.id} className="tour-tile" onClick={() => setSelectedId(a.id)}>
@@ -102,7 +174,9 @@ export default function TourPage({
           </button>
         ))}
         {pageItems.length === 0 && (
-          <p className="tour-empty">{loading ? '불러오는 중…' : '해당 구에는 표시할 명소가 없어요.'}</p>
+          <p className="tour-empty">
+            {loading ? '불러오는 중…' : '조건에 맞는 명소가 없어요. 필터를 조금 넓혀보세요.'}
+          </p>
         )}
       </div>
       <TourPagination page={page} totalPages={totalPages} onChange={setPage} />

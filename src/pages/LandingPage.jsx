@@ -57,6 +57,8 @@ export default function LandingPage() {
     }
   }
 
+  // 이슈 #70 2번: 브라우저 뒤로가기로 홈에 도달하는 경우도 goHome()과 동일하게 — 설문 결과를
+  // 지우지 않는다(리셋은 retakeSurvey 에만 건다).
   useEffect(() => {
     const restoreViewFromHistory = () => {
       const nextView = getAppView(window.location.pathname)
@@ -64,15 +66,11 @@ export default function LandingPage() {
       setNearbyOrigin(null)
       setMapSearch('')
       setMapSelectId(null)
-      if (nextView === 'home') {
-        resetAnswers()
-        resetTourAnswers()
-      }
     }
 
     window.addEventListener('popstate', restoreViewFromHistory)
     return () => window.removeEventListener('popstate', restoreViewFromHistory)
-  }, [resetAnswers, resetTourAnswers])
+  }, [])
 
   // 서비스 소개처럼 스크롤 가능한 화면에서 새로고침하면 브라우저가 이전 scrollY를 복원한다.
   // 앱 상태는 홈으로 초기화되므로 홈에 들어올 때 항상 상단으로 되돌린다.
@@ -106,11 +104,6 @@ export default function LandingPage() {
   // 홈 히어로 CTA·교차 링크 등: 진행 중이던 결과가 있으면 그 리빌부터 이어 본다.
   // (onClick 핸들러로 직접 넘겨 이벤트 객체가 인자로 들어와도 안전하도록 인자를 받지 않는다.)
   const startTest = () => enterBreadFlow(surveyDone ? 'reveal' : 'survey')
-  // 메뉴바에서 "빵집 찾기"를 다시 고른 경우: 이전 결과를 버리고 설문 처음부터.
-  const startTestFromNav = () => {
-    resetAnswers()
-    enterBreadFlow('survey')
-  }
   const openMyPage = () => {
     setMyPageResetKey((k) => k + 1)
     navigateToView('mypage')
@@ -141,11 +134,6 @@ export default function LandingPage() {
     setTourStage(nextStage)
   }
   const openTour = () => enterTourFlow(tourSurveyDone ? 'reveal' : 'survey')
-  // 메뉴바에서 "관광모아"를 다시 고른 경우: 이전 결과를 버리고 설문 처음부터.
-  const openTourFromNav = () => {
-    resetTourAnswers()
-    enterTourFlow('survey')
-  }
   // selectedId 가 있으면(관광모아 결과 카드에서 진입) 상세에서 "뒤로가기" 시 허브 그리드가
   // 아니라 결과 화면(reveal)으로 돌아가야 한다 — 그 출처를 tourHubFromReveal 로 기억한다.
   const openTourHub = (selectedId = null) => {
@@ -175,14 +163,12 @@ export default function LandingPage() {
     setPendingCourseLoad(course)
     openPilgrimage()
   }
-  // 홈으로 나가면 두 설문 결과를 모두 초기화한다 — 홈 갔다 다시 들어와도 예전 결과가
-  // 그대로 뜨지 않고 항상 새 설문부터 시작하게(피드백4). 설문 화면 안에서 서로 넘나드는 건
-  // (아래 handleSurveyComplete/handleTourSurveyComplete, 리빌 화면의 교차 링크) 홈을 거치지
-  // 않으니 영향 없다 — 리셋은 "홈으로 나가는 행동" 자체에만 건다.
+  // 예전엔 홈으로 나가면 두 설문 결과를 모두 초기화했다(피드백4) — 그런데 로고를 눌러 홈을
+  // 거쳤다가 대전한바퀴로 돌아오면 코스가 사라지는 게 이슈 #70 2번으로 다시 지적됐다. 리셋은
+  // 사용자가 명시적으로 요청할 때(아래 retakeSurvey, "다시 해보기" 버튼)만 걸고, 그냥 홈으로
+  // 나가는 것만으로는 아무것도 지우지 않는다.
   const goHome = () => {
     navigateToView('home')
-    resetAnswers()
-    resetTourAnswers()
   }
   const retakeSurvey = () => {
     resetAnswers()
@@ -200,9 +186,9 @@ export default function LandingPage() {
       <NavBar
         onGoHome={goHome}
         onOpenInfo={openInfo}
-        onStartTest={startTestFromNav}
+        onStartTest={startTest}
         onOpenMap={openBakeryMap}
-        onOpenTour={openTourFromNav}
+        onOpenTour={openTour}
         onOpenPilgrimage={openPilgrimage}
         onOpenMyPage={openMyPage}
       />

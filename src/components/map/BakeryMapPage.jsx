@@ -26,6 +26,8 @@ export default function BakeryMapPage({
 }) {
   const [district, setDistrict] = useState(null) // null = 전체
   const [selectedId, setSelectedId] = useState(initialSelectedId)
+  // 이슈 #70 1번: 모바일에서 sticky 지도 접기/펼치기 — 데스크톱에선 버튼 자체가 CSS로 숨는다.
+  const [mapCollapsed, setMapCollapsed] = useState(false)
   const [search, setSearch] = useState(initialSearch.trim())
   // 목록 필터링(filtered)은 매 키 입력마다 즉시 반응해야 하지만, 지도 재조정(MapView의
   // search prop)까지 그대로 즉시 반응하면 타이핑 한 글자마다 지도가 움직인다(리뷰 지적) —
@@ -160,7 +162,7 @@ export default function BakeryMapPage({
       )}
 
       <div className="result-body">
-        <section className="result-map">
+        <section className={'result-map' + (mapCollapsed ? ' is-collapsed' : '')}>
           <MapView
             bakeries={filtered}
             selectedId={selectedId}
@@ -171,6 +173,13 @@ export default function BakeryMapPage({
             nearbyMode={nearbyMode}
           />
           <MapSelectionSummary bakery={selected} />
+          <button
+            type="button"
+            className="result-map-toggle"
+            onClick={() => setMapCollapsed((v) => !v)}
+          >
+            {mapCollapsed ? '지도 펼치기 ▾' : '지도 접기 ▴'}
+          </button>
         </section>
 
         <aside className="result-list-col">

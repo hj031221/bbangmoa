@@ -58,7 +58,7 @@ export default function NavBar({
             서비스 소개
           </button>
           <button type="button" onClick={onStartTest}>
-            빵집 찾기
+            빵집모아
           </button>
           <button type="button" onClick={onOpenMap}>
             빵 지도
@@ -108,7 +108,7 @@ export default function NavBar({
                 setNavOpen(false)
               }}
             >
-              빵집 찾기
+              빵집모아
             </button>
             <button
               type="button"
