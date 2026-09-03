@@ -55,8 +55,15 @@ export function useDiaryEntries(targetUserId) {
     // 결과의 error 를 직접 확인한다. 그리고 최악의 경우(kakao 미스) 이 함수는 ~30s 걸릴 수
     // 있는데 결과는 어차피 무시하므로 저장을 그만큼 붙잡으면 안 된다 — 5s 상한으로 레이스한다.
     // 타임아웃이 이기면 RPC 는 그대로 진행되고(캐시가 아직 안 데워졌으면 verified=false, 허용).
-    const raceTimeout = (p, ms) =>
-      Promise.race([p, new Promise((res) => setTimeout(res, ms))])
+    // invoke 가 먼저 끝나면(웜 캐시 흔한 경우) 타이머를 반드시 정리한다 — 안 그러면 매 저장마다
+    // 5s 짜리 setTimeout + 클로저가 잔류한다.
+    const raceTimeout = (p, ms) => {
+      let timer
+      const timeout = new Promise((res) => {
+        timer = setTimeout(res, ms)
+      })
+      return Promise.race([p, timeout]).finally(() => clearTimeout(timer))
+    }
 
     const resolveCoords = supabase.functions
       .invoke('resolve-bakery-coords', { body: { bakery_id: bakery.id, name: bakery.name } })

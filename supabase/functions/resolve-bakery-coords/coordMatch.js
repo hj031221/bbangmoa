@@ -25,14 +25,19 @@ export function inDaejeon(lat, lng, bbox = DAEJEON_BBOX) {
 
 // Kakao 키워드검색 documents[] 에서 nativeId 와 정확히 일치하는 항목의 좌표.
 // Kakao 규약: doc.x = 경도(lng), doc.y = 위도(lat).
+//
+// 반환: { found, coord }
+//   found=false → 이 페이지에 대상 id 가 없음 (호출부가 다음 페이지를 봐야 함)
+//   found=true  → 대상 id 를 만남. coord 는 좌표({lat,lng}) 또는 bbox 밖이면 null.
+//                 id 는 결과 전체에서 유일하므로 found 이후 페이징은 무의미하다.
 export function pickKakaoMatch(documents, nativeId) {
   for (const d of documents ?? []) {
     if (String(d?.id) !== String(nativeId)) continue
     const lat = parseFloat(d.y)
     const lng = parseFloat(d.x)
-    return inDaejeon(lat, lng) ? { lat, lng } : null
+    return { found: true, coord: inDaejeon(lat, lng) ? { lat, lng } : null }
   }
-  return null
+  return { found: false, coord: null }
 }
 
 // KorService2 detailCommon2 item → 좌표. 규약: item.mapx = 경도, item.mapy = 위도.

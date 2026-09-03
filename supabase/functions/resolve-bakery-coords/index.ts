@@ -41,13 +41,26 @@ function jwtRole(authHeader: string | null): string | null {
   }
 }
 
+// fetch + 바디 읽기를 하나의 abort 창으로 묶는다. 헤더만 받고 바디에서 멈추는 경우
+// (부하·불안정 egress)에도 timeoutMs 안에 끊긴다 — fetch() 해제 시점에 타이머를 풀면
+// 이어지는 res.text() 는 무제한으로 매달린다.
 async function fetchWithTimeout(input: string, init: RequestInit = {}, timeoutMs = 6000) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {
-    return await fetch(input, { ...init, signal: controller.signal })
+    const res = await fetch(input, { ...init, signal: controller.signal })
+    const body = await res.text()
+    return { ok: res.ok, status: res.status, body }
   } finally {
     clearTimeout(timer)
+  }
+}
+
+function parseJson(text: string): any {
+  try {
+    return JSON.parse(text)
+  } catch {
+    return null
   }
 }
 
@@ -62,7 +75,7 @@ async function cacheHas(bakeryId: string): Promise<boolean> {
     `?bakery_id=eq.${encodeURIComponent(bakeryId)}&select=bakery_id`
   const res = await fetchWithTimeout(url, { headers: restHeaders() })
   if (!res.ok) return false
-  const rows = await res.json()
+  const rows = parseJson(res.body)
   return Array.isArray(rows) && rows.length > 0
 }
 
@@ -97,7 +110,7 @@ async function resolveTour(nativeId: string) {
     `&contentId=${encodeURIComponent(nativeId)}&numOfRows=1&pageNo=1`
   const res = await fetchWithTimeout(url)
   if (!res.ok) return null
-  const json = await res.json()
+  const json = parseJson(res.body)
   const item = json?.response?.body?.items?.item
   const first = Array.isArray(item) ? item[0] : item
   return first ? pickTourCoord(first) : null
@@ -113,9 +126,11 @@ async function resolveKakao(nativeId: string, name: string) {
       headers: { Authorization: `KakaoAK ${KAKAO_REST_KEY}` },
     })
     if (!res.ok) return null
-    const json = await res.json()
-    const hit = pickKakaoMatch(json?.documents, nativeId)
-    if (hit) return hit
+    const json = parseJson(res.body)
+    // id 는 결과 전체에서 유일하다 — 이 페이지에서 대상 문서를 만났으면(found) 좌표가
+    // bbox 밖이라 coord 가 null 이어도 더 볼 페이지가 없다. 여기서 멈춘다.
+    const { found, coord } = pickKakaoMatch(json?.documents, nativeId)
+    if (found) return coord
     if ((json?.meta?.is_end ?? true) === true) break
   }
   return null

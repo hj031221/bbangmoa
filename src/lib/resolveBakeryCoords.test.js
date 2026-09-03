@@ -35,16 +35,22 @@ test('pickKakaoMatch — id 일치 문서의 좌표(y=lat, x=lng)', () => {
     { id: '111', x: '127.1', y: '36.2' },
     { id: '222', x: '127.42', y: '36.35' },
   ]
-  assert.deepEqual(pickKakaoMatch(docs, '222'), { lat: 36.35, lng: 127.42 })
-  assert.deepEqual(pickKakaoMatch(docs, 222), { lat: 36.35, lng: 127.42 }) // 숫자 nativeId 도 허용
+  assert.deepEqual(pickKakaoMatch(docs, '222'), { found: true, coord: { lat: 36.35, lng: 127.42 } })
+  assert.deepEqual(pickKakaoMatch(docs, 222), { found: true, coord: { lat: 36.35, lng: 127.42 } }) // 숫자 nativeId 도 허용
 })
 
-test('pickKakaoMatch — 불일치/빈 입력/대전 밖은 null', () => {
-  assert.equal(pickKakaoMatch([{ id: '999', x: '127.42', y: '36.35' }], '222'), null)
-  assert.equal(pickKakaoMatch([], '222'), null)
-  assert.equal(pickKakaoMatch(null, '222'), null)
-  assert.equal(pickKakaoMatch(undefined, '222'), null)
-  assert.equal(pickKakaoMatch([{ id: '222', x: '126.978', y: '37.5665' }], '222'), null) // 서울 좌표
+test('pickKakaoMatch — 이 페이지에 없으면 found:false (호출부가 다음 페이지를 본다)', () => {
+  assert.deepEqual(pickKakaoMatch([{ id: '999', x: '127.42', y: '36.35' }], '222'), { found: false, coord: null })
+  assert.deepEqual(pickKakaoMatch([], '222'), { found: false, coord: null })
+  assert.deepEqual(pickKakaoMatch(null, '222'), { found: false, coord: null })
+  assert.deepEqual(pickKakaoMatch(undefined, '222'), { found: false, coord: null })
+})
+
+test('pickKakaoMatch — id 는 만났지만 대전 밖이면 found:true, coord:null (페이징 중단 신호)', () => {
+  assert.deepEqual(pickKakaoMatch([{ id: '222', x: '126.978', y: '37.5665' }], '222'), {
+    found: true,
+    coord: null,
+  }) // 서울 좌표
 })
 
 test('pickTourCoord — mapy=lat, mapx=lng', () => {
