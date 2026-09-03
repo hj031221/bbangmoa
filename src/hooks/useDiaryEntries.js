@@ -46,13 +46,21 @@ export function useDiaryEntries(targetUserId) {
 
   const addEntry = (bakery, text, location = null) => {
     if (!user) return Promise.resolve({ error: new Error('로그인이 필요해요.') })
-    return supabase
-      .rpc('create_diary_entry', {
-        p_bakery: bakery,
-        p_text: text,
-        p_lat: location?.lat ?? null,
-        p_lng: location?.lng ?? null,
-      })
+
+    // 이슈 #69: create_diary_entry 는 bakery_coords(서버 신뢰 좌표)만 보고 verified 를
+    // 판정한다. 저장 직전에 서버측 좌표 해석을 1회 시도해 캐시를 채운다. 실패해도
+    // (미해결/함수 오류) 기록은 그대로 저장되며 그 경우 verified=false 가 된다 — 흐름을 막지 않는다.
+    return supabase.functions
+      .invoke('resolve-bakery-coords', { body: { bakery_id: bakery.id, name: bakery.name } })
+      .catch((err) => console.error('[기록장] 좌표 해석 실패', err))
+      .then(() =>
+        supabase.rpc('create_diary_entry', {
+          p_bakery: bakery,
+          p_text: text,
+          p_lat: location?.lat ?? null,
+          p_lng: location?.lng ?? null,
+        }),
+      )
       .then(({ error }) => {
         if (error) {
           console.error('[기록장] 작성 실패', error)
