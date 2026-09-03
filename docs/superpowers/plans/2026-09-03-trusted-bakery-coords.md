@@ -691,7 +691,7 @@ Expected: 배포 성공. 실패 시 오류를 Task 3으로 되돌려 수정.
 3. 같은 빵집에 실제 근처(≤150m) GPS로 기록 작성 → `verified = true`, `verified_at` 채워짐.
 4. 같은 빵집에 먼 GPS(>150m)로 작성 → `verified = false`.
 5. RPC를 직접 호출해 `p_lat/p_lng`와 `p_bakery.lat/lng`에 동일 좌표를 넣어도 `bakery_coords` 좌표로만 판정됨(행 없으면 `verified=false`, 있으면 그 좌표 기준) — 위조 차단 확인.
-6. **콜드 캐시 E2E (브라우저 경로 — 최종 리뷰 C1 대응):** `bakery_coords`에서 해당 행을 지운 뒤, **UI에서 실제로** 근처 GPS로 기록을 저장 → 첫 시도에서 `verified = true`. (2·3처럼 캐시를 미리 시드하지 말 것 — 브라우저 → Edge Function 프리플라이트/CORS/인증 경로를 실제로 태우는 게 목적. 실패하면 브라우저 콘솔·함수 로그 확인.)
+6. **콜드 캐시 E2E (브라우저 경로 — 최종 리뷰 C1 대응):** `bakery_coords`에서 해당 행을 지운 뒤, **UI에서 실제로** 근처 GPS로 기록을 저장 → 해석이 클라이언트 5s 레이스 안에 끝나면 첫 시도에서 `verified = true`. 외부 API 지연·Edge 콜드스타트로 5s 를 넘기면 그 기록은 `verified = false` 로 저장되고 캐시는 채워지므로, **같은 빵집에 한 번 더 저장하면 `verified = true`** — 이게 정상 동작(흐름 비차단). 확인 대상은 "캐시가 채워지고 다음 저장부터 verified 가 붙는다"이지 "무조건 첫 시도 성공"이 아니다. (2·3처럼 캐시를 미리 시드하지 말 것 — 브라우저 → Edge Function 프리플라이트/CORS/인증 경로를 실제로 태우는 게 목적. 실패하면 브라우저 콘솔·함수 로그 확인.)
 
 - [ ] **Step 6: 브랜치 푸시 & PR** (사용자 지시 시)
 
