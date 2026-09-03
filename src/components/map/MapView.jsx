@@ -134,6 +134,14 @@ export default function MapView({
   const [clusterer, setClusterer] = useState(null)
   const highlightRef = useRef(null)
   const boundsRef = useRef(null)
+  // 이슈 #70 리뷰: 아래 지도 생성 effect가 map(state)만으로 재실행을 막았는데, React 18
+  // StrictMode(dev 전용)는 마운트 시 effect를 두 번 연달아 돌린다 — 두 번째 호출은 첫 번째의
+  // setMap()이 아직 커밋되기 전이라 이 시점의 map은 여전히 null이라서 가드를 통과해버리고,
+  // 같은 컨테이너에 카카오맵 인스턴스가 2개 생겨 드래그/핀치줌/더블클릭 확대가 먹통이 됐다
+  // (배포 프로덕션 빌드는 StrictMode 이중 호출이 없어 재현되지 않는다). ref는 렌더와 무관하게
+  // 즉시 갱신되므로, 이걸로 가드하면 두 번째 호출에서도 정확히 막힌다 — PilgrimagePage의
+  // RouteMap이 이미 쓰던 것과 같은 패턴.
+  const mapInstanceRef = useRef(null)
   // 이슈 #60 리뷰 — 필터 모드(구/검색/근처)가 하나도 없을 때 대전 전체로 돌아가는 폴백을
   // "아직 한 번도 안 돌았을 때만" 실행한다. 이게 없으면 MapResult처럼 필터 모드를 아예 안 쓰는
   // 화면에서 bakeries.length만 바뀌어도(예: breadResult 비동기 확정으로 후보 수 변화) 매번
@@ -149,7 +157,7 @@ export default function MapView({
 
   // 지도 생성 + 대전 외곽 딤 + 시점 고정 (1회)
   useEffect(() => {
-    if (!loaded || !containerRef.current || map) return
+    if (!loaded || !containerRef.current || mapInstanceRef.current) return
     const { kakao } = window
     const m = new kakao.maps.Map(containerRef.current, {
       center: new kakao.maps.LatLng(region.center.lat, region.center.lng),
@@ -192,8 +200,9 @@ export default function MapView({
 
     // 마커 클러스터러 생성(기능 enabled 시). MarkerLayer 가 이걸로 마커를 묶는다.
     setClusterer(createClusterer({ map: m, kakao }))
+    mapInstanceRef.current = m
     setMap(m)
-  }, [loaded, map, region])
+  }, [loaded, region])
 
   // 시점 재조정 — 구 필터/검색/근처모드 중 활성인 것 기준으로 bounds를 맞추고, 아무것도
   // 없으면 대전 전체로 돌아간다. 빈 지도 클릭으로 선택만 풀면(selectedId만 null) 여긴 안 돈다 —
