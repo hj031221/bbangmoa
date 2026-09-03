@@ -1,7 +1,7 @@
 # 방문 인증 좌표를 서버 신뢰 값으로 (이슈 #69)
 
 **날짜:** 2026-09-03
-**브랜치:** `fix/stamp` (base: `feature-stamp` — 이 작업이 얹히는 #63 2단계·#68 스키마가 아직 `develop`에 없음)
+**브랜치:** `fix/stamp` → PR base `develop` (#63·#68 작업은 PR #68로 `develop`에 병합됨; `fix/stamp`는 `develop` 팁에서 분기)
 **관련 이슈:** #69 ([BE] 방문 인증 좌표를 서버 신뢰 값으로 검증 — 클라이언트 위조 차단)
 **선행 스펙:** `docs/superpowers/specs/2026-09-01-visit-stamp-share-design.md`
 ("PR #68 코드리뷰 후 ruling"에서 이 이슈를 후속으로 분리)

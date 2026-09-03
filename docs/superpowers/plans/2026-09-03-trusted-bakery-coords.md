@@ -10,6 +10,8 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-03-trusted-bakery-coords-design.md`
 
+**Branch:** `fix/stamp` → PR base `develop` (branches off `develop` tip `f809ea2`; `feature-stamp` was merged via PR #68 and deleted).
+
 ## Global Constraints
 
 - **새 npm 의존성 금지.** `functions.invoke`는 `@supabase/supabase-js`(설치됨)에 내장.
@@ -696,7 +698,7 @@ Expected: 배포 성공. 실패 시 오류를 Task 3으로 되돌려 수정.
 ```bash
 git push -u origin fix/stamp
 ```
-PR base: `feature-stamp` (이 작업의 선행 스키마가 아직 `develop`에 없음 — `feature-stamp`가 `develop`에 먼저 병합되면 리베이스). PR 설명에 Step 5 검증 결과를 붙인다.
+PR base: **`develop`**. `feature-stamp`는 PR #68로 `develop`에 병합·삭제됐고, `fix/stamp`는 `develop` 팁(`f809ea2`)에서 바로 분기해 있어 `git log develop..HEAD`가 #69 커밋만 담는다 — 리베이스 불필요. PR 설명에 Step 5 검증 결과를 붙인다.
 
 ---
 
