@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { DEFAULT_REGION } from '../config/regions'
+import { DEFAULT_REGION, getRegion } from '../config/regions'
+import { sanitizeOriginForSave } from '../lib/originPrivacy'
 
 // 앱 전역 상태 (가볍게 유지)
 //  - answers: 빵모아 설문 응답 { [questionId]: optionId }
@@ -9,10 +10,12 @@ import { DEFAULT_REGION } from '../config/regions'
 //  - regionId: 현재 지역(도시 단위, 지금은 대전 하나)
 //  - origin: 설문 0단계에서 고른 정밀 출발 위치 { lat, lng, label, source }
 //            source: 'preset' | 'gps' | 'pick' | 'search'. 결과(거리·정렬)로 흐른다.
-//            gps는 코스 저장 시 원본 좌표를 서버로 보내지 않는다(originPrivacy.sanitizeOriginForSave).
-//            이 제약은 "서버 전송"에만 걸리는 것이라, 기기 밖으로 나가지 않는 아래 localStorage
-//            영속화(persist)에는 적용하지 않는다 — 안 그러면 새로고침 시 surveyDone이 origin
-//            존재를 요구해서(아래) GPS로 시작한 설문은 새로고침만 해도 다시 풀린다(이슈 #70 2번).
+//            gps는 코스 저장 시 원본 좌표를 서버로 보내지 않는다(originPrivacy.sanitizeOriginForSave)
+//            — 화면에도 "GPS 위치는 저장되지 않아요"라고 안내한다(LocationStep). 아래 localStorage
+//            영속화(persist)도 이 약속을 그대로 지켜야 하므로, gps 출처 origin은 저장 직전
+//            sanitizeOriginForSave로 가까운 프리셋으로 치환한다(리뷰 지적 — 안 그러면 서버엔
+//            안 보내면서 기기에는 원본 좌표를 그대로 남겨 화면 안내와 실제 동작이 어긋난다).
+//            치환된 좌표라도 origin 자체는 남으므로 surveyDone(아래)은 새로고침 후에도 유지된다.
 //  - district: (호환용) 옛 구 선택 상태 — 검색 필터로는 더 이상 안 씀
 //  - selectedBakeryId: 지도/카드에서 선택된 빵집
 //
@@ -56,7 +59,7 @@ export const useAppStore = create(
       partialize: (s) => ({
         answers: s.answers,
         tourAnswers: s.tourAnswers,
-        origin: s.origin,
+        origin: sanitizeOriginForSave(s.origin, getRegion(s.regionId)),
         district: s.district,
       }),
     },

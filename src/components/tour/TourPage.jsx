@@ -9,8 +9,10 @@ const DESC_MAX = 160
 const PAGE_SIZE = 21
 
 // 이슈 #70 3번: attractionTagging.js가 이미 부여해둔 themes/companion 태그를 구 필터와
-// 같은 칩 UI로 노출한다. companion은 0~100 점수라 동등 비교 대신 임계값(60점) + 내림차순
-// 정렬로 다룬다 — 실데이터 확인 결과 (구×테마×동행) 조합에서 0곳이 나오는 경우는 드물었다.
+// 같은 칩 UI로 노출한다. companion은 0~100 점수라 동등 비교가 안 돼 처음엔 임계값(60점)
+// 필터 + 내림차순 정렬로 다뤘는데, 리뷰에서 고정 관광지 173곳 기준 (구×테마×동행) 125개
+// 조합 중 89개(71.2%)가 빈 결과로 나온다는 게 확인됐다 — "드물다"던 애초 판단이 틀렸다.
+// 필터로 결과를 아예 지우지 않도록 companion은 정렬 기준으로만 쓴다(이슈 #70에 명시된 대안).
 const THEME_OPTIONS = [
   { id: 'nature', label: '자연' },
   { id: 'history', label: '역사' },
@@ -25,7 +27,6 @@ const COMPANION_OPTIONS = [
   { id: 'childrenFamily', label: '아이와' },
   { id: 'parentsFamily', label: '부모님과' },
 ]
-const COMPANION_THRESHOLD = 60
 
 // 관광공사 개요 텍스트 끝에 흔히 붙는 "(출처 : OO)" 를 본문과 분리해 별도 표기한다.
 function splitOverview(raw) {
@@ -55,9 +56,7 @@ export default function TourPage({
     let list = district ? ATTRACTIONS.filter((a) => (a.addr || '').includes(district)) : ATTRACTIONS
     if (theme) list = list.filter((a) => a.themes?.includes(theme))
     if (companion) {
-      list = list
-        .filter((a) => (a.companion?.[companion] ?? 0) >= COMPANION_THRESHOLD)
-        .sort((a, b) => (b.companion?.[companion] ?? 0) - (a.companion?.[companion] ?? 0))
+      list = [...list].sort((a, b) => (b.companion?.[companion] ?? 0) - (a.companion?.[companion] ?? 0))
     }
     return list
   }, [ATTRACTIONS, district, theme, companion])
