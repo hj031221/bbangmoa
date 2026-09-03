@@ -106,11 +106,6 @@ export default function LandingPage() {
   // 홈 히어로 CTA·교차 링크 등: 진행 중이던 결과가 있으면 그 리빌부터 이어 본다.
   // (onClick 핸들러로 직접 넘겨 이벤트 객체가 인자로 들어와도 안전하도록 인자를 받지 않는다.)
   const startTest = () => enterBreadFlow(surveyDone ? 'reveal' : 'survey')
-  // 메뉴바에서 "빵집 찾기"를 다시 고른 경우: 이전 결과를 버리고 설문 처음부터.
-  const startTestFromNav = () => {
-    resetAnswers()
-    enterBreadFlow('survey')
-  }
   const openMyPage = () => {
     setMyPageResetKey((k) => k + 1)
     navigateToView('mypage')
@@ -141,11 +136,6 @@ export default function LandingPage() {
     setTourStage(nextStage)
   }
   const openTour = () => enterTourFlow(tourSurveyDone ? 'reveal' : 'survey')
-  // 메뉴바에서 "관광모아"를 다시 고른 경우: 이전 결과를 버리고 설문 처음부터.
-  const openTourFromNav = () => {
-    resetTourAnswers()
-    enterTourFlow('survey')
-  }
   // selectedId 가 있으면(관광모아 결과 카드에서 진입) 상세에서 "뒤로가기" 시 허브 그리드가
   // 아니라 결과 화면(reveal)으로 돌아가야 한다 — 그 출처를 tourHubFromReveal 로 기억한다.
   const openTourHub = (selectedId = null) => {
@@ -200,9 +190,9 @@ export default function LandingPage() {
       <NavBar
         onGoHome={goHome}
         onOpenInfo={openInfo}
-        onStartTest={startTestFromNav}
+        onStartTest={startTest}
         onOpenMap={openBakeryMap}
-        onOpenTour={openTourFromNav}
+        onOpenTour={openTour}
         onOpenPilgrimage={openPilgrimage}
         onOpenMyPage={openMyPage}
       />

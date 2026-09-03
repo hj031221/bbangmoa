@@ -444,12 +444,12 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
     return (
       <div className="pil-gate">
         <h2>대전한바퀴</h2>
-        <p>관광모아와 빵집 찾기 설문을 모두 마치면, 취향에 맞는 기본 코스를 짜드려요.</p>
+        <p>관광모아와 빵집모아 설문을 모두 마치면, 취향에 맞는 기본 코스를 짜드려요.</p>
         <div className="pil-gate-cards">
           <div className={`pil-gate-card${breadDone ? ' done' : ''}`}>
             <b>
               {breadDone && <CompletionMark />}
-              {breadDone ? '빵집 찾기 완료' : '빵집 찾기'}
+              {breadDone ? '빵집모아 완료' : '빵집모아'}
             </b>
             {!breadDone && (
               <button type="button" className="primary-btn" onClick={onStartBreadSurvey}>
