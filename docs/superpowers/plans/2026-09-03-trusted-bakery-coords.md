@@ -665,12 +665,12 @@ EOF
 - Consumes: Task 1~4의 커밋, Supabase 프로젝트 접근 권한, 발급된 `KAKAO_REST_KEY`(서버용) / `TOUR_API_KEY`.
 - Produces: 배포된 함수 + 적용된 스키마 + 검증 로그.
 
-- [ ] **Step 1: 서버 전용 Kakao REST 키 발급** — Kakao Developers 콘솔에서 클라이언트(`VITE_KAKAO_REST_KEY`)와 별개 앱/키로. 허용 IP·플랫폼 제약이 있으면 Edge Function 아웃바운드에 맞게 설정(또는 제약 없음).
+- [ ] **Step 1: 서버 전용 키 2개 발급** — (a) Kakao Developers 콘솔에서 클라이언트(`VITE_KAKAO_REST_KEY`)와 **별개 앱/키**. (b) data.go.kr KorService2 도 **전용 키**(클라이언트 `VITE_TOUR_API_KEY` 값 재사용 금지 — 여기서 쿼터가 고갈되면 메인 빵집 목록이 전체 사용자에게 죽는다). 허용 IP·플랫폼 제약이 있으면 Edge Function 아웃바운드에 맞게 설정(또는 제약 없음).
 
 - [ ] **Step 2: 시크릿 등록**
 
 ```bash
-supabase secrets set KAKAO_REST_KEY=<서버용 키> TOUR_API_KEY=<KorService2 키>
+supabase secrets set KAKAO_REST_KEY=<서버용 Kakao 키> TOUR_API_KEY=<전용 KorService2 키>
 ```
 
 - [ ] **Step 3: 함수 배포** (esbuild 번들링이 `index.ts`/`coordMatch.js` 타입·문법을 여기서 검증)
@@ -680,15 +680,16 @@ supabase functions deploy resolve-bakery-coords
 ```
 Expected: 배포 성공. 실패 시 오류를 Task 3으로 되돌려 수정.
 
-- [ ] **Step 4: 스키마 적용** — Supabase 대시보드 SQL Editor에 `supabase/schema.sql`의 `-- ===== 이슈 #69 ... =====` 섹션을 붙여 실행. `bakery_coords` 생성 + `create_diary_entry` 교체 확인.
+- [ ] **Step 4: 스키마 적용** — Supabase 대시보드 SQL Editor에 `supabase/schema.sql`의 `-- ===== 이슈 #69 ... =====` 섹션을 붙여 실행. `bakery_coords` 생성 + `create_diary_entry` 교체 확인. 적용 후 REST 로 `select ... from bakery_coords` 를 한 번 호출해 PostgREST 스키마 캐시가 새 테이블을 인식했는지 확인 — `PGRST205` / "not found in schema cache" 가 나오면 SQL Editor에서 `notify pgrst, 'reload schema';` 실행.
 
-- [ ] **Step 5: 스펙 §7 수동 검증 5건 수행 후 결과 기록**
+- [ ] **Step 5: 수동 검증 6건 수행 후 결과 기록**
 
 1. `bakery_coords`에 행이 없는 새 `kakao:` 빵집으로 기록 작성 → `verified = false`.
 2. `resolve-bakery-coords`를 실존 `kakao:` 빵집(`{ bakery_id, name }`)으로 호출 → `{resolved:true}` + `bakery_coords`에 해당 행 생성.
 3. 같은 빵집에 실제 근처(≤150m) GPS로 기록 작성 → `verified = true`, `verified_at` 채워짐.
 4. 같은 빵집에 먼 GPS(>150m)로 작성 → `verified = false`.
 5. RPC를 직접 호출해 `p_lat/p_lng`와 `p_bakery.lat/lng`에 동일 좌표를 넣어도 `bakery_coords` 좌표로만 판정됨(행 없으면 `verified=false`, 있으면 그 좌표 기준) — 위조 차단 확인.
+6. **콜드 캐시 E2E (브라우저 경로 — 최종 리뷰 C1 대응):** `bakery_coords`에서 해당 행을 지운 뒤, **UI에서 실제로** 근처 GPS로 기록을 저장 → 첫 시도에서 `verified = true`. (2·3처럼 캐시를 미리 시드하지 말 것 — 브라우저 → Edge Function 프리플라이트/CORS/인증 경로를 실제로 태우는 게 목적. 실패하면 브라우저 콘솔·함수 로그 확인.)
 
 - [ ] **Step 6: 브랜치 푸시 & PR** (사용자 지시 시)
 
