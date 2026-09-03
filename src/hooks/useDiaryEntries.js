@@ -46,13 +46,41 @@ export function useDiaryEntries(targetUserId) {
 
   const addEntry = (bakery, text, location = null) => {
     if (!user) return Promise.resolve({ error: new Error('로그인이 필요해요.') })
-    return supabase
-      .rpc('create_diary_entry', {
-        p_bakery: bakery,
-        p_text: text,
-        p_lat: location?.lat ?? null,
-        p_lng: location?.lng ?? null,
+
+    // 이슈 #69: create_diary_entry 는 bakery_coords(서버 신뢰 좌표)만 보고 verified 를
+    // 판정한다. 저장 직전에 서버측 좌표 해석을 1회 시도해 캐시를 채운다. 실패해도
+    // (미해결/함수 오류) 기록은 그대로 저장되며 그 경우 verified=false 가 된다 — 흐름을 막지 않는다.
+    //
+    // functions.invoke 는 전송 실패에도 reject 하지 않고 { data, error } 로 resolve 하므로
+    // 결과의 error 를 직접 확인한다. 그리고 최악의 경우(kakao 미스) 이 함수는 ~30s 걸릴 수
+    // 있는데 결과는 어차피 무시하므로 저장을 그만큼 붙잡으면 안 된다 — 5s 상한으로 레이스한다.
+    // 타임아웃이 이기면 RPC 는 그대로 진행되고(캐시가 아직 안 데워졌으면 verified=false, 허용).
+    // invoke 가 먼저 끝나면(웜 캐시 흔한 경우) 타이머를 반드시 정리한다 — 안 그러면 매 저장마다
+    // 5s 짜리 setTimeout + 클로저가 잔류한다.
+    const raceTimeout = (p, ms) => {
+      let timer
+      const timeout = new Promise((res) => {
+        timer = setTimeout(res, ms)
       })
+      return Promise.race([p, timeout]).finally(() => clearTimeout(timer))
+    }
+
+    const resolveCoords = supabase.functions
+      .invoke('resolve-bakery-coords', { body: { bakery_id: bakery.id, name: bakery.name } })
+      .then(({ error }) => {
+        if (error) console.error('[기록장] 좌표 해석 실패', error)
+      })
+      .catch((err) => console.error('[기록장] 좌표 해석 예외', err))
+
+    return raceTimeout(resolveCoords, 5000)
+      .then(() =>
+        supabase.rpc('create_diary_entry', {
+          p_bakery: bakery,
+          p_text: text,
+          p_lat: location?.lat ?? null,
+          p_lng: location?.lng ?? null,
+        }),
+      )
       .then(({ error }) => {
         if (error) {
           console.error('[기록장] 작성 실패', error)

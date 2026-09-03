@@ -1,3 +1,7 @@
 [functions.og-stamp]
 verify_jwt = false
 entrypoint = "./functions/og-stamp/index.ts"
+
+[functions.resolve-bakery-coords]
+verify_jwt = true
+entrypoint = "./functions/resolve-bakery-coords/index.ts"
