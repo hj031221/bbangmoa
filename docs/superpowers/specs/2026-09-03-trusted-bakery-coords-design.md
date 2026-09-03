@@ -90,9 +90,14 @@ verify_jwt = true
 entrypoint = "./functions/resolve-bakery-coords/index.ts"
 ```
 
-- `verify_jwt = true` — 로그인 사용자만 호출(익명이 서버 Kakao/관광공사 키를 태우는 것 차단).
-  플랫폼이 JWT를 검증하므로 핸들러는 사용자 식별을 따로 하지 않는다(어떤 사용자가 호출하든
-  좌표는 `bakery_id`로만 결정되고, 반환은 성공/실패 플래그뿐이라 사용자별 데이터가 없다).
+- `verify_jwt = true` 는 **JWT 서명만** 검증한다. 클라 번들에 실린 공개 `anon` 키도 유효한
+  서명 JWT라 이것만으로는 익명 호출을 막지 못한다. 그래서 핸들러가 추가로 토큰 payload 의
+  `role` 을 디코드해 `authenticated` 가 아니면 `{ resolved: false }` 로 즉시 거부한다(익명이
+  서버 Kakao/관광공사 키를 태우거나 `bakery_coords` 를 쓰는 것 차단). 플랫폼이 서명을 이미
+  확인했으므로 payload 신뢰는 안전하다. preflight `OPTIONS` 는 JWT 없이 통과시키므로 role
+  확인보다 먼저 CORS 응답만 하고 끝낸다.
+- 사용자 식별은 role 확인 외엔 하지 않는다(어떤 사용자가 호출하든 좌표는 `bakery_id`로만
+  결정되고, 반환은 성공/실패 플래그뿐이라 사용자별 데이터가 없다).
 - `og-stamp`(`verify_jwt = false`, `withSupabase({ auth: 'none' })`)와 정반대 — 명시적으로.
 
 ### 2.2 요청 / 응답 계약
@@ -179,7 +184,7 @@ export function pickTourCoord(item) {
 | 이름 | 용도 | 비고 |
 |---|---|---|
 | `KAKAO_REST_KEY` | Kakao Local 서버 조회 | **신규** — 클라(`VITE_KAKAO_REST_KEY`)와 별개 키 발급(이슈 요구) |
-| `TOUR_API_KEY` | KorService2 서버 조회 | 값은 `VITE_TOUR_API_KEY`와 같아도 되나 함수 시크릿으로 별도 저장 |
+| `TOUR_API_KEY` | KorService2 서버 조회 | **전용 data.go.kr 키를 따로 발급**(자체 쿼터). 클라의 `VITE_TOUR_API_KEY`와 **같은 값 금지** — 여기서 쿼터가 소진되면 메인 빵집 목록까지 죽는다 |
 | `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | `bakery_coords` 읽기/upsert | Supabase가 함수에 자동 주입 |
 
 ---

@@ -9,12 +9,19 @@
 
 응답은 항상 `200 { "resolved": boolean }`. 실패·미해결은 `resolved: false`이며 에러를 던지지 않는다.
 
+## 인증
+
+`config.toml` 의 `verify_jwt = true` 는 **서명만** 검증한다 — 클라 번들에 실린 공개 `anon` 키도
+유효한 서명 JWT라 이것만으로는 익명 호출을 막지 못한다. 그래서 핸들러가 추가로 토큰 payload 의
+`role` 을 확인해 `authenticated` 가 아닌 토큰은 `{ resolved: false }` 로 즉시 거부한다.
+(preflight `OPTIONS` 는 JWT 없이 통과 — CORS 응답만 하고 끝낸다.)
+
 ## 시크릿
 
 | 이름 | 발급처 |
 |---|---|
 | `KAKAO_REST_KEY` | Kakao Developers — **서버 전용** REST 키(클라이언트 `VITE_KAKAO_REST_KEY`와 분리 발급) |
-| `TOUR_API_KEY` | 공공데이터포털 KorService2 (`VITE_TOUR_API_KEY`와 같은 값 사용 가능) |
+| `TOUR_API_KEY` | 공공데이터포털 data.go.kr — **전용 키를 따로 발급**(자체 쿼터). 클라의 `VITE_TOUR_API_KEY`와 **같은 값을 쓰지 말 것** — 여기서 쿼터가 소진되면 메인 빵집 목록까지 죽는다 |
 
 `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY`는 플랫폼이 자동 주입한다.
 
