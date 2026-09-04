@@ -29,7 +29,7 @@ export default function Hero({ onStart }) {
           <p>질문 몇 개에 답하면, 내 취향에 맞는 빵집을 골라드려요</p>
           <div className="bm-hero-actions">
             <button className="bm-btn-primary" onClick={onStart}>
-              내 취향 빵집 찾기
+              내 취향 빵집은?
             </button>
           </div>
         </div>

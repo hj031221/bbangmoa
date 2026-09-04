@@ -453,7 +453,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
             </b>
             {!breadDone && (
               <button type="button" className="primary-btn" onClick={onStartBreadSurvey}>
-                설문하러 가기
+                내 빵집 찾기
               </button>
             )}
           </div>
@@ -464,7 +464,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
             </b>
             {!tourDone && (
               <button type="button" className="primary-btn" onClick={onStartTourSurvey}>
-                설문하러 가기
+                내 코스 찾기
               </button>
             )}
           </div>

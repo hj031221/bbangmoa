@@ -142,7 +142,7 @@ export default function BreadReveal({ onRetake, onShowMap, tourDone, onGoToTour,
         !tourDone && onGoToTour && (
           <div className="reveal-crosslink">
             <button type="button" className="ghost-btn" onClick={onGoToTour}>
-              관광모아 설문하러 가기 →
+              그럼 내 취향 코스는? →
             </button>
           </div>
         )
