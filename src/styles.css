@@ -436,19 +436,6 @@ a{ color:var(--accent-text); }
   .bm-how-step-desc{ max-width:200px; }
 }
 
-/* 홈 "바로 찾기" — 빵 종류 칩(이슈 #73 B1). MainHero 아래, 설문 없이 빵으로 바로 진입. */
-.bm-bread-picker{ padding:var(--bm-sp-6) var(--bm-sp-4); text-align:center; }
-.bm-bread-picker-title{ margin:0 0 var(--bm-sp-1); font-size:var(--bm-fs-h2); color:var(--bm-ink); }
-.bm-bread-picker-desc{ margin:0 auto var(--bm-sp-4); font-size:var(--bm-fs-body-sm); color:var(--bm-muted); max-width:420px; }
-.bm-bread-picker-chips{ display:flex; flex-wrap:wrap; justify-content:center; gap:var(--bm-sp-2); max-width:760px; margin:0 auto; }
-.bm-bread-chip{ display:inline-flex; align-items:center; gap:7px; border:1px solid var(--bm-line);
-  background:var(--bm-card); color:var(--bm-ink); font-size:var(--bm-fs-body-sm); font-weight:700;
-  padding:10px 16px; border-radius:var(--bm-radius-pill); cursor:pointer;
-  transition:border-color .15s, background .15s, box-shadow .15s; }
-.bm-bread-chip:hover{ border-color:var(--bm-accent); background:#fff; box-shadow:var(--bm-shadow-sm); }
-.bm-bread-chip:focus-visible{ outline:2px solid var(--bm-accent); outline-offset:2px; }
-.bm-bread-chip-emoji{ font-size:1.05rem; line-height:1; }
-
 /* 설문 */
 .survey-progress{ display:flex; align-items:center; gap:10px; margin-bottom:28px; }
 .survey-progress-bar{ flex:1; height:8px; background:var(--card2); border-radius:4px; overflow:hidden; }
@@ -464,6 +451,17 @@ a{ color:var(--accent-text); }
    해보니 이 화면의 body 폰트(커스텀 한글 웹폰트)의 line-height:normal이 이미 커서 실제로는
    70px로 44px 기준을 이미 만족했다. 여기에 패딩을 더 얹으면 오히려 시각 크기만 불필요하게
    커지므로(원 취지인 "시각 크기 유지"에 반함) 손대지 않는다. */
+
+/* 빵 종류 바로가기(이슈 #73 B1) — 설문 0단계(출발지 선택) 아래. 칩을 누르면 설문 없이 바로 결과로. */
+.survey-bread-shortcut{ margin-top:28px; padding-top:20px; border-top:1px solid var(--line); }
+.survey-bread-shortcut-label{ margin:0 0 12px; font-size:.9rem; color:var(--muted); text-align:center; }
+.survey-bread-chips{ display:flex; flex-wrap:wrap; justify-content:center; gap:8px; }
+.survey-bread-chip{ display:inline-flex; align-items:center; gap:7px; min-height:44px; padding:6px 16px 6px 8px;
+  border:1px solid var(--line); border-radius:999px; background:var(--card);
+  font-size:.85rem; font-weight:600; color:var(--ink); cursor:pointer; transition:.15s; }
+.survey-bread-chip:hover{ border-color:var(--accent); background:var(--card2); }
+.survey-bread-chip:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+.survey-bread-chip-img{ width:28px; height:28px; object-fit:contain; mix-blend-mode:multiply; flex:0 0 auto; }
 
 /* 출발 위치 선택 (설문 0단계) — 카카오맵 길찾기 출발지 화면 톤: 검색바가 최상단 고정 →
    그 아래 큰 지도(클릭해서 직접 찍기도 가능) → 검색 중엔 지도 위로 결과 리스트가 덮인다.
