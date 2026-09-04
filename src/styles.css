@@ -436,6 +436,19 @@ a{ color:var(--accent-text); }
   .bm-how-step-desc{ max-width:200px; }
 }
 
+/* 홈 "바로 찾기" — 빵 종류 칩(이슈 #73 B1). MainHero 아래, 설문 없이 빵으로 바로 진입. */
+.bm-bread-picker{ padding:var(--bm-sp-6) var(--bm-sp-4); text-align:center; }
+.bm-bread-picker-title{ margin:0 0 var(--bm-sp-1); font-size:var(--bm-fs-h2); color:var(--bm-ink); }
+.bm-bread-picker-desc{ margin:0 auto var(--bm-sp-4); font-size:var(--bm-fs-body-sm); color:var(--bm-muted); max-width:420px; }
+.bm-bread-picker-chips{ display:flex; flex-wrap:wrap; justify-content:center; gap:var(--bm-sp-2); max-width:760px; margin:0 auto; }
+.bm-bread-chip{ display:inline-flex; align-items:center; gap:7px; border:1px solid var(--bm-line);
+  background:var(--bm-card); color:var(--bm-ink); font-size:var(--bm-fs-body-sm); font-weight:700;
+  padding:10px 16px; border-radius:var(--bm-radius-pill); cursor:pointer;
+  transition:border-color .15s, background .15s, box-shadow .15s; }
+.bm-bread-chip:hover{ border-color:var(--bm-accent); background:#fff; box-shadow:var(--bm-shadow-sm); }
+.bm-bread-chip:focus-visible{ outline:2px solid var(--bm-accent); outline-offset:2px; }
+.bm-bread-chip-emoji{ font-size:1.05rem; line-height:1; }
+
 /* 설문 */
 .survey-progress{ display:flex; align-items:center; gap:10px; margin-bottom:28px; }
 .survey-progress-bar{ flex:1; height:8px; background:var(--card2); border-radius:4px; overflow:hidden; }
@@ -538,6 +551,8 @@ a{ color:var(--accent-text); }
 .rl-saved-heart{ display:inline-flex; vertical-align:-3px; margin-right:5px; }
 .rl-saved-heart .save-heart-icon{ width:16px; height:16px; }
 .rl-dist{ font-size:.75rem; color:var(--muted); }
+/* 빵 종류 바로가기(이슈 #73 B1): 큐레이션 미확인, keyword 추측 매칭 표시 */
+.rl-tag{ font-size:.68rem; font-weight:700; color:#8a6d1f; background:#FBF0D2; border-radius:6px; padding:2px 7px; }
 /* 근처 관광지: 이름/거리 줄 아래 전체 폭 한 줄(랭크 뱃지 폭만큼 들여쓰기) */
 .rl-near{ flex-basis:100%; margin-left:32px; margin-top:2px; font-size:.76rem; font-weight:600; color:#1c6b48; background:#EAF6EF; border-radius:6px; padding:3px 8px; display:inline-block; }
 .rec-list-empty{ padding:10px; color:var(--muted); font-size:.85rem; }
@@ -646,6 +661,9 @@ a{ color:var(--accent-text); }
    미지원 브라우저는 일반 줄바꿈으로 폴백(무해). */
 .bread-reveal-story p{ margin:0; color:var(--ink); font-size:.9rem; line-height:1.65; text-wrap:balance; }
 .bread-reveal-list{ display:grid; gap:12px; text-align:left; margin-bottom:24px; }
+/* 빵 종류 바로가기(이슈 #73 B1): "확인된 곳" / "가능성 있는 곳" 구분 소제목 */
+.bread-reveal-list-label{ font-size:.82rem; font-weight:700; color:var(--muted); margin:6px 0 2px; }
+.bread-reveal-list-label:first-child{ margin-top:0; }
 .bakery-mini-card{ cursor:pointer; border:1px solid var(--line); border-radius:14px; padding:14px 16px;
   background:var(--card); transition:border-color .15s, box-shadow .15s; }
 .bakery-mini-card:hover{ border-color:var(--accent); box-shadow:0 6px 16px rgba(76,49,13,.1); }

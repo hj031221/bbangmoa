@@ -8,6 +8,7 @@ import MyPage from './MyPage'
 import InfoPage from './InfoPage'
 import NavBar from '../components/landing/NavBar'
 import MainHero from '../components/landing/MainHero'
+import BreadTypePicker from '../components/landing/BreadTypePicker'
 import BakeryMapPage from '../components/map/BakeryMapPage'
 import TourPage from '../components/tour/TourPage'
 import TourSurveyFlow from '../components/tour/TourSurveyFlow'
@@ -40,6 +41,9 @@ export default function LandingPage() {
   const [mapSelectId, setMapSelectId] = useState(null) // 빵 지도 진입 시 미리 선택할 빵집 id (찜 목록 등에서)
   const answers = useAppStore((s) => s.answers)
   const origin = useAppStore((s) => s.origin)
+  const directBreadId = useAppStore((s) => s.directBreadId)
+  const setDirectBread = useAppStore((s) => s.setDirectBread)
+  const clearDirectBread = useAppStore((s) => s.clearDirectBread)
   const resetAnswers = useAppStore((s) => s.resetAnswers)
   const tourAnswers = useAppStore((s) => s.tourAnswers)
   const resetTourAnswers = useAppStore((s) => s.resetTourAnswers)
@@ -105,7 +109,16 @@ export default function LandingPage() {
   }
   // 홈 히어로 CTA·교차 링크 등: 진행 중이던 결과가 있으면 그 리빌부터 이어 본다.
   // (onClick 핸들러로 직접 넘겨 이벤트 객체가 인자로 들어와도 안전하도록 인자를 받지 않는다.)
-  const startTest = () => enterBreadFlow(surveyDone ? 'reveal' : 'survey')
+  // 빵 바로가기(directBreadId)로 진입했던 상태는 해제한다 — 설문 결과 화면이 그 빵으로 고정되지 않게.
+  const startTest = () => {
+    clearDirectBread()
+    enterBreadFlow(surveyDone ? 'reveal' : 'survey')
+  }
+  // "바로 찾기" 칩: 설문을 건너뛰고 고른 빵으로 바로 간략 리빌 화면으로.
+  const pickBreadType = (breadId) => {
+    setDirectBread(breadId)
+    enterBreadFlow('reveal')
+  }
   // 메뉴바에서 "빵집 찾기"를 다시 고른 경우: 이전 결과를 버리고 설문 처음부터.
   const startTestFromNav = () => {
     resetAnswers()
@@ -285,14 +298,14 @@ export default function LandingPage() {
           {stage === 'survey' && <SurveyFlow onComplete={handleSurveyComplete} />}
           {stage === 'reveal' && (
             <BreadReveal
-              onRetake={retakeSurvey}
+              onRetake={directBreadId ? goHome : retakeSurvey}
               onShowMap={() => setStage('map')}
               tourDone={tourSurveyDone}
               onGoToTour={openTour}
               onGoToPilgrimage={openPilgrimage}
             />
           )}
-          {stage === 'map' && <MapResult onRetake={retakeSurvey} />}
+          {stage === 'map' && <MapResult onRetake={directBreadId ? goHome : retakeSurvey} />}
         </div>
       )}
 
@@ -304,6 +317,7 @@ export default function LandingPage() {
             onOpenTour={openTourAttraction}
             onSearch={searchBakeryMap}
           />
+          <BreadTypePicker onPick={pickBreadType} />
         </div>
       )}
     </div>

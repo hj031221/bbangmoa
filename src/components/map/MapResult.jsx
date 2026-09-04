@@ -5,7 +5,8 @@ import { useCurrentLocation } from '../../hooks/useCurrentLocation'
 import { getRegion } from '../../config/regions'
 import { isWithinBbox, formatDistance, haversineKm } from '../../lib/distance'
 import { getBakeryDistanceInfo } from '../../lib/bakeryDistance'
-import { pickBreadResult, matchBakeries } from '../../lib/breadRecommend'
+import { pickBreadResult, matchBakeries, matchBakeriesGrouped } from '../../lib/breadRecommend'
+import { getBreadById } from '../../data/breadCandidates'
 import { useAttractions } from '../../hooks/useAttractions'
 import MapView from './MapView'
 import RecommendCard from './RecommendCard'
@@ -27,9 +28,12 @@ export default function MapResult({ onRetake }) {
   const regionId = useAppStore((s) => s.regionId)
   const origin = useAppStore((s) => s.origin)
   const answers = useAppStore((s) => s.answers)
+  const directBreadId = useAppStore((s) => s.directBreadId)
   const selectedBakeryId = useAppStore((s) => s.selectedBakeryId)
   const selectBakery = useAppStore((s) => s.selectBakery)
   const region = getRegion(regionId)
+  // 빵 종류 바로가기(이슈 #73 B1): 설문 없이 고른 빵. 있으면 스코어링 대신 이 빵으로 필터한다.
+  const directBread = directBreadId ? getBreadById(directBreadId) : null
 
   // answers 는 넘기지 않는다 — 옛 태그-가중치 정렬(recommend.js)은 새 Q1~Q5 응답과 안 맞아 항상
   // 무력화된다. limit: Infinity 로 전체 풀을 받아와서 아래에서 breadResult 기준으로 직접 추린다.
@@ -53,8 +57,19 @@ export default function MapResult({ onRetake }) {
   // 결과가 없으면(Q1 미응답 등) 대전 전역을 가까운 순으로 보여주는 기존 방식으로 폴백한다.
   // 로딩 중엔 bakeries 가 비어있어 필터가 자연히 no-op 되고, 로딩이 끝나면 실제 목록으로 재계산된다
   // (§CP10-2 — 연결된 빵집이 없는 빵은 애초에 후보에서 제외).
-  const breadResult = pickBreadResult(answers, bakeries)
-  const filteredBakeries = breadResult ? matchBakeries(bakeries, breadResult.bread, 10) : bakeries
+  const breadResult = directBread
+    ? { bread: directBread, branch: null, score: null }
+    : pickBreadResult(answers, bakeries)
+  // 바로가기: 확인된 곳 + (빈약할 때만) 가능성 있는 곳. possibleIds 로 "가능성 있음" 배지를 단다.
+  const groups = directBread
+    ? matchBakeriesGrouped(bakeries, directBread, { limit: 10, minConfirmed: 3 })
+    : null
+  const possibleIds = groups ? new Set(groups.possible.map((b) => b.id)) : null
+  const filteredBakeries = groups
+    ? [...groups.confirmed, ...groups.possible]
+    : breadResult
+      ? matchBakeries(bakeries, breadResult.bread, 10)
+      : bakeries
 
   // 빵집별 거리: 설문서 고른 origin 우선, 없으면 현재 위치/역 폴백
   const bakeriesWithDist = useMemo(
@@ -66,6 +81,7 @@ export default function MapResult({ onRetake }) {
         breadType: breadResult?.bread?.name,
         breadTypeEmoji: breadResult?.bread?.emoji,
         breadTypeIllustration: breadResult?.bread?.illustration,
+        isPossible: possibleIds ? possibleIds.has(b.id) : false,
       })),
     [
       filteredBakeries,
@@ -77,6 +93,7 @@ export default function MapResult({ onRetake }) {
       breadResult?.bread?.name,
       breadResult?.bread?.emoji,
       breadResult?.bread?.illustration,
+      directBreadId,
     ],
   )
 
@@ -160,6 +177,7 @@ export default function MapResult({ onRetake }) {
               >
                 <span className="rank">{i + 1}</span>
                 <span className="rl-name">{b.name}</span>
+                {b.isPossible && <span className="rl-tag">가능성 있음</span>}
                 {b.distInfo && (
                   <span className="rl-dist">{formatDistance(b.distInfo.km)}</span>
                 )}

@@ -1,9 +1,9 @@
 // Branch 기반 가중치 스코어링 엔진 (이슈 #10). src/lib/breadMatch.js 를 대체한다.
 //   Q1 응답 → branch(A~E) 결정 → 해당 branch 후보 빵마다 Q2~Q5 fitness 를 가중합해 점수 산출
 //   → 최고점 빵을 "오늘의 빵"으로, 매칭 키워드로 빵집 최대 N곳을 붙인다.
-import { Q1_ID, Q1, BRANCHES, WEIGHTS, MAX_FITNESS } from '../data/surveyConfig'
-import { getBreadById } from '../data/breadCandidates'
-import { curatedBreadIdsFor } from '../data/bakeryBreadMenu'
+import { Q1_ID, Q1, BRANCHES, WEIGHTS, MAX_FITNESS } from '../data/surveyConfig.js'
+import { getBreadById } from '../data/breadCandidates.js'
+import { curatedBreadIdsFor } from '../data/bakeryBreadMenu.js'
 
 // Q1 응답 → branch id('A'~'E') | null(미응답)
 export function resolveBranch(answers) {
@@ -141,4 +141,28 @@ export function matchBakeries(bakeries, bread, limit = 5) {
   )
 
   return [...confirmed, ...keywordOnly].slice(0, limit)
+}
+
+// 빵 종류 바로가기(이슈 #73 B1)용 — 확인된 곳/가능성 있는 곳을 나눠서 돌려준다.
+//   confirmed: bakeryBreadMenu.js 큐레이션으로 "이 빵을 판다"가 확인된 곳(이름 매칭)
+//   possible : 빵 keyword 가 상호명/카테고리에 들어있을 뿐인 곳(추측) — confirmed 와 안 겹침
+// 확인된 곳이 minConfirmed 이상이면 possible 은 버린다(빈약할 때만 추측으로 채운다).
+// confirmed + possible 합계는 limit 를 넘지 않는다. bakeries 는 이미 거리순으로 정렬돼 있다고 본다.
+export function matchBakeriesGrouped(bakeries, bread, { limit = 10, minConfirmed = 3 } = {}) {
+  if (!bread) return { confirmed: [], possible: [] }
+  const hay = (b) => `${b.name || ''} ${b.category || ''}`
+
+  const confirmedAll = bakeries.filter((b) => curatedBreadIdsFor(b.name)?.includes(bread.id))
+  const confirmed = confirmedAll.slice(0, limit)
+  const confirmedIds = new Set(confirmedAll.map((b) => b.id))
+
+  let possible = []
+  if (confirmed.length < minConfirmed) {
+    const keywordOnly = bakeries.filter(
+      (b) => !confirmedIds.has(b.id) && bread.keywords.some((kw) => hay(b).includes(kw)),
+    )
+    possible = keywordOnly.slice(0, Math.max(0, limit - confirmed.length))
+  }
+
+  return { confirmed, possible }
 }

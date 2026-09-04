@@ -18,6 +18,9 @@ export const useAppStore = create((set) => ({
   answers: {},
   tourAnswers: {},
   selectedBakeryId: null,
+  // 빵 종류 바로가기(이슈 #73 B1): 설문을 건너뛰고 특정 빵으로 바로 결과를 볼 때 그 빵 id.
+  // answers(설문 응답)와 상호배타 — 칩으로 진입하면 resetAnswers()로 설문 응답을 비우고 이 값을 세팅한다.
+  directBreadId: null,
   // 마이페이지 "찜한 코스"에서 "불러오기"를 누르면 여기 담겼다가, 대전한바퀴 화면이 마운트되면서
   // 한 번 소비하고 다시 null로 비운다(§CP10-3). LandingPage가 화면 전환을, PilgrimagePage가 소비를 맡는다.
   pendingCourseLoad: null,
@@ -33,7 +36,14 @@ export const useAppStore = create((set) => ({
   setDistrict: (district) => set({ district }),
 
   resetAnswers: () =>
-    set({ answers: {}, origin: null, district: null, selectedBakeryId: null }),
+    set({ answers: {}, origin: null, district: null, selectedBakeryId: null, directBreadId: null }),
+
+  // 빵 종류 바로가기 진입: 설문 응답을 비우고 고른 빵을 세팅한다(둘은 상호배타).
+  setDirectBread: (breadId) =>
+    set({ directBreadId: breadId, answers: {}, origin: null, district: null, selectedBakeryId: null }),
+
+  // 바로가기 상태만 해제(설문 응답은 건드리지 않음) — 홈 CTA로 설문에 다시 들어갈 때 등.
+  clearDirectBread: () => set({ directBreadId: null }),
 
   resetTourAnswers: () => set({ tourAnswers: {} }),
 
