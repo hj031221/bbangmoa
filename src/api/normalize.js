@@ -5,8 +5,8 @@
 //   id, source, name, address, phone, lat, lng,
 //   category, thumbnail, url, contentId, contentTypeId, tags[]
 // }
-import { deriveTags } from '../data/tasteTags'
-import { toHttps } from './http'
+import { deriveTags } from '../data/tasteTags.js'
+import { toHttps } from './http.js'
 
 // 관광공사 KorService2 아이템 → Bakery
 export function normalizeTour(item) {

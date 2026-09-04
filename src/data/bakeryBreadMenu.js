@@ -121,7 +121,7 @@ export const BAKERY_BREAD_MENU = [
   { name: '정동문화사', dong: '동구 원동', breadIds: ['eggTart'] },
 ]
 
-import { nameKey } from '../api/normalize'
+import { nameKey } from '../api/normalize.js'
 
 const BAKERY_BREAD_MENU_BY_KEY = new Map(
   BAKERY_BREAD_MENU.map((entry) => [nameKey(entry.name), entry.breadIds]),
