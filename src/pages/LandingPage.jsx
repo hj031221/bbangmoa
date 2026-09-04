@@ -8,7 +8,6 @@ import MyPage from './MyPage'
 import InfoPage from './InfoPage'
 import NavBar from '../components/landing/NavBar'
 import MainHero from '../components/landing/MainHero'
-import BreadTypePicker from '../components/landing/BreadTypePicker'
 import BakeryMapPage from '../components/map/BakeryMapPage'
 import TourPage from '../components/tour/TourPage'
 import TourSurveyFlow from '../components/tour/TourSurveyFlow'
@@ -287,7 +286,11 @@ export default function LandingPage() {
       {view === 'bread' && (
         <div className="page">
           {stage === 'survey' && (
-            <SurveyFlow onComplete={handleSurveyComplete} onSkip={() => openBakeryMap()} />
+            <SurveyFlow
+              onComplete={handleSurveyComplete}
+              onSkip={() => openBakeryMap()}
+              onPickBreadType={pickBreadType}
+            />
           )}
           {stage === 'reveal' && (
             <BreadReveal
@@ -310,7 +313,6 @@ export default function LandingPage() {
             onOpenTour={openTourAttraction}
             onSearch={searchBakeryMap}
           />
-          <BreadTypePicker onPick={pickBreadType} />
         </div>
       )}
     </div>
