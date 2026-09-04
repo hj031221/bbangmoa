@@ -86,7 +86,7 @@ export default function TourReveal({ answers, onRetake, onOpenHub, breadDone, on
         !breadDone && onGoToBread && (
           <div className="reveal-crosslink">
             <button type="button" className="ghost-btn" onClick={onGoToBread}>
-              빵집 찾기 설문하러 가기 →
+              그럼 내 취향 빵집은? →
             </button>
           </div>
         )

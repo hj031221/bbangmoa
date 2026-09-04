@@ -18,7 +18,7 @@ export const Q1 = {
   id: Q1_ID,
   question: '오늘 빵을 고르는 가장 큰 이유는 무엇인가요?',
   options: [
-    { id: 'q1_meal', label: '든든한 한 끼를 먹고 싶어요.', branch: 'A' },
+    { id: 'q1_meal', label: '빵을 식사 대용으로 하고 싶어요.', branch: 'A' },
     { id: 'q1_drink', label: '커피나 음료와 함께 즐기고 싶어요.', branch: 'B' },
     { id: 'q1_dessert', label: '오늘 하루 나를 위한 작은 디저트가 필요해요.', branch: 'C' },
     { id: 'q1_gift', label: '소중한 사람과 함께 먹거나 선물하고 싶어요.', branch: 'D' },
