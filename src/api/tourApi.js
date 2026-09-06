@@ -1,20 +1,37 @@
 // 한국관광공사 KorService2 래퍼.
 // 매뉴얼 v4.4 기준 엔드포인트: areaBasedList2 / detailCommon2 / detailIntro2
-// base 는 dev proxy(`/tourapi`) 를 통해 https://apis.data.go.kr 로 전달된다 (CORS 우회).
 import { getJson, hasKey, toHttps } from './http'
 import { getRegion } from '../config/regions'
+import { SERVER_BASE, serverEnabled } from './serverBase'
 
-const BASE = '/tourapi/B551011/KorService2'
+// 갈 길이 둘이다. 이 분기 하나가 롤백 스위치다 —
+// .env 에서 VITE_API_BASE 를 지우면 즉시 예전 경로로 돌아간다.
+//
+//   백엔드 경유 : 브라우저 → api.breadmoa.com/api/tour/* → 관광공사
+//                 serviceKey 를 서버가 넣는다. 브라우저는 키를 몰라도 된다.
+//   기존 경로   : 브라우저 → /tourapi/* → (Vercel rewrite) → apis.data.go.kr
+//                 serviceKey 가 번들에 박혀서 나간다. CORS 우회가 목적이었다.
+const USE_SERVER = serverEnabled()
+const BASE = USE_SERVER
+  ? `${SERVER_BASE}/api/tour`
+  : '/tourapi/B551011/KorService2'
+
 const SERVICE_KEY = import.meta.env.VITE_TOUR_API_KEY
 
 const COMMON = {
-  serviceKey: SERVICE_KEY,
+  // 백엔드를 쓸 때는 키를 아예 안 싣는다.
+  // 서버가 클라이언트발 serviceKey 를 버리므로 보내도 동작은 하지만,
+  // "브라우저에 키가 없다"가 이 작업의 목적이라 여기서부터 안 보낸다.
+  ...(USE_SERVER ? {} : { serviceKey: SERVICE_KEY }),
   MobileOS: 'ETC',
   MobileApp: 'DaejeonBreadMap',
   _type: 'json',
 }
 
-export const tourEnabled = () => hasKey(SERVICE_KEY)
+// 백엔드를 쓰면 프론트에 키가 없어도 관광공사 기능이 살아 있다.
+// 이 함수가 예전처럼 키만 보면, 키를 지우는 순간 지도에서 관광공사
+// 빵집·관광지가 통째로 사라진다(호출 전에 빈 배열로 빠져나감).
+export const tourEnabled = () => USE_SERVER || hasKey(SERVICE_KEY)
 
 // 응답에서 items 배열을 안전하게 꺼낸다. (item 이 단일 객체로 올 때도 배열화)
 function extractItems(json) {
