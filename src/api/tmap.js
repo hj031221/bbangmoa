@@ -3,13 +3,18 @@
 // 응답 파싱(구간 분리 등 순수 로직)은 src/lib/tmapParse.js — 그쪽 주석에 구조 설명이 있다.
 import { roundToSum } from '../lib/rounding.js'
 import { parsePedestrianResponse } from '../lib/tmapParse.js'
+import { SERVER_BASE, serverEnabled } from './serverBase.js'
 
 const APP_KEY = import.meta.env.VITE_TMAP_APP_KEY
-const ENDPOINT = 'https://apis.openapi.sk.com/tmap/routes/pedestrian?version=1'
+const USE_SERVER = serverEnabled()
+const ENDPOINT = USE_SERVER
+  ? `${SERVER_BASE}/api/tmap/tmap/routes/pedestrian?version=1`
+  : 'https://apis.openapi.sk.com/tmap/routes/pedestrian?version=1'
+const tmapEnabled = () => USE_SERVER || Boolean(APP_KEY)
 
 // points: [{lat,lng}, ...] 최소 2개. passList 상한(경유지 5개)을 넘으면 null.
 async function callPedestrianApi(points) {
-  if (!APP_KEY || points.length < 2) return null
+  if (!tmapEnabled() || points.length < 2) return null
   const [start, ...rest] = points
   const end = rest[rest.length - 1]
   const passStops = rest.slice(0, -1)
@@ -32,7 +37,10 @@ async function callPedestrianApi(points) {
   try {
     const res = await fetch(ENDPOINT, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', appKey: APP_KEY },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(USE_SERVER ? {} : { appKey: APP_KEY }),
+      },
       body: JSON.stringify(body),
     })
     if (!res.ok) return null // 키 없음/미인증 401 등 — 검증된 실패 형태

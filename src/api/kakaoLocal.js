@@ -1,19 +1,23 @@
 // 카카오 로컬 키워드 검색 API. 빵집 좌표/주소/전화를 밀도 높게 확보하는 보조 소스.
-// 브라우저에서 Authorization 헤더로 직접 호출 가능 (데모 한정으로 REST 키 노출 감수).
+// VITE_API_BASE가 있으면 백엔드가 인증 헤더를 붙이고, 없으면 기존 직접 호출로 돌아간다.
 //
 // 단일 "대전 빵집" 쿼리는 카카오가 쿼리당 최대 45건(3페이지×15)만 주므로 지도가 비어 보인다.
 // → 키워드 다중화 + 구별 분산 + 페이지네이션으로 쿼리를 늘려 수백 곳을 수집한다.
 //   (쿼리당 45개 상한을 "구/키워드 분산"으로 우회. dedup 은 normalize.mergeBakeries 가 담당)
 import { getJson, hasKey } from './http'
 import { getRegion } from '../config/regions'
+import { SERVER_BASE, serverEnabled } from './serverBase'
 
 const REST_KEY = import.meta.env.VITE_KAKAO_REST_KEY
-const ENDPOINT = 'https://dapi.kakao.com/v2/local/search/keyword.json'
-const REGIONCODE_ENDPOINT = 'https://dapi.kakao.com/v2/local/geo/coord2regioncode.json'
-const COORD2ADDR_ENDPOINT = 'https://dapi.kakao.com/v2/local/geo/coord2address.json'
-const CATEGORY_ENDPOINT = 'https://dapi.kakao.com/v2/local/search/category.json'
+const USE_SERVER = serverEnabled()
+const BASE = USE_SERVER ? `${SERVER_BASE}/api/kakao` : 'https://dapi.kakao.com'
+const ENDPOINT = `${BASE}/v2/local/search/keyword.json`
+const REGIONCODE_ENDPOINT = `${BASE}/v2/local/geo/coord2regioncode.json`
+const COORD2ADDR_ENDPOINT = `${BASE}/v2/local/geo/coord2address.json`
+const CATEGORY_ENDPOINT = `${BASE}/v2/local/search/category.json`
 
-export const kakaoLocalEnabled = () => hasKey(REST_KEY)
+export const kakaoLocalEnabled = () => USE_SERVER || hasKey(REST_KEY)
+const authHeaders = () => (USE_SERVER ? {} : { Authorization: `KakaoAK ${REST_KEY}` })
 
 // CP11-4 — 좌표 근처(기본 반경 1.5km) 주차장 1곳을 찾는다. 카카오 자동차 길찾기가 도로망을 못
 // 찾는 지점(대청호 같은 호수/공원 초입 등, result_code 103)에 실제로 차로 갈 수 있는 대체
@@ -22,7 +26,7 @@ export const kakaoLocalEnabled = () => hasKey(REST_KEY)
 // → { lat, lng } | null
 export async function findNearbyParking(lat, lng, radiusM = 1500) {
   if (!kakaoLocalEnabled()) return null
-  const headers = { Authorization: `KakaoAK ${REST_KEY}` }
+  const headers = authHeaders()
   const data = await getJson(CATEGORY_ENDPOINT, {
     params: { category_group_code: 'PK6', x: lng, y: lat, radius: radiusM, sort: 'distance' },
     headers,
@@ -40,7 +44,7 @@ export async function findNearbyParking(lat, lng, radiusM = 1500) {
 // → [{ name, address, lat, lng }] (최대 8건)
 export async function searchPlace(query) {
   if (!kakaoLocalEnabled() || !query?.trim()) return []
-  const headers = { Authorization: `KakaoAK ${REST_KEY}` }
+  const headers = authHeaders()
   const data = await getJson(ENDPOINT, {
     params: { query: query.trim(), size: 8 },
     headers,
@@ -63,7 +67,7 @@ export async function searchPlace(query) {
 // 좌표 → 행정구역명 (예: "대전광역시 유성구"). GPS 로 얻은 좌표가 어디쯤인지 사용자에게 보여줄 때 사용.
 export async function reverseGeocode(lat, lng) {
   if (!kakaoLocalEnabled()) return null
-  const headers = { Authorization: `KakaoAK ${REST_KEY}` }
+  const headers = authHeaders()
   const data = await getJson(REGIONCODE_ENDPOINT, {
     params: { x: lng, y: lat },
     headers,
@@ -77,7 +81,7 @@ export async function reverseGeocode(lat, lng) {
 // 제공하는 경우가 많아, 좌표 기반으로 더 정확한 주소를 보강할 때 쓴다.
 export async function reverseGeocodeAddress(lat, lng) {
   if (!kakaoLocalEnabled()) return null
-  const headers = { Authorization: `KakaoAK ${REST_KEY}` }
+  const headers = authHeaders()
   const data = await getJson(COORD2ADDR_ENDPOINT, {
     params: { x: lng, y: lat },
     headers,
@@ -142,7 +146,7 @@ async function fetchOneQuery(query, { headers, rect, pages }) {
 export async function fetchKakaoBakeries(regionId, { pages = 3 } = {}) {
   if (!kakaoLocalEnabled()) return []
   const region = getRegion(regionId)
-  const headers = { Authorization: `KakaoAK ${REST_KEY}` }
+  const headers = authHeaders()
   const rect = region.bbox ? bboxRect(region.bbox) : undefined
   const queries = buildKakaoQueries(region)
 
