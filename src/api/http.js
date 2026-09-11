@@ -13,6 +13,19 @@
 // 회선이 느린 사용자의 정상 요청을 끊게 된다.
 const DEFAULT_TIMEOUT_MS = 10000
 
+// getJson 을 안 거치고 fetch 를 직접 부르는 곳(POST 바디가 필요한 카카오 모빌리티·TMAP)이
+// 같은 타임아웃을 쓸 수 있게 따로 뺀다. 이게 없으면 그쪽은 타임아웃이 아예 없는 채로 남는데,
+// 정작 매달릴 위험이 제일 큰 게 그쪽이다 — 경로 계산은 코스 하나에 여러 번 순차로 나가서
+// 한 번만 매달려도 그 뒤가 전부 멈춘다.
+//
+// AbortSignal.timeout 이 없는 구형 브라우저에서는 undefined 를 준다(= 예전 동작).
+// 기능이 없다고 요청 자체를 막을 이유는 없다.
+export function timeoutSignal(timeoutMs = DEFAULT_TIMEOUT_MS) {
+  return typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function'
+    ? AbortSignal.timeout(timeoutMs)
+    : undefined
+}
+
 export async function getJson(url, { params, headers, timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
   const qs = params
     ? '?' +
@@ -21,13 +34,7 @@ export async function getJson(url, { params, headers, timeoutMs = DEFAULT_TIMEOU
         .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
         .join('&')
     : ''
-  // AbortSignal.timeout 이 없는 구형 브라우저에서는 signal 없이(=예전 동작) 나간다.
-  // 기능이 없다고 요청 자체를 막을 이유는 없다.
-  const signal =
-    typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function'
-      ? AbortSignal.timeout(timeoutMs)
-      : undefined
-  const res = await fetch(url + qs, { headers, signal })
+  const res = await fetch(url + qs, { headers, signal: timeoutSignal(timeoutMs) })
   if (!res.ok) {
     throw new Error(`HTTP ${res.status} ${res.statusText} @ ${url}`)
   }

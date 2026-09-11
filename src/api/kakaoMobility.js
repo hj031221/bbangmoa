@@ -3,6 +3,7 @@
 // 실패하면 null을 반환 — 호출부가 근사치(travelMin)로 폴백한다.
 import { pathLengthKm } from '../lib/distance.js'
 import { roundToSum } from '../lib/rounding.js'
+import { timeoutSignal } from './http'
 import { SERVER_BASE, serverEnabled } from './serverBase.js'
 
 const REST_KEY = import.meta.env.VITE_KAKAO_REST_KEY
@@ -13,6 +14,16 @@ const BASE = USE_SERVER
 const mobilityEnabled = () => USE_SERVER || Boolean(REST_KEY)
 const authHeaders = () => (USE_SERVER ? {} : { Authorization: `KakaoAK ${REST_KEY}` })
 
+// 왜 타임아웃이 필요한가 — fetch 는 기본적으로 안 끝난다. 응답이 안 오면 거부도 안 되고
+// 그냥 매달려서 catch 가 안 걸리고 null 폴백도 안 탄다(http.js 주석에 재현 기록).
+// 특히 여기가 위험하다: PilgrimagePage 는 코스 순서를 정하려고 fetchDestinationsMatrix 를
+// 스톱 수만큼 순차로 부른다. 한 번만 매달리면 그 뒤가 전부 멈춘다.
+//
+// 10초인 이유: 백엔드 프록시가 스스로 연결 2초 + 읽기 10초에서 끊고 504 를 준다.
+// 504 를 받든 여기서 끊든 결과는 똑같이 null → 근사치 폴백이라, 굳이 더 기다릴 이유가 없다.
+// 직접 호출 모드(VITE_API_BASE 없음)일 때도 같은 값을 쓴다.
+const signal = () => timeoutSignal()
+
 // 두 좌표({lat,lng}) 사이 실제 자동차 이동시간(분) + 실거리(km) + 실제 도로를 따라가는 경로 좌표.
 // → { minutes, distanceKm, path: [{lat,lng}, ...] } | null
 export async function fetchDriving(a, b) {
@@ -22,7 +33,7 @@ export async function fetchDriving(a, b) {
   try {
     const res = await fetch(
       `${BASE}/v1/directions?origin=${origin}&destination=${destination}`,
-      { headers: authHeaders() },
+      { headers: authHeaders(), signal: signal() },
     )
     if (!res.ok) return null
     const data = await res.json()
@@ -68,6 +79,7 @@ export async function fetchDrivingMultiWaypoint(points) {
     const res = await fetch(`${BASE}/v1/waypoints/directions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      signal: signal(),
       body: JSON.stringify({
         origin: { x: origin.lng, y: origin.lat },
         destination: { x: destination.lng, y: destination.lat },
@@ -163,6 +175,7 @@ export async function fetchDestinationsMatrix(origin, destinations) {
     const res = await fetch(`${BASE}/v1/destinations/directions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      signal: signal(),
       body: JSON.stringify({
         origin: { x: origin.lng, y: origin.lat },
         destinations: destinations.map((d) => ({ x: d.lng, y: d.lat, key: d.id })),
