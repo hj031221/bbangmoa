@@ -1,15 +1,21 @@
 // CP12 — TMAP 보행자 경로안내 API. 도보 실측용, 무료 키(VITE_TMAP_APP_KEY) 사용.
 // 실패하면 null을 반환 — 호출부(travelTime.js)가 근사치로 폴백한다.
 // 응답 파싱(구간 분리 등 순수 로직)은 src/lib/tmapParse.js — 그쪽 주석에 구조 설명이 있다.
+import { timeoutSignal } from './http'
 import { roundToSum } from '../lib/rounding.js'
 import { parsePedestrianResponse } from '../lib/tmapParse.js'
+import { SERVER_BASE, serverEnabled } from './serverBase.js'
 
 const APP_KEY = import.meta.env.VITE_TMAP_APP_KEY
-const ENDPOINT = 'https://apis.openapi.sk.com/tmap/routes/pedestrian?version=1'
+const USE_SERVER = serverEnabled()
+const ENDPOINT = USE_SERVER
+  ? `${SERVER_BASE}/api/tmap/tmap/routes/pedestrian?version=1`
+  : 'https://apis.openapi.sk.com/tmap/routes/pedestrian?version=1'
+const tmapEnabled = () => USE_SERVER || Boolean(APP_KEY)
 
 // points: [{lat,lng}, ...] 최소 2개. passList 상한(경유지 5개)을 넘으면 null.
 async function callPedestrianApi(points) {
-  if (!APP_KEY || points.length < 2) return null
+  if (!tmapEnabled() || points.length < 2) return null
   const [start, ...rest] = points
   const end = rest[rest.length - 1]
   const passStops = rest.slice(0, -1)
@@ -32,7 +38,15 @@ async function callPedestrianApi(points) {
   try {
     const res = await fetch(ENDPOINT, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', appKey: APP_KEY },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(USE_SERVER ? {} : { appKey: APP_KEY }),
+      },
+      // fetch 는 응답이 없으면 거부도 안 하고 매달린다 — 그러면 아래 catch 가 안 걸려서
+      // null 폴백(근사치)도 못 타고 경로 화면이 그대로 멈춘다.
+      // 10초는 백엔드 프록시가 스스로 끊는 시점(연결 2s + 읽기 10s)과 맞춰둔 값이다 —
+      // 504 를 받든 여기서 끊든 결과가 같은 null 이라 더 기다릴 이유가 없다.
+      signal: timeoutSignal(),
       body: JSON.stringify(body),
     })
     if (!res.ok) return null // 키 없음/미인증 401 등 — 검증된 실패 형태

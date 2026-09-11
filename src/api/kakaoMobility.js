@@ -3,19 +3,37 @@
 // 실패하면 null을 반환 — 호출부가 근사치(travelMin)로 폴백한다.
 import { pathLengthKm } from '../lib/distance.js'
 import { roundToSum } from '../lib/rounding.js'
+import { timeoutSignal } from './http'
+import { SERVER_BASE, serverEnabled } from './serverBase.js'
 
 const REST_KEY = import.meta.env.VITE_KAKAO_REST_KEY
+const USE_SERVER = serverEnabled()
+const BASE = USE_SERVER
+  ? `${SERVER_BASE}/api/kakaonavi`
+  : 'https://apis-navi.kakaomobility.com'
+const mobilityEnabled = () => USE_SERVER || Boolean(REST_KEY)
+const authHeaders = () => (USE_SERVER ? {} : { Authorization: `KakaoAK ${REST_KEY}` })
+
+// 왜 타임아웃이 필요한가 — fetch 는 기본적으로 안 끝난다. 응답이 안 오면 거부도 안 되고
+// 그냥 매달려서 catch 가 안 걸리고 null 폴백도 안 탄다(http.js 주석에 재현 기록).
+// 특히 여기가 위험하다: PilgrimagePage 는 코스 순서를 정하려고 fetchDestinationsMatrix 를
+// 스톱 수만큼 순차로 부른다. 한 번만 매달리면 그 뒤가 전부 멈춘다.
+//
+// 10초인 이유: 백엔드 프록시가 스스로 연결 2초 + 읽기 10초에서 끊고 504 를 준다.
+// 504 를 받든 여기서 끊든 결과는 똑같이 null → 근사치 폴백이라, 굳이 더 기다릴 이유가 없다.
+// 직접 호출 모드(VITE_API_BASE 없음)일 때도 같은 값을 쓴다.
+const signal = () => timeoutSignal()
 
 // 두 좌표({lat,lng}) 사이 실제 자동차 이동시간(분) + 실거리(km) + 실제 도로를 따라가는 경로 좌표.
 // → { minutes, distanceKm, path: [{lat,lng}, ...] } | null
 export async function fetchDriving(a, b) {
-  if (!REST_KEY) return null
+  if (!mobilityEnabled()) return null
   const origin = `${a.lng},${a.lat}`
   const destination = `${b.lng},${b.lat}`
   try {
     const res = await fetch(
-      `https://apis-navi.kakaomobility.com/v1/directions?origin=${origin}&destination=${destination}`,
-      { headers: { Authorization: `KakaoAK ${REST_KEY}` } },
+      `${BASE}/v1/directions?origin=${origin}&destination=${destination}`,
+      { headers: authHeaders(), signal: signal() },
     )
     if (!res.ok) return null
     const data = await res.json()
@@ -52,15 +70,16 @@ export async function fetchDriving(a, b) {
 // → { minutes, distanceKm, legPaths, legDistancesKm, legMinutes, legEstimated } | null
 //   (legPaths/legDistancesKm/legMinutes/legEstimated.length === points.length - 1, 인덱스 1:1 대응)
 export async function fetchDrivingMultiWaypoint(points) {
-  if (!REST_KEY || points.length < 2) return null
+  if (!mobilityEnabled() || points.length < 2) return null
   const [origin, ...rest] = points
   const destination = rest[rest.length - 1]
   const waypoints = rest.slice(0, -1)
 
   try {
-    const res = await fetch('https://apis-navi.kakaomobility.com/v1/waypoints/directions', {
+    const res = await fetch(`${BASE}/v1/waypoints/directions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `KakaoAK ${REST_KEY}` },
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      signal: signal(),
       body: JSON.stringify({
         origin: { x: origin.lng, y: origin.lat },
         destination: { x: destination.lng, y: destination.lat },
@@ -151,11 +170,12 @@ export async function fetchDrivingMultiWaypoint(points) {
 // → [{ id, distanceKm, minutes }] | null (radius 밖이거나 실패한 목적지는 배열에서 빠진다 —
 //   호출부가 못 찾은 stop을 별도 처리해야 함)
 export async function fetchDestinationsMatrix(origin, destinations) {
-  if (!REST_KEY || destinations.length === 0) return null
+  if (!mobilityEnabled() || destinations.length === 0) return null
   try {
-    const res = await fetch('https://apis-navi.kakaomobility.com/v1/destinations/directions', {
+    const res = await fetch(`${BASE}/v1/destinations/directions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `KakaoAK ${REST_KEY}` },
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      signal: signal(),
       body: JSON.stringify({
         origin: { x: origin.lng, y: origin.lat },
         destinations: destinations.map((d) => ({ x: d.lng, y: d.lat, key: d.id })),
