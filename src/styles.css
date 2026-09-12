@@ -615,6 +615,12 @@ a{ color:var(--accent-text); }
      리스트(.result-list-col)는 이슈 #46 전례 때문에 손대지 않는다. */
   .result-quiz .result-detail-col{ order:2; position:sticky; top:calc(78px + 38vh + 16px); z-index:15;
     max-height:calc(100vh - 78px - 38vh - 32px); overflow-y:auto; }
+  /* 지도를 접으면(.result-map.is-collapsed, 높이 56px) 위 top 계산이 지도가 펼쳐진
+     상태(38vh)를 가정한 값이라 접힌 지도와 상세 카드 사이에 빈 공간이 크게 생겼다 —
+     접힘 여부를 아는 건 JS(mapCollapsed state)뿐이라 같은 이름의 클래스를 상세 카드에도
+     붙여 여기서 top/max-height를 접힌 지도 높이(56px) 기준으로 다시 잡는다. */
+  .result-quiz .result-detail-col.is-collapsed{ top:calc(78px + 56px + 16px);
+    max-height:calc(100vh - 78px - 56px - 32px); }
   /* 추천 리스트(최대 10곳)를 자체 스크롤 박스로 두지 않고 페이지 흐름에 맡긴다 —
      max-height:60vh + overflow-y:auto 로 두면 위의 sticky 지도(z-index:20, 44vh)가
      리스트 위를 덮어, 남는 좁은 영역에서만 휠이 먹고 하위 순위(예: 8곳 중 8번째)에
@@ -647,6 +653,10 @@ a{ color:var(--accent-text); }
      이쪽은 지도 높이를 따로 줄이지 않아(.result-map 공용 규칙의 40vh 그대로) top 계산이 다르다. */
   .result-browse .result-detail-col{ order:2; position:sticky; top:calc(78px + 40vh + 16px); z-index:15;
     max-height:calc(100vh - 78px - 40vh - 32px); overflow-y:auto; }
+  /* 이슈 #74-2 리뷰 지적: 지도를 접으면(56px) 위 top 계산이 여전히 펼쳐진 상태(40vh)를
+     가정해 빈 공간이 생긴다 — .result-quiz 와 동일하게 접힘 클래스로 재계산. */
+  .result-browse .result-detail-col.is-collapsed{ top:calc(78px + 56px + 16px);
+    max-height:calc(100vh - 78px - 56px - 32px); }
   .result-browse .result-list-col{ order:3; max-height:60vh; overflow-y:auto; overscroll-behavior:contain; }
 }
 

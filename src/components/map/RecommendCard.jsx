@@ -75,7 +75,11 @@ export default function RecommendCard({ bakery }) {
       {bakery.phone && <p className="rec-tel">📞 {bakery.phone}</p>}
       {overview && (
         <div className={'rec-desc-wrap' + (descExpanded ? ' expanded' : '')}>
-          <p className="rec-desc">{overview.slice(0, 200)}…</p>
+          {/* 데스크탑은 원문 그대로 보여주고, 모바일 3줄 clamp는 CSS(.rec-desc-wrap)가 담당한다.
+              1000자 슬라이스는 뷰포트와 무관하게 원문이 지나치게 길 때만 걸리는 안전장치. */}
+          <p className="rec-desc">
+            {overview.length > 1000 ? overview.slice(0, 1000) + '…' : overview}
+          </p>
           {overview.length > 100 && (
             <button
               type="button"

@@ -180,7 +180,7 @@ export default function MapResult({ onRetake }) {
           </ol>
         </aside>
 
-        <aside className="result-detail-col">
+        <aside className={'result-detail-col' + (mapCollapsed ? ' is-collapsed' : '')}>
           <RecommendCard bakery={selected} />
         </aside>
       </div>
