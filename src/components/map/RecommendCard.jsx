@@ -16,9 +16,11 @@ export default function RecommendCard({ bakery }) {
   const { user } = useAuth()
   const { addEntry } = useDiaryEntries()
   const [diaryOpen, setDiaryOpen] = useState(false)
+  const [descExpanded, setDescExpanded] = useState(false)
 
   useEffect(() => {
     setDetail(null)
+    setDescExpanded(false)
     if (!bakery?.contentId || !tourEnabled()) return
     let alive = true
     getDetail(bakery.contentId)
@@ -71,7 +73,20 @@ export default function RecommendCard({ bakery }) {
         <p className="rec-dist">🚶 {bakery.distInfo.from}에서 {formatDistance(bakery.distInfo.km)}</p>
       )}
       {bakery.phone && <p className="rec-tel">📞 {bakery.phone}</p>}
-      {overview && <p className="rec-desc">{overview.slice(0, 200)}…</p>}
+      {overview && (
+        <div className={'rec-desc-wrap' + (descExpanded ? ' expanded' : '')}>
+          <p className="rec-desc">{overview.slice(0, 200)}…</p>
+          {overview.length > 100 && (
+            <button
+              type="button"
+              className="rec-desc-toggle"
+              onClick={() => setDescExpanded((v) => !v)}
+            >
+              {descExpanded ? '접기' : '더보기'}
+            </button>
+          )}
+        </div>
+      )}
       <div className="rec-meta">
         <span>출처: {bakery.source === 'tour' ? '관광공사' : bakery.source === 'kakao' ? '카카오' : '샘플'}</span>
       </div>
