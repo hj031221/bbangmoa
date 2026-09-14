@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { getBreadById } from '../data/breadCandidates.js'
+import { BRANCHES } from '../data/surveyConfig.js'
 import { matchBakeriesGrouped } from './breadRecommend.js'
 
 // 큐레이션(bakeryBreadMenu.js)에서 확인된 실제 이름들:
@@ -59,4 +60,17 @@ test('matchBakeriesGrouped: 확인된 곳이 limit 보다 적고 minConfirmed �
   const { confirmed, possible } = matchBakeriesGrouped(bakeries, donut, { limit: 3, minConfirmed: 3 })
   assert.deepEqual(confirmed.map((x) => x.name), ['이상화베이커리'])
   assert.deepEqual(possible.map((x) => x.name), ['도넛1', '도넛2'])
+})
+
+test('이슈 #80 B-3: B_q3_5(쫀득한 식감)에서 donut이 부당한 1위를 차지하지 않는다 — 정체성(폭신한 식감)과 반대', () => {
+  const opt = BRANCHES.B.questions.find((q) => q.id === 'B_q3').options.find((o) => o.id === 'B_q3_5')
+  const realCandidates = BRANCHES.B.candidateIds
+  const maxAmongReal = Math.max(...realCandidates.map((id) => opt.fitness[id] ?? 0))
+  assert.equal(opt.fitness.donut, maxAmongReal, 'donut이 단독 1위면 안 된다(동점 이하만 허용)')
+  assert.ok(opt.fitness.donut <= 2, 'donut은 폭신한 식감이 정체성이라 쫀득함 문항에서 낮아야 한다')
+})
+
+test('이슈 #80 B-3: C_q3_3(폭신한 식감)에서 donut(정체성 해시태그)이 creamBread(부차 해시태그)보다 높다', () => {
+  const opt = BRANCHES.C.questions.find((q) => q.id === 'C_q3').options.find((o) => o.id === 'C_q3_3')
+  assert.ok(opt.fitness.donut > opt.fitness.creamBread)
 })

@@ -112,7 +112,10 @@ export const BRANCHES = {
           { id: 'B_q3_2', label: '촉촉한 식감', fitness: { croissant: 1, danish: 2, kouignAmann: 2, eggTart: 3, cake: 4, donut: 3, madeleine: 5, scone: 2 } },
           { id: 'B_q3_3', label: '결이 살아있는 식감', fitness: { croissant: 4, danish: 5, kouignAmann: 4, eggTart: 2, cake: 1, donut: 2, madeleine: 1, scone: 3 } },
           { id: 'B_q3_4', label: '부드러운 식감', fitness: { croissant: 2, danish: 2, kouignAmann: 2, eggTart: 5, cake: 4, donut: 3, madeleine: 3, scone: 2 } },
-          { id: 'B_q3_5', label: '쫀득한 식감', fitness: { croissant: 2, danish: 3, kouignAmann: 5, eggTart: 2, cake: 2, donut: 4, madeleine: 2, scone: 2 } },
+          // 이슈 #80 B-3: donut 정체성은 "폭신한 식감"(breadCandidates.js)이라 쫀득함과 정반대 —
+          // 이 브랜치 후보 중 실제로 쫀득한 빵이 없어(베이글은 이 브랜치 후보가 아님) 억지 1위를
+          // 만드는 대신 다른 후보들과 같은 낮은 값으로 내린다.
+          { id: 'B_q3_5', label: '쫀득한 식감', fitness: { croissant: 2, danish: 3, kouignAmann: 5, eggTart: 2, cake: 2, donut: 2, madeleine: 2, scone: 2 } },
         ],
       },
       {
@@ -166,7 +169,9 @@ export const BRANCHES = {
         options: [
           { id: 'C_q3_1', label: '바삭한 식감', fitness: { cake: 1, donut: 2, creamBread: 1, redBeanBread: 1, anBread: 1, eggTart: 3, kouignAmann: 5, danish: 4, madeleine: 2 } },
           { id: 'C_q3_2', label: '촉촉한 식감', fitness: { cake: 4, donut: 3, creamBread: 3, redBeanBread: 2, anBread: 2, eggTart: 3, kouignAmann: 2, danish: 2, madeleine: 5 } },
-          { id: 'C_q3_3', label: '폭신한 식감', fitness: { cake: 2, donut: 3, creamBread: 4, redBeanBread: 3, anBread: 5, eggTart: 1, kouignAmann: 1, danish: 2, madeleine: 2 } },
+          // 이슈 #80 B-3: "폭신한 식감"은 donut의 주력 해시태그, creamBread는 4개 중 4번째
+          // (부차) 해시태그 — donut이 1위여야 한다.
+          { id: 'C_q3_3', label: '폭신한 식감', fitness: { cake: 2, donut: 5, creamBread: 3, redBeanBread: 3, anBread: 5, eggTart: 1, kouignAmann: 1, danish: 2, madeleine: 2 } },
           { id: 'C_q3_4', label: '꾸덕한 느낌', fitness: { cake: 5, donut: 2, creamBread: 3, redBeanBread: 2, anBread: 2, eggTart: 3, kouignAmann: 2, danish: 2, madeleine: 1 } },
           { id: 'C_q3_5', label: '부드러운 식감', fitness: { cake: 3, donut: 2, creamBread: 4, redBeanBread: 2, anBread: 3, eggTart: 5, kouignAmann: 2, danish: 2, madeleine: 3 } },
         ],
