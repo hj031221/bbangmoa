@@ -6,10 +6,12 @@ import { getRegion } from '../../config/regions'
 import { isWithinBbox, formatDistance, haversineKm } from '../../lib/distance'
 import { getBakeryDistanceInfo } from '../../lib/bakeryDistance'
 import { pickBreadResult, matchBakeries } from '../../lib/breadRecommend'
+import { STATIONS } from '../../data/stations'
 import { useAttractions } from '../../hooks/useAttractions'
 import MapView from './MapView'
 import RecommendCard from './RecommendCard'
 import MapSelectionSummary from './MapSelectionSummary'
+import LuggageStorageSection from './LuggageStorageSection'
 
 // 빵집 한 곳에서 가장 가까운 관광지 1곳 → { name, km, lat, lng }
 function nearestAttraction(bakery, spots) {
@@ -103,6 +105,13 @@ export default function MapResult({ onRetake }) {
     [clickedBakery],
   )
 
+  // 짐 보관함 섹션 기준점: 출발지 > (대전 안이면) 현재 위치 > 대전역 폴백 — 빵집 거리와 같은 체인.
+  const luggageRef = useMemo(() => {
+    if (origin) return { lat: origin.lat, lng: origin.lng, label: origin.label || '출발 위치' }
+    if (coords && inRegion) return { lat: coords.lat, lng: coords.lng, label: '현재 위치' }
+    return { lat: STATIONS[0].lat, lng: STATIONS[0].lng, label: STATIONS[0].name }
+  }, [origin, coords, inRegion])
+
   return (
     <div className="result result-quiz">
       <header className="result-header">
@@ -184,6 +193,8 @@ export default function MapResult({ onRetake }) {
           <RecommendCard bakery={selected} />
         </aside>
       </div>
+
+      <LuggageStorageSection refPoint={luggageRef} />
     </div>
   )
 }
