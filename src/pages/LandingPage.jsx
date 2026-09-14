@@ -18,6 +18,7 @@ import { useFriends } from '../hooks/useFriends'
 import { useInviteLink } from '../hooks/useInviteLink'
 import InviteFriendModal from '../components/mypage/InviteFriendModal'
 import { getAppPath, getAppView } from '../lib/appRoute'
+import { buildHistoryState, restoreHistoryState } from '../lib/viewHistory'
 
 // 랜딩 = 마케팅 사이트. 상단 메뉴바(NavBar)는 어떤 화면에서도 항상 떠 있고,
 // 메뉴 클릭에 따라 그 아래 본문만 바뀐다. "취향 테스트 시작" 계열 버튼을 누르면
@@ -63,12 +64,19 @@ export default function LandingPage() {
   // 이슈 #70 2번: 브라우저 뒤로가기로 홈에 도달하는 경우도 goHome()과 동일하게 — 설문 결과를
   // 지우지 않는다(리셋은 retakeSurvey 에만 건다).
   useEffect(() => {
-    const restoreViewFromHistory = () => {
+    const restoreViewFromHistory = (event) => {
       const nextView = getAppView(window.location.pathname)
       setView(nextView)
       setNearbyOrigin(null)
       setMapSearch('')
       setMapSelectId(null)
+      const restored = restoreHistoryState(event.state, {
+        stage, tourStage, tourSelectedId, tourHubFromReveal,
+      })
+      setStage(restored.stage)
+      setTourStage(restored.tourStage)
+      setTourSelectedId(restored.tourSelectedId)
+      setTourHubFromReveal(restored.tourHubFromReveal)
     }
 
     window.addEventListener('popstate', restoreViewFromHistory)
@@ -99,6 +107,16 @@ export default function LandingPage() {
   // 확대/축소)과 트랙패드 핀치까지 같이 죽였고, 지도 화면을 다녀온 뒤 홈으로 돌아오면 그 잠금이
   // 다시 걸려 "확대·축소·드래그가 안 되는" 증상이 났다. position:fixed 컨테이너면 body 에 스크롤
   // 될 게 없어서 JS 잠금 없이도 한 화면이 유지된다.
+
+  // 이슈 #80 B-1: navigateToView는 최상위 view 전환만 pushState한다. 같은 view 안에서
+  // stage/tourStage 등이 바뀌는 하위 전환은 이 함수로 별도 히스토리 항목을 남긴다.
+  const pushSubState = (patch) => {
+    const state = buildHistoryState(
+      { stage, tourStage, tourSelectedId, tourHubFromReveal },
+      patch,
+    )
+    window.history.pushState(state, '', window.location.pathname + window.location.search + window.location.hash)
+  }
 
   const enterBreadFlow = (nextStage) => {
     navigateToView('bread')
@@ -157,6 +175,7 @@ export default function LandingPage() {
     setTourSelectedId(selectedId)
     setTourHubFromReveal(selectedId != null)
     setTourStage('hub')
+    pushSubState({ tourStage: 'hub', tourSelectedId: selectedId, tourHubFromReveal: selectedId != null })
   }
   const openTourAttraction = (selectedId) => {
     navigateToView('tour')
@@ -190,13 +209,30 @@ export default function LandingPage() {
   const retakeSurvey = () => {
     resetAnswers()
     setStage('survey')
+    pushSubState({ stage: 'survey' })
   }
   // 설문을 막 끝내면 항상 이 설문의 리빌 화면부터 보여준다. 관광모아도 이미 끝나 있으면(반대도
   // 마찬가지) 리빌 화면을 스킵하고 바로 대전한바퀴로 보내던 동작(피드백2)은, 두 번째 설문 결과를
   // 사용자가 한 프레임도 못 보고 넘어가는 문제가 있어 제거함 — 대신 리빌 화면의 교차 링크가
   // "다른 설문하러 가기" 대신 "대전한바퀴로 코스 보기"로 바뀌어 같은 목적지로 가되, 결과는 보여준다.
-  const handleSurveyComplete = () => setStage('reveal')
+  const handleSurveyComplete = () => {
+    setStage('reveal')
+    pushSubState({ stage: 'reveal' })
+  }
   const handleTourSurveyComplete = () => setTourStage('reveal')
+  const showMapResult = () => {
+    setStage('map')
+    pushSubState({ stage: 'map' })
+  }
+  const retakeTourSurvey = () => {
+    resetTourAnswers()
+    setTourStage('survey')
+    pushSubState({ tourStage: 'survey' })
+  }
+  const exitTourHubToReveal = () => {
+    setTourStage('reveal')
+    pushSubState({ tourStage: 'reveal' })
+  }
 
   return (
     <div className={`bm-landing${isHome ? ' is-home' : ''}`}>
@@ -249,10 +285,7 @@ export default function LandingPage() {
           {tourStage === 'reveal' && (
             <TourReveal
               answers={tourAnswers}
-              onRetake={() => {
-                resetTourAnswers()
-                setTourStage('survey')
-              }}
+              onRetake={retakeTourSurvey}
               onOpenHub={openTourHub}
               breadDone={surveyDone}
               onGoToBread={startTest}
@@ -265,7 +298,7 @@ export default function LandingPage() {
               initialDistrict={tourAnswers ? resolveDistrict(tourAnswers) : null}
               initialSelectedId={tourSelectedId}
               cameFromReveal={tourHubFromReveal}
-              onExitToReveal={() => setTourStage('reveal')}
+              onExitToReveal={exitTourHubToReveal}
             />
           )}
         </div>
@@ -295,7 +328,7 @@ export default function LandingPage() {
           {stage === 'reveal' && (
             <BreadReveal
               onRetake={directBreadId ? goHome : retakeSurvey}
-              onShowMap={() => setStage('map')}
+              onShowMap={showMapResult}
               tourDone={tourSurveyDone}
               onGoToTour={openTour}
               onGoToPilgrimage={openPilgrimage}
