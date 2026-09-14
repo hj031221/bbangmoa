@@ -268,7 +268,9 @@ export default function LandingPage() {
 
       {view === 'bread' && (
         <div className="page">
-          {stage === 'survey' && <SurveyFlow onComplete={handleSurveyComplete} />}
+          {stage === 'survey' && (
+            <SurveyFlow onComplete={handleSurveyComplete} onSkip={() => openBakeryMap()} />
+          )}
           {stage === 'reveal' && (
             <BreadReveal
               onRetake={retakeSurvey}
