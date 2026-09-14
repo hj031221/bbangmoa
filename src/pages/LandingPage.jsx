@@ -219,7 +219,10 @@ export default function LandingPage() {
     setStage('reveal')
     pushSubState({ stage: 'reveal' })
   }
-  const handleTourSurveyComplete = () => setTourStage('reveal')
+  const handleTourSurveyComplete = () => {
+    setTourStage('reveal')
+    pushSubState({ tourStage: 'reveal' })
+  }
   const showMapResult = () => {
     setStage('map')
     pushSubState({ stage: 'map' })
