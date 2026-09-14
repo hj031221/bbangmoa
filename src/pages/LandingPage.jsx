@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { isSurveyComplete } from '../lib/breadRecommend'
 import SurveyFlow from '../components/survey/SurveyFlow'
@@ -53,11 +53,28 @@ export default function LandingPage() {
   const tourSurveyDone = isTourSurveyComplete(tourAnswers)
   const isHome = view === 'home'
 
-  const navigateToView = (nextView) => {
+  // 히스토리에 실어 보낼 "지금 화면 상태" 튜플. popstate 핸들러는 마운트 때 한 번만 등록돼
+  // 클로저가 초기값에 고정되므로, fallback 으로 쓸 최신값은 ref 로 들고 있는다.
+  const historyState = { stage, tourStage, tourSelectedId, tourHubFromReveal, directBreadId }
+  const historyStateRef = useRef(historyState)
+  historyStateRef.current = historyState
+
+  // 최종 리뷰 2+3: 예전엔 여기서 항상 state:null 을 push 했다. answers/origin 이 localStorage 에
+  // 남아 있는 재방문자는 surveyDone 이 true 라 enterBreadFlow('reveal') 이 "보통 경로"인데,
+  // 그 항목에 stage:'reveal' 이 안 담기니 더 깊이 들어갔다가 뒤로가기로 이 항목에 돌아오면
+  // 리빌이 아니라 설문이 떴다. 이제 항상 완전한 state 를 담아 push 한다.
+  // patch: 이 전환이 도착할 화면 상태(예: { stage:'reveal' }) — pushSubState 와 같은 형식.
+  const navigateToView = (nextView, patch = null) => {
     setView(nextView)
     const nextPath = getAppPath(nextView)
+    const url = `${nextPath}${window.location.search}${window.location.hash}`
+    const state = buildHistoryState(historyStateRef.current, patch || {})
     if (window.location.pathname !== nextPath) {
-      window.history.pushState(null, '', `${nextPath}${window.location.search}${window.location.hash}`)
+      window.history.pushState(state, '', url)
+    } else if (patch) {
+      // 경로가 그대로면 새 항목을 만들지 않는다(기존 동작 유지). 다만 지금 항목의 state 는
+      // 갱신해 둬야, 나중에 이 항목으로 돌아왔을 때 옛 단계로 복원되지 않는다.
+      window.history.replaceState(state, '', url)
     }
   }
 
@@ -70,13 +87,30 @@ export default function LandingPage() {
       setNearbyOrigin(null)
       setMapSearch('')
       setMapSelectId(null)
-      const restored = restoreHistoryState(event.state, {
-        stage, tourStage, tourSelectedId, tourHubFromReveal,
-      })
+      const current = historyStateRef.current
+      const restored = restoreHistoryState(event.state, current)
       setStage(restored.stage)
       setTourStage(restored.tourStage)
       setTourSelectedId(restored.tourSelectedId)
       setTourHubFromReveal(restored.tourHubFromReveal)
+      // 빵 종류 바로가기 상태도 같이 되돌린다 — 안 그러면 칩으로 고른 빵이 설문으로 돌아간
+      // 뒤에도 남아, 새로 답한 설문 결과 대신 옛 칩 빵이 리빌에 뜬다(최종 리뷰 3).
+      // 값이 그대로일 때 setDirectBread 를 다시 부르면 answers/origin 까지 지워지므로
+      // 실제로 달라졌을 때만 건드린다.
+      if ((restored.directBreadId ?? null) !== (current.directBreadId ?? null)) {
+        if (restored.directBreadId) setDirectBread(restored.directBreadId)
+        else clearDirectBread()
+      }
+    }
+
+    // 브라우저가 만든 최초 항목에는 state 가 없다 — 지금 상태를 미리 심어두면, 나중에
+    // 뒤로가기로 이 항목에 돌아왔을 때 추측(fallback) 없이 정확히 복원된다.
+    if (window.history.state == null) {
+      window.history.replaceState(
+        buildHistoryState(historyStateRef.current, {}),
+        '',
+        window.location.pathname + window.location.search + window.location.hash,
+      )
     }
 
     window.addEventListener('popstate', restoreViewFromHistory)
@@ -111,15 +145,14 @@ export default function LandingPage() {
   // 이슈 #80 B-1: navigateToView는 최상위 view 전환만 pushState한다. 같은 view 안에서
   // stage/tourStage 등이 바뀌는 하위 전환은 이 함수로 별도 히스토리 항목을 남긴다.
   const pushSubState = (patch) => {
-    const state = buildHistoryState(
-      { stage, tourStage, tourSelectedId, tourHubFromReveal },
-      patch,
-    )
+    const state = buildHistoryState(historyStateRef.current, patch)
     window.history.pushState(state, '', window.location.pathname + window.location.search + window.location.hash)
   }
 
-  const enterBreadFlow = (nextStage) => {
-    navigateToView('bread')
+  // patch: stage 외에 이 전환으로 같이 바뀌는 값(예: 칩 진입의 directBreadId).
+  // navigateToView 가 한 번만 push/replace 하도록 전부 여기로 모아서 넘긴다.
+  const enterBreadFlow = (nextStage, patch = null) => {
+    navigateToView('bread', { stage: nextStage, ...(patch || {}) })
     setStage(nextStage)
   }
   // 홈 히어로 CTA·교차 링크 등: 진행 중이던 결과가 있으면 그 리빌부터 이어 본다.
@@ -127,17 +160,20 @@ export default function LandingPage() {
   // 빵 바로가기(directBreadId)로 진입했던 상태는 해제한다 — 설문 결과 화면이 그 빵으로 고정되지 않게.
   const startTest = () => {
     clearDirectBread()
-    enterBreadFlow(surveyDone ? 'reveal' : 'survey')
+    // 스토어는 방금 비웠지만 이 렌더의 directBreadId 클로저는 아직 옛 값이라, 히스토리에는
+    // 명시적으로 null 을 실어 보낸다.
+    enterBreadFlow(surveyDone ? 'reveal' : 'survey', { directBreadId: null })
   }
   // "바로 찾기" 칩: 설문을 건너뛰고 고른 빵으로 바로 간략 리빌 화면으로.
+  // 고른 빵 id 도 히스토리 항목에 같이 담아, 뒤로가기로 이 지점 이전으로 나가면 같이 풀리게 한다.
   const pickBreadType = (breadId) => {
     setDirectBread(breadId)
-    enterBreadFlow('reveal')
+    enterBreadFlow('reveal', { directBreadId: breadId })
   }
   // 메뉴바에서 "빵집 찾기"를 다시 고른 경우: 이전 결과를 버리고 설문 처음부터.
   const startTestFromNav = () => {
     resetAnswers()
-    enterBreadFlow('survey')
+    enterBreadFlow('survey', { directBreadId: null })
   }
   const openMyPage = () => {
     setMyPageResetKey((k) => k + 1)
@@ -163,7 +199,7 @@ export default function LandingPage() {
     navigateToView('map')
   }
   const enterTourFlow = (nextStage) => {
-    navigateToView('tour')
+    navigateToView('tour', { tourStage: nextStage, tourSelectedId: null, tourHubFromReveal: false })
     setTourSelectedId(null)
     setTourHubFromReveal(false)
     setTourStage(nextStage)
@@ -178,7 +214,7 @@ export default function LandingPage() {
     pushSubState({ tourStage: 'hub', tourSelectedId: selectedId, tourHubFromReveal: selectedId != null })
   }
   const openTourAttraction = (selectedId) => {
-    navigateToView('tour')
+    navigateToView('tour', { tourStage: 'hub', tourSelectedId: selectedId, tourHubFromReveal: false })
     setTourStage('hub')
     setTourSelectedId(selectedId)
     setTourHubFromReveal(false) // 홈 위젯에서 진입 — 상세 뒤로가기는 허브 그리드로
