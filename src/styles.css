@@ -649,14 +649,18 @@ a{ color:var(--accent-text); }
 .result-quiz .result-list-col{ overflow-y:auto; }
 .result-quiz .result-detail-col{ overflow-y:auto; }
 
-/* 데스크톱: 빵집 목록(및 상세) 열의 자체 스크롤을 없애고 페이지 흐름에 맡긴다(이슈 #73 C2).
-   그러려면 .result-body 고정 높이(70vh)를 풀고 지도에 실제 높이를 직접 준다. */
+/* 이슈 #80 C-4 보류 — 아래 데스크톱 레이아웃 변경은 짐 보관함 섹션(LuggageStorageSection)을
+   지도/목록 아래에 놓을 자리를 만들려고 넣은 것이다(목록·상세 열의 자체 스크롤을 없애고
+   .result-body 고정 높이 70vh 를 풀어 페이지 흐름에 맡긴다). 그 섹션이 보류로 렌더링되지
+   않는 동안에는 이 레이아웃 변경만 남아 아무 이득 없이 데스크톱 배치를 바꾸므로 같이 비활성화한다.
+   준비되면 MapResult.jsx 의 <LuggageStorageSection> 주석과 함께 해제할 것.
 @media (min-width:821px){
   .result-quiz .result-body{ height:auto; align-items:start; }
   .result-quiz .result-map{ height:70vh; }
   .result-quiz .result-list-col,
   .result-quiz .result-detail-col{ overflow:visible; }
 }
+*/
 
 @media (max-width:820px){
   .result-quiz{ overflow:visible; }

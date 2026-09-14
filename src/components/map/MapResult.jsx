@@ -12,7 +12,8 @@ import { useAttractions } from '../../hooks/useAttractions'
 import MapView from './MapView'
 import RecommendCard from './RecommendCard'
 import MapSelectionSummary from './MapSelectionSummary'
-import LuggageStorageSection from './LuggageStorageSection'
+// 이슈 #80 C-4 보류 — 짐 보관함 섹션은 아래 렌더링부와 함께 비활성화 상태(파일은 그대로 둔다).
+// import LuggageStorageSection from './LuggageStorageSection'
 
 // 빵집 한 곳에서 가장 가까운 관광지 1곳 → { name, km, lat, lng }
 function nearestAttraction(bakery, spots) {
@@ -123,6 +124,8 @@ export default function MapResult({ onRetake }) {
   )
 
   // 짐 보관함 섹션 기준점: 출발지 > (대전 안이면) 현재 위치 > 대전역 폴백 — 빵집 거리와 같은 체인.
+  // (이슈 #80 C-4 보류 — 섹션 렌더링이 꺼져 있는 동안에는 쓰이지 않는다. 해제 시 그대로 재사용.)
+  // eslint-disable-next-line no-unused-vars
   const luggageRef = useMemo(() => {
     if (origin) return { lat: origin.lat, lng: origin.lng, label: origin.label || '출발 위치' }
     if (coords && inRegion) return { lat: coords.lat, lng: coords.lng, label: '현재 위치' }
@@ -212,7 +215,10 @@ export default function MapResult({ onRetake }) {
         </aside>
       </div>
 
-      <LuggageStorageSection refPoint={luggageRef} />
+      {/* 이슈 #80 C-4 보류 — 데이터/노출 정책 확정 전까지 비활성화(회의 결정: A·B 먼저).
+          코드·데이터·테스트는 그대로 두고 렌더링만 막는다. 준비되면 아래 주석을 해제하고,
+          styles.css 의 같은 마커가 달린 @media (min-width:821px) 블록도 같이 살릴 것.
+      <LuggageStorageSection refPoint={luggageRef} /> */}
     </div>
   )
 }
