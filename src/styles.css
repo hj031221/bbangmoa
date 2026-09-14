@@ -541,10 +541,20 @@ a{ color:var(--accent-text); }
 .rec-list-item{ display:flex; align-items:center; flex-wrap:wrap; gap:6px 10px; padding:10px; border-radius:10px; cursor:pointer; }
 .rec-list-item.active{ background:var(--card2); }
 .rec-list-item .rank{ width:22px; height:22px; border-radius:50%; background:var(--accent); color:#fff; font-size:.75rem; display:flex; align-items:center; justify-content:center; font-weight:700; }
-/* 이슈 #80 빵 지도 개편: 헤더 목록 숨기기 토글 + 리스트 부제 + 항목 내 찜하기 하트 버튼. */
+/* 이슈 #80 빵 지도 개편: 헤더 목록 숨기기 토글 + 리스트 부제 + 항목 내 찜하기 하트 버튼.
+   목록 숨기기는 "지도를 넓게 보려고 접는" 데스크톱 전용 기능(그리드 트랙 조정도 데스크톱
+   전용, 위 .result-browse .result-body.list-collapsed 참고) — 모바일은 지도/목록이 세로
+   1열 스택이라 접어도 지도가 넓어지는 이득이 없고, 목록을 통째로 잃기만 한다(리뷰 지적).
+   버튼과 실제 숨김 규칙 둘 다 데스크톱에만 걸어, 데스크톱에서 접은 채로 창을 모바일
+   폭까지 줄여도(리사이즈) 목록이 다시 보이게 한다. */
 .bm-list-toggle{ margin-left:auto; background:none; border:1px solid var(--line); border-radius:8px; padding:6px 12px; font-size:.8rem; cursor:pointer; }
 .bm-list-subheader{ margin:0 0 8px; font-size:.82rem; font-weight:700; color:var(--muted); }
-.result-list-col.is-collapsed{ display:none; }
+@media (min-width:821px){
+  .result-list-col.is-collapsed{ display:none; }
+}
+@media (max-width:820px){
+  .bm-list-toggle{ display:none; }
+}
 .rl-body{ flex:1; display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 8px; min-width:0; }
 .rl-name-row{ flex-basis:100%; display:flex; align-items:center; justify-content:space-between; gap:8px; }
 .rl-heart-btn{ background:none; border:none; padding:2px; cursor:pointer; line-height:0; color:var(--muted); }

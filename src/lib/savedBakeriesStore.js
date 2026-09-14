@@ -13,6 +13,14 @@
 //
 // 로그인 상태에서는 이 스토어가 Supabase 조회 결과를 담는 캐시 역할만 하고 localStorage 에는
 // 쓰지 않는다(기존 정책 유지) — 그래서 persist 여부를 호출자가 넘긴다.
+//
+// 로그아웃 재동기화는 useSavedBakeries 훅의 effect(queryUserId 변화)만으로는 부족하다 —
+// 로그아웃이 일어난 화면에 이 훅을 쓰는 컴포넌트가 하나도 마운트돼 있지 않으면 그 effect
+// 자체가 안 돌아, 공유 상태가 이전 계정의 DB 조회 결과를 그대로 들고 있다가 다음에 아무
+// 화면에서나 훅이 마운트되는 순간 첫 렌더(useSyncExternalStore 초기 스냅샷)에 노출된다
+// (리뷰 지적). 그래서 useSavedBakeries.js 모듈 스코프에서 컴포넌트 마운트 여부와 무관하게
+// 항상 켜져 있는 Supabase auth 구독을 별도로 둔다 — 이 파일은 supabase 의존성 없이
+// node --test 로 순수 로직만 검증하는 경계를 유지한다.
 
 const STORAGE_KEY = 'bbangmoa_saved'
 

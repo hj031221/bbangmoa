@@ -59,6 +59,11 @@ export const useAppStore = create(
       // 바로가기 상태만 해제(설문 응답은 건드리지 않음) — 홈 CTA로 설문에 다시 들어갈 때 등.
       clearDirectBread: () => set({ directBreadId: null }),
 
+      // 브라우저 뒤로/앞으로가기로 히스토리 상태를 복원할 때 전용(리뷰 지적) — setDirectBread는
+      // "칩으로 새로 진입"을 의미해 answers/origin 을 같이 지우는데, 순수 뒤로가기는 화면
+      // 상태만 되돌리는 거라 진행 중이던 설문 답변까지 지우면 안 된다. directBreadId 만 되돌린다.
+      restoreDirectBread: (breadId) => set({ directBreadId: breadId }),
+
       resetTourAnswers: () => set({ tourAnswers: {} }),
 
       selectBakery: (id) => set({ selectedBakeryId: id }),

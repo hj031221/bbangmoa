@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 import { useAuth } from './useAuth'
-import { supabase } from '../lib/supabase'
+import { supabase, supabaseEnabled } from '../lib/supabase'
 import {
   getSavedSnapshot,
   reloadSavedFromLocal,
@@ -8,6 +8,19 @@ import {
   subscribeSaved,
   toggleSavedBakery,
 } from '../lib/savedBakeriesStore'
+
+// 리뷰 지적: 공유 스토어(savedBakeriesStore)는 이 훅의 effect(아래, queryUserId 변화)로만
+// 로그아웃을 감지했다 — 로그아웃이 일어난 화면에 이 훅을 쓰는 컴포넌트가 하나도 마운트돼
+// 있지 않으면(예: 찜 목록 UI가 없는 설정 화면에서 로그아웃) 그 effect가 안 돌아, 공유 상태가
+// 이전 계정의 DB 조회 결과를 그대로 들고 있다가 다음 마운트 첫 렌더에 그대로 노출된다.
+// 모듈 스코프에 두면(ES 모듈은 한 번만 평가됨) 컴포넌트 마운트 여부와 무관하게 앱 수명
+// 동안 항상 구독이 켜져 있다 — supabase 의존성이 있는 이 훅 파일에 둬서 savedBakeriesStore.js
+// 는 계속 supabase 없이 node --test 로 순수 로직만 검증하는 경계를 유지한다.
+if (supabaseEnabled()) {
+  supabase.auth.onAuthStateChange((_event, session) => {
+    if (!session) reloadSavedFromLocal()
+  })
+}
 
 // 찜한 빵집 저장 훅.
 //   로그아웃 상태: localStorage(브라우저별) 기반.

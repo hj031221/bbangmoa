@@ -44,6 +44,7 @@ export default function LandingPage() {
   const directBreadId = useAppStore((s) => s.directBreadId)
   const setDirectBread = useAppStore((s) => s.setDirectBread)
   const clearDirectBread = useAppStore((s) => s.clearDirectBread)
+  const restoreDirectBread = useAppStore((s) => s.restoreDirectBread)
   const resetAnswers = useAppStore((s) => s.resetAnswers)
   const tourAnswers = useAppStore((s) => s.tourAnswers)
   const resetTourAnswers = useAppStore((s) => s.resetTourAnswers)
@@ -64,17 +65,19 @@ export default function LandingPage() {
   // 그 항목에 stage:'reveal' 이 안 담기니 더 깊이 들어갔다가 뒤로가기로 이 항목에 돌아오면
   // 리빌이 아니라 설문이 떴다. 이제 항상 완전한 state 를 담아 push 한다.
   // patch: 이 전환이 도착할 화면 상태(예: { stage:'reveal' }) — pushSubState 와 같은 형식.
+  // 리뷰 지적: patch 가 있다는 건 실제 화면 전환이 일어났다는 뜻이다(예: 설문 화면에서 빵
+  // 종류 칩을 눌러 리빌로 감 — view 는 그대로 'bread' 지만 stage 가 바뀐다). 이 경우도
+  // pathname 이 같다는 이유로 replaceState 를 쓰면 직전 항목(설문 화면)이 통째로 덮어써져,
+  // 뒤로가기 한 번에 그 전환 자체를 건너뛰고 더 앞 화면으로 튄다 — 이 브랜치가 고치려던
+  // "뒤로가기 한 번에 이탈" 버그가 다른 경로로 재발한다. patch 가 없을 때만(예: 이미 홈인데
+  // goHome() 재호출) 새 항목을 만들지 않는다.
   const navigateToView = (nextView, patch = null) => {
     setView(nextView)
     const nextPath = getAppPath(nextView)
     const url = `${nextPath}${window.location.search}${window.location.hash}`
     const state = buildHistoryState(historyStateRef.current, patch || {})
-    if (window.location.pathname !== nextPath) {
+    if (window.location.pathname !== nextPath || patch) {
       window.history.pushState(state, '', url)
-    } else if (patch) {
-      // 경로가 그대로면 새 항목을 만들지 않는다(기존 동작 유지). 다만 지금 항목의 state 는
-      // 갱신해 둬야, 나중에 이 항목으로 돌아왔을 때 옛 단계로 복원되지 않는다.
-      window.history.replaceState(state, '', url)
     }
   }
 
@@ -95,11 +98,12 @@ export default function LandingPage() {
       setTourHubFromReveal(restored.tourHubFromReveal)
       // 빵 종류 바로가기 상태도 같이 되돌린다 — 안 그러면 칩으로 고른 빵이 설문으로 돌아간
       // 뒤에도 남아, 새로 답한 설문 결과 대신 옛 칩 빵이 리빌에 뜬다(최종 리뷰 3).
-      // 값이 그대로일 때 setDirectBread 를 다시 부르면 answers/origin 까지 지워지므로
-      // 실제로 달라졌을 때만 건드린다.
+      // 값이 그대로일 때 다시 부르면 불필요한 리렌더가 생기므로 실제로 달라졌을 때만 건드린다.
+      // setDirectBread(진입용)가 아니라 restoreDirectBread를 쓴다 — setDirectBread는 answers/
+      // origin까지 지우는 부수효과가 있어(칩으로 "새로" 진입할 때만 맞는 동작), 순수 뒤로가기로
+      // 이 값만 되돌리는 중에 쓰면 마침 답하던 설문 응답이 조용히 지워졌다(리뷰 지적).
       if ((restored.directBreadId ?? null) !== (current.directBreadId ?? null)) {
-        if (restored.directBreadId) setDirectBread(restored.directBreadId)
-        else clearDirectBread()
+        restoreDirectBread(restored.directBreadId ?? null)
       }
     }
 
