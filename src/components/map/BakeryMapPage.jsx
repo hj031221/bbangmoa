@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useBakeries } from '../../hooks/useBakeries'
 import { useSavedBakeries } from '../../hooks/useSavedBakeries'
 import { useDebouncedValue } from '../../hooks/useDebouncedValue'
@@ -45,10 +45,23 @@ export default function BakeryMapPage({
   })
   // 찜한 빵집을 목록 위쪽에 먼저 보여준다(§CP10-6) — "근처 빵집"(nearbyMode)은 거리순이
   // 핵심이라 여긴 적용하지 않는다.
-  const { isSaved, toggleSave } = useSavedBakeries()
+  const { saved, isSaved, toggleSave } = useSavedBakeries()
 
   const nearbyMode = !!origin
   const searchMode = !nearbyMode && !!search
+
+  // 최종 리뷰 7: 하트를 누르는 순간 목록이 다시 정렬돼 방금 누른 행이 손가락 밑에서 맨 위로
+  // 튀어 올라갔다. 원인은 두 겹이다 — (1) isSaved 가 매 렌더 새 클로저라 아래 useMemo 의
+  // deps 에 있으면 무조건 재계산되고, (2) useBakeries 가 매 렌더 새 배열(bakeries)을 돌려줘
+  // deps 에서 isSaved 를 빼도 재계산 자체는 계속 일어난다. 그래서 "재계산을 막는" 대신
+  // "정렬 기준을 고정"한다: 찜 여부 스냅샷을 목록 맥락(근처 모드/구/검색어/데이터 건수)이
+  // 바뀔 때만 새로 찍고, 그 사이의 하트 토글에는 순서가 반응하지 않게 한다.
+  // (하트 아이콘 색은 isSaved 로 그대로 즉시 갱신된다 — 순서만 그 자리에 머문다.)
+  const sortContextKey = nearbyMode ? 'nearby' : `${district ?? ''}|${search}|${bakeries.length}`
+  const savedOrderRef = useRef({ key: null, ids: null })
+  if (savedOrderRef.current.key !== sortContextKey) {
+    savedOrderRef.current = { key: sortContextKey, ids: new Set(saved.map((b) => b.id)) }
+  }
 
   const filtered = useMemo(() => {
     if (nearbyMode) {
@@ -63,8 +76,9 @@ export default function BakeryMapPage({
       : district
         ? bakeries.filter((b) => (b.address || '').includes(district))
         : bakeries
-    return [...base].sort((a, b) => Number(isSaved(b.id)) - Number(isSaved(a.id)))
-  }, [bakeries, district, nearbyMode, origin, search, isSaved])
+    const savedIds = savedOrderRef.current.ids
+    return [...base].sort((a, b) => Number(savedIds.has(b.id)) - Number(savedIds.has(a.id)))
+  }, [bakeries, district, nearbyMode, origin, search, sortContextKey])
 
   // 목록 항목의 "대표메뉴" — 큐레이션 데이터(bakeryBreadMenu.js)에서 이 빵집이 판다고 확인된
   // 빵 중 첫 번째. 없으면 표시하지 않는다(추측성 정보를 지어내지 않음).
@@ -101,7 +115,9 @@ export default function BakeryMapPage({
             ? `${origin.name} 근처 빵집 (${filtered.length}곳)`
             : searchMode
               ? `'${search}' 검색 결과 (${filtered.length}곳)`
-              : `대전광역시 · 빵집 ${filtered.length}곳`}
+              : district
+                ? `${district} · 빵집 ${filtered.length}곳`
+                : `대전광역시 · 빵집 ${filtered.length}곳`}
         </h2>
         {source === 'sample' && <span className="badge warn">샘플 데이터 (API 키 미설정)</span>}
         <button
@@ -180,7 +196,10 @@ export default function BakeryMapPage({
         </div>
       )}
 
-      <div className="result-body">
+      {/* 최종 리뷰 4: 목록을 숨겨도(.result-list-col{display:none}) 그리드의 3열 트랙은 그대로라
+          지도가 넓어지지 않고 상세 카드만 엉뚱한 트랙으로 밀렸다 — 접힘 여부를 그리드 컨테이너에도
+          알려 트랙 자체를 2열로 줄인다(데스크톱 전용 규칙, styles.css). */}
+      <div className={'result-body' + (listCollapsed ? ' list-collapsed' : '')}>
         <section className={'result-map' + (mapCollapsed ? ' is-collapsed' : '')}>
           <MapView
             bakeries={filtered}
@@ -212,7 +231,10 @@ export default function BakeryMapPage({
                   className={'rec-list-item' + (b.id === selectedId ? ' active' : '')}
                   onClick={() => setSelectedId(b.id)}
                 >
-                  <span className="rank">{i + 1}</span>
+                  {/* 최종 리뷰 6: 순위 배지는 거리순으로 정렬되는 "근처 빵집"(nearbyMode)에서만
+                      의미가 있다. 기본/구 필터/검색 목록의 순서는 "찜 우선 + API 응답 순"이라
+                      번호를 달면 데이터가 뒷받침하지 못하는 랭킹을 암시한다. */}
+                  {nearbyMode && <span className="rank">{i + 1}</span>}
                   <span className="rl-body">
                     <span className="rl-name-row">
                       <span className="rl-name">{b.name}</span>
