@@ -541,6 +541,15 @@ a{ color:var(--accent-text); }
 .rec-list-item{ display:flex; align-items:center; flex-wrap:wrap; gap:6px 10px; padding:10px; border-radius:10px; cursor:pointer; }
 .rec-list-item.active{ background:var(--card2); }
 .rec-list-item .rank{ width:22px; height:22px; border-radius:50%; background:var(--accent); color:#fff; font-size:.75rem; display:flex; align-items:center; justify-content:center; font-weight:700; }
+/* 이슈 #80 빵 지도 개편: 헤더 목록 숨기기 토글 + 리스트 부제 + 항목 내 찜하기 하트 버튼. */
+.bm-list-toggle{ margin-left:auto; background:none; border:1px solid var(--line); border-radius:8px; padding:6px 12px; font-size:.8rem; cursor:pointer; }
+.bm-list-subheader{ margin:0 0 8px; font-size:.82rem; font-weight:700; color:var(--muted); }
+.result-list-col.is-collapsed{ display:none; }
+.rl-body{ flex:1; display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 8px; min-width:0; }
+.rl-name-row{ flex-basis:100%; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.rl-heart-btn{ background:none; border:none; padding:2px; cursor:pointer; line-height:0; color:var(--muted); }
+.rl-heart-btn.saved{ color:#e0575a; }
+.rl-signature{ font-size:.76rem; font-weight:600; color:#1c6b48; background:#EAF6EF; border-radius:6px; padding:2px 7px; }
 .rl-name{ flex:1; font-size:.9rem; }
 .rl-saved-heart{ display:inline-flex; vertical-align:-3px; margin-right:5px; }
 .rl-saved-heart .save-heart-icon{ width:16px; height:16px; }

@@ -8,6 +8,8 @@ import MapView from './MapView'
 import RecommendCard from './RecommendCard'
 import MapSelectionSummary from './MapSelectionSummary'
 import { SaveHeartIcon } from '../mypage/PreviewIcons'
+import { curatedBreadIdsFor } from '../../data/bakeryBreadMenu'
+import { getBreadById } from '../../data/breadCandidates'
 
 const DISTRICTS = getRegion().districts
 const NEARBY_LIMIT = 10
@@ -28,6 +30,8 @@ export default function BakeryMapPage({
   const [selectedId, setSelectedId] = useState(initialSelectedId)
   // 이슈 #70 1번: 모바일에서 sticky 지도 접기/펼치기 — 데스크톱에선 버튼 자체가 CSS로 숨는다.
   const [mapCollapsed, setMapCollapsed] = useState(false)
+  // 이슈 #80 지도 UI 개편: 데스크톱에서 리스트를 접어 지도를 넓게 보고 싶을 때.
+  const [listCollapsed, setListCollapsed] = useState(false)
   const [search, setSearch] = useState(initialSearch.trim())
   // 목록 필터링(filtered)은 매 키 입력마다 즉시 반응해야 하지만, 지도 재조정(MapView의
   // search prop)까지 그대로 즉시 반응하면 타이핑 한 글자마다 지도가 움직인다(리뷰 지적) —
@@ -41,7 +45,7 @@ export default function BakeryMapPage({
   })
   // 찜한 빵집을 목록 위쪽에 먼저 보여준다(§CP10-6) — "근처 빵집"(nearbyMode)은 거리순이
   // 핵심이라 여긴 적용하지 않는다.
-  const { isSaved } = useSavedBakeries()
+  const { isSaved, toggleSave } = useSavedBakeries()
 
   const nearbyMode = !!origin
   const searchMode = !nearbyMode && !!search
@@ -61,6 +65,14 @@ export default function BakeryMapPage({
         : bakeries
     return [...base].sort((a, b) => Number(isSaved(b.id)) - Number(isSaved(a.id)))
   }, [bakeries, district, nearbyMode, origin, search, isSaved])
+
+  // 목록 항목의 "대표메뉴" — 큐레이션 데이터(bakeryBreadMenu.js)에서 이 빵집이 판다고 확인된
+  // 빵 중 첫 번째. 없으면 표시하지 않는다(추측성 정보를 지어내지 않음).
+  const signatureBreadName = (bakeryName) => {
+    const ids = curatedBreadIdsFor(bakeryName)
+    if (!ids || ids.length === 0) return null
+    return getBreadById(ids[0])?.name ?? null
+  }
 
   const selected = filtered.find((b) => b.id === selectedId) || null
 
@@ -89,9 +101,16 @@ export default function BakeryMapPage({
             ? `${origin.name} 근처 빵집 (${filtered.length}곳)`
             : searchMode
               ? `'${search}' 검색 결과 (${filtered.length}곳)`
-              : `빵집 지도 (${filtered.length}곳)`}
+              : `대전광역시 · 빵집 ${filtered.length}곳`}
         </h2>
         {source === 'sample' && <span className="badge warn">샘플 데이터 (API 키 미설정)</span>}
+        <button
+          type="button"
+          className="bm-list-toggle"
+          onClick={() => setListCollapsed((v) => !v)}
+        >
+          {listCollapsed ? '목록 보기' : '목록 숨기기'}
+        </button>
       </header>
 
       {error && <div className="banner error">데이터 오류: {String(error.message)}</div>}
@@ -182,32 +201,45 @@ export default function BakeryMapPage({
           </button>
         </section>
 
-        <aside className="result-list-col">
+        <aside className={'result-list-col' + (listCollapsed ? ' is-collapsed' : '')}>
+          <p className="bm-list-subheader">이 지역의 빵집 {filtered.length}곳</p>
           <ol className="rec-list">
-            {filtered.map((b, i) => (
-              <li
-                key={b.id}
-                className={'rec-list-item' + (b.id === selectedId ? ' active' : '')}
-                onClick={() => setSelectedId(b.id)}
-              >
-                <span className="rl-name">
-                  {nearbyMode ? `${i + 1}. ` : ''}
-                  {!nearbyMode && isSaved(b.id) && (
-                    <span className="rl-saved-heart" aria-hidden="true">
-                      <SaveHeartIcon filled />
+            {filtered.map((b, i) => {
+              const signature = nearbyMode ? null : signatureBreadName(b.name)
+              return (
+                <li
+                  key={b.id}
+                  className={'rec-list-item' + (b.id === selectedId ? ' active' : '')}
+                  onClick={() => setSelectedId(b.id)}
+                >
+                  <span className="rank">{i + 1}</span>
+                  <span className="rl-body">
+                    <span className="rl-name-row">
+                      <span className="rl-name">{b.name}</span>
+                      <button
+                        type="button"
+                        className={'rl-heart-btn' + (isSaved(b.id) ? ' saved' : '')}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          toggleSave(b)
+                        }}
+                        aria-label={isSaved(b.id) ? '찜 해제' : '찜하기'}
+                      >
+                        <SaveHeartIcon filled={isSaved(b.id)} />
+                      </button>
                     </span>
-                  )}
-                  {b.name}
-                </span>
-                {nearbyMode ? (
-                  Number.isFinite(b.distKm) && (
-                    <span className="rl-dist">{formatDistance(b.distKm)}</span>
-                  )
-                ) : (
-                  b.address && <span className="rl-dist">{b.address}</span>
-                )}
-              </li>
-            ))}
+                    {signature && <span className="rl-signature">{signature}</span>}
+                    {nearbyMode ? (
+                      Number.isFinite(b.distKm) && (
+                        <span className="rl-dist">{formatDistance(b.distKm)}</span>
+                      )
+                    ) : (
+                      b.address && <span className="rl-dist">{b.address}</span>
+                    )}
+                  </span>
+                </li>
+              )
+            })}
             {!loading && filtered.length === 0 && (
               <li className="rec-list-empty">
                 {nearbyMode
