@@ -1,33 +1,16 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useAppStore } from '../../store/useAppStore'
 import { useBakeries } from '../../hooks/useBakeries'
 import { useCurrentLocation } from '../../hooks/useCurrentLocation'
 import { getRegion } from '../../config/regions'
-import { isWithinBbox, formatDistance, haversineKm } from '../../lib/distance'
+import { nearestAttraction, mapLocationNotice } from '../../lib/mapPresentation'
 import { getBakeryDistanceInfo } from '../../lib/bakeryDistance'
 import { pickBreadResult, matchBakeries, matchBakeriesGrouped } from '../../lib/breadRecommend'
 import { getBreadById } from '../../data/breadCandidates'
-import { STATIONS } from '../../data/stations'
 import { useAttractions } from '../../hooks/useAttractions'
-import MapView from './MapView'
-import RecommendCard from './RecommendCard'
-import MapSelectionSummary from './MapSelectionSummary'
-// 이슈 #80 C-4 보류 — 짐 보관함 섹션은 아래 렌더링부와 함께 비활성화 상태(파일은 그대로 둔다).
-// import LuggageStorageSection from './LuggageStorageSection'
-
-// 빵집 한 곳에서 가장 가까운 관광지 1곳 → { name, km, lat, lng }
-function nearestAttraction(bakery, spots) {
-  if (!Number.isFinite(bakery.lat) || !Number.isFinite(bakery.lng)) return null
-  let best = null
-  for (const t of spots) {
-    const km = haversineKm({ lat: bakery.lat, lng: bakery.lng }, { lat: t.lat, lng: t.lng })
-    if (!best || km < best.km) best = { name: t.name, km, lat: t.lat, lng: t.lng }
-  }
-  return best
-}
-
+import BakeryMapPage from './BakeryMapPage'
 // 취향 일치율 기반 지도 + 추천 리스트.
-export default function MapResult() {
+export default function MapResult({ onAddToCourse }) {
   const regionId = useAppStore((s) => s.regionId)
   const origin = useAppStore((s) => s.origin)
   const answers = useAppStore((s) => s.answers)
@@ -36,7 +19,6 @@ export default function MapResult() {
   const selectBakery = useAppStore((s) => s.selectBakery)
   const region = getRegion(regionId)
   // 이슈 #70 1번: 모바일에서 sticky 지도 접기/펼치기 — 데스크톱에선 버튼 자체가 CSS로 숨는다.
-  const [mapCollapsed, setMapCollapsed] = useState(false)
   // 빵 종류 바로가기(이슈 #73 B1): 설문 없이 고른 빵. 있으면 스코어링 대신 이 빵으로 필터한다.
   const directBread = directBreadId ? getBreadById(directBreadId) : null
 
@@ -48,8 +30,7 @@ export default function MapResult() {
     origin,
     limit: Infinity,
   })
-  const { status: locStatus, coords, label: locLabel } = useCurrentLocation()
-  const inRegion = isWithinBbox(coords, region.bbox)
+  const { coords, status: locStatus, label: locLabel } = useCurrentLocation()
 
   // 관광지 좌표만 추림(이름·좌표). 빵집별 최근접 1곳 계산에 재사용.
   const { raw: attractionsRaw, loading: attractionsLoading } = useAttractions()
@@ -111,124 +92,20 @@ export default function MapResult() {
   // 대가: 목록이 뜨는 시점이 근소하게 늦어지지만(빵집 로딩만 끝났을 때 대신 관광지까지
   // 끝난 뒤), 한 번 뜨면 완성된 상태로 뜨고 이후에 항목이 튀지 않는다.
   const listReady = !loading && !attractionsLoading
-  const selected =
-    bakeriesWithDist.find((b) => b.id === selectedBakeryId) || bakeriesWithDist[0]
-
-  // 유저가 실제로 클릭한 빵집만 (초기 자동선택 제외) → 그 빵집의 최근접 관광지 1개만 지도에 표시
-  const clickedBakery = selectedBakeryId
-    ? bakeriesWithDist.find((b) => b.id === selectedBakeryId)
-    : null
-  const nearbyAttractions = useMemo(
-    () => (clickedBakery?.nearSpot ? [clickedBakery.nearSpot] : []),
-    [clickedBakery],
-  )
-
-  // 짐 보관함 섹션 기준점: 출발지 > (대전 안이면) 현재 위치 > 대전역 폴백 — 빵집 거리와 같은 체인.
-  // (이슈 #80 C-4 보류 — 섹션 렌더링이 꺼져 있는 동안에는 쓰이지 않는다. 해제 시 그대로 재사용.)
-  // eslint-disable-next-line no-unused-vars
-  const luggageRef = useMemo(() => {
-    if (origin) return { lat: origin.lat, lng: origin.lng, label: origin.label || '출발 위치' }
-    if (coords && inRegion) return { lat: coords.lat, lng: coords.lng, label: '현재 위치' }
-    return { lat: STATIONS[0].lat, lng: STATIONS[0].lng, label: STATIONS[0].name }
-  }, [origin, coords, inRegion])
-
   return (
-    <div className="result result-quiz">
-      <header className="result-header">
-        {/* "<" 는 랭킹/설문 리셋이 아니라 진짜 뒤로가기 — 이 화면은 항상 BreadReveal의
-            "지도에서 보기"에서만 오므로, 브라우저 히스토리로 돌아가면 정확히 그 리빌 화면이
-            복원된다(viewHistory.js). 예전엔 onRetake(설문 다시 하기/홈)를 여기 붙여놔서
-            "<"를 누르면 리빌이 아니라 설문 0단계나 홈으로 튀었다 — 설문 재시작은 리빌
-            화면 자체의 "다시 하기" 버튼으로도 갈 수 있으니 기능은 그대로 남는다. */}
-        <button
-          type="button"
-          className="result-back"
-          onClick={() => window.history.back()}
-          aria-label="뒤로가기"
-        >
-          <svg viewBox="0 0 16 28" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="13 4 3 14 13 24" />
-          </svg>
-        </button>
-        <h2>
-          {breadResult ? `${breadResult.bread.name} 맛집 추천` : '대전 빵집 추천'} (
-          {bakeriesWithDist.length}곳)
-        </h2>
-        {source === 'sample' && (
-          <span className="badge warn">샘플 데이터 (API 키 미설정)</span>
-        )}
-        {origin ? (
-          <span className="badge location">📍 출발: {origin.label} · 가까운 순</span>
-        ) : (
-          <>
-            {locStatus === 'ready' && (
-              <span className="badge location">
-                📍 현재 위치: {locLabel || `${coords.lat.toFixed(3)}, ${coords.lng.toFixed(3)}`}
-                {!inRegion && ' · 대전 밖 → 역 기준 거리 표시'}
-              </span>
-            )}
-            {locStatus === 'denied' && (
-              <span className="badge warn">위치 접근 거부됨 · 역 기준 거리로 표시</span>
-            )}
-          </>
-        )}
-      </header>
-
-      {error && <div className="banner error">데이터 오류: {String(error.message)}</div>}
-      {!listReady && <div className="banner">불러오는 중…</div>}
-      {listReady && breadResult && bakeriesWithDist.length === 0 && (
-        <div className="banner">이 지역엔 아직 추천할 {breadResult.bread.name} 맛집 정보가 없어요.</div>
-      )}
-
-      <div className="result-body">
-        <section className={'result-map' + (mapCollapsed ? ' is-collapsed' : '')}>
-          <MapView
-            bakeries={bakeriesWithDist}
-            selectedId={selectedBakeryId}
-            onSelect={selectBakery}
-            attractions={nearbyAttractions}
-          />
-          <MapSelectionSummary bakery={selected} />
-          <button
-            type="button"
-            className="result-map-toggle"
-            onClick={() => setMapCollapsed((v) => !v)}
-          >
-            {mapCollapsed ? '지도 펼치기 ▾' : '지도 접기 ▴'}
-          </button>
-        </section>
-
-        <aside className="result-list-col">
-          <ol className="rec-list">
-            {listReady && bakeriesWithDist.map((b, i) => (
-              <li
-                key={b.id}
-                className={'rec-list-item' + (b.id === selected?.id ? ' active' : '')}
-                onClick={() => selectBakery(b.id)}
-              >
-                <span className="rank">{i + 1}</span>
-                <span className="rl-name">{b.name}</span>
-                {b.isPossible && <span className="rl-tag">가능성 있음</span>}
-                {b.distInfo && (
-                  <span className="rl-dist">{formatDistance(b.distInfo.km)}</span>
-                )}
-                {b.nearSpot && (
-                  <span className="rl-near">📸 근처 관광지 · {b.nearSpot.name} · {formatDistance(b.nearSpot.km)}</span>
-                )}
-              </li>
-            ))}
-          </ol>
-        </aside>
-
-        <aside className={'result-detail-col' + (mapCollapsed ? ' is-collapsed' : '')}>
-          <RecommendCard bakery={selected} />
-        </aside>
-      </div>
-
-      {/* 이슈 #80 C-4 보류 — 데이터/노출 정책 확정 전까지 비활성화(회의 결정: A·B 먼저).
-          코드·데이터·테스트는 그대로 두고 렌더링만 막는다. 준비되면 아래 주석을 해제하고,
-          styles.css 의 같은 마커가 달린 @media (min-width:821px) 블록도 같이 살릴 것.
-      <LuggageStorageSection refPoint={luggageRef} /> */}
-    </div>
+    <BakeryMapPage
+      onAddToCourse={onAddToCourse}
+      recommendation={{
+        bakeries: listReady ? bakeriesWithDist : [],
+        loading: !listReady,
+        error,
+        source,
+        locationNotice: mapLocationNotice({ origin, status: locStatus, coords, label: locLabel, bbox: region.bbox }),
+        title: breadResult ? `${breadResult.bread.name} 맛집 추천` : '대전 빵집 추천',
+        illustration: breadResult?.bread.illustration,
+        selectedId: selectedBakeryId,
+        onSelect: selectBakery,
+      }}
+    />
   )
 }

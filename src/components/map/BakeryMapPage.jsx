@@ -1,15 +1,16 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useAttractions } from '../../hooks/useAttractions'
 import { useBakeries } from '../../hooks/useBakeries'
 import { useSavedBakeries } from '../../hooks/useSavedBakeries'
 import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { getRegion } from '../../config/regions'
 import { haversineKm, formatDistance } from '../../lib/distance'
 import MapView from './MapView'
+import LuggageStorageSection from './LuggageStorageSection'
+import { nearestAttraction, resolveMapSelection } from '../../lib/mapPresentation'
+import { nearestLockers } from '../../lib/luggageStorage'
 import RecommendCard from './RecommendCard'
-import MapSelectionSummary from './MapSelectionSummary'
 import { SaveHeartIcon } from '../mypage/PreviewIcons'
-import { curatedBreadIdsFor } from '../../data/bakeryBreadMenu'
-import { getBreadById } from '../../data/breadCandidates'
 
 const DISTRICTS = getRegion().districts
 const NEARBY_LIMIT = 10
@@ -30,9 +31,21 @@ export default function BakeryMapPage({
   onClearOrigin,
   initialSearch = '',
   initialSelectedId = null,
+  onAddToCourse,
+  recommendation = null,
 }) {
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 820px)').matches)
+  const mobilePanelRef = useRef(null)
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 820px)')
+    const update = () => setIsMobile(media.matches)
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
   const [district, setDistrict] = useState(null) // null = 전체
-  const [selectedId, setSelectedId] = useState(initialSelectedId)
+  const [localSelectedId, setLocalSelectedId] = useState(initialSelectedId)
+  const selectedId = recommendation ? recommendation.selectedId : localSelectedId
+  const setSelectedId = recommendation?.onSelect || setLocalSelectedId
   // 이슈 #70 1번: 모바일에서 sticky 지도 접기/펼치기 — 데스크톱에선 버튼 자체가 CSS로 숨는다.
   const [mapCollapsed, setMapCollapsed] = useState(false)
   // 이슈 #80 지도 UI 개편: 데스크톱에서 리스트를 접어 지도를 넓게 보고 싶을 때.
@@ -42,15 +55,19 @@ export default function BakeryMapPage({
   // search prop)까지 그대로 즉시 반응하면 타이핑 한 글자마다 지도가 움직인다(리뷰 지적) —
   // 지도 쪽에만 디바운스된 값을 넘긴다.
   const debouncedSearch = useDebouncedValue(search, 300)
-  const { bakeries, loading, error, source } = useBakeries({
+  const browseData = useBakeries({
+    enabled: !recommendation,
     regionId: undefined,
     answers: {},
     origin: null,
     limit: Infinity,
   })
+  const { bakeries, loading, error, source } = recommendation || browseData
   // 찜한 빵집을 목록 위쪽에 먼저 보여준다(§CP10-6) — "근처 빵집"(nearbyMode)은 거리순이
   // 핵심이라 여긴 적용하지 않는다.
   const { saved, isSaved, toggleSave } = useSavedBakeries()
+
+  const { raw: visitAttractions } = useAttractions()
 
   const nearbyMode = !!origin
   const searchMode = !nearbyMode && !!search
@@ -82,15 +99,18 @@ export default function BakeryMapPage({
         ? bakeries.filter((b) => (b.address || '').includes(district))
         : bakeries
     const savedIds = savedOrderRef.current.ids
-    return [...base].sort((a, b) => Number(savedIds.has(b.id)) - Number(savedIds.has(a.id)))
-  }, [bakeries, district, nearbyMode, origin, search, sortContextKey])
+    return recommendation ? base : [...base].sort((a, b) => Number(savedIds.has(b.id)) - Number(savedIds.has(a.id)))
+  }, [bakeries, district, nearbyMode, origin, search, sortContextKey, recommendation])
 
   // 순위 배지 → id. 리스트의 배열 위치(i)로 바로 매기면, 좌표가 없어 지도에 마커 자체가
   // 안 그려지는 항목(MarkerLayer.jsx가 lat/lng 없으면 건너뜀)이 상위 RANK_LIMIT 안에 있을 때
   // "리스트엔 번호가 있는데 지도엔 그 핀이 없는" 불일치가 생긴다(코드 리뷰 지적) — 좌표가
   // 있는 항목만 세어서 번호를 매기고, id로 지도 쪽(MarkerLayer)과 맞춘다.
+  // recommendation(설문 결과 기반 추천)일 때만 번호가 의미 있다 — 일반 빵 지도(전체/구필터/
+  // 검색/근처빵집)는 순서가 찜 우선 + API 응답 순일 뿐이라 번호를 달면 랭킹처럼 오해를 산다.
   const rankById = useMemo(() => {
     const map = new Map()
+    if (!recommendation) return map
     let n = 0
     for (const b of filtered) {
       if (n >= RANK_LIMIT) break
@@ -98,17 +118,18 @@ export default function BakeryMapPage({
       map.set(b.id, ++n)
     }
     return map
-  }, [filtered])
+  }, [filtered, recommendation])
 
-  // 목록 항목의 "대표메뉴" — 큐레이션 데이터(bakeryBreadMenu.js)에서 이 빵집이 판다고 확인된
-  // 빵 중 첫 번째. 없으면 표시하지 않는다(추측성 정보를 지어내지 않음).
-  const signatureBreadName = (bakeryName) => {
-    const ids = curatedBreadIdsFor(bakeryName)
-    if (!ids || ids.length === 0) return null
-    return getBreadById(ids[0])?.name ?? null
-  }
+const selected = resolveMapSelection(filtered, selectedId, !!recommendation)
+  const effectiveSelectedId = selectedId && selected ? selected.id : null
 
-  const selected = filtered.find((b) => b.id === selectedId) || null
+  const nearbyLockers = useMemo(() => selected ? nearestLockers(selected) : [], [selected])
+
+  const visitInfo = useMemo(() => {
+    if (!selected) return null
+    const attraction = nearestAttraction(selected, visitAttractions, { maxKm: 8 })
+    return { attraction, locker: nearbyLockers[0] || null }
+  }, [selected, visitAttractions, nearbyLockers])
 
   // 구를 바꾸면 이전 선택은 더 이상 유효하지 않으니 같이 초기화 → 지도가 대전 전체 시점으로 복귀한다.
   const selectDistrict = (d) => {
@@ -120,8 +141,37 @@ export default function BakeryMapPage({
     ? [{ id: '__nearby_origin__', name: origin.name, lat: origin.lat, lng: origin.lng }]
     : []
 
+  useEffect(() => {
+    if (isMobile && selectedId) mobilePanelRef.current?.scrollTo({ top: 0 })
+  }, [isMobile, selectedId])
+
+  const detailPanel = (selected && <aside className={isMobile ? 'bm-mobile-detail' : 'bm-floating-detail'}><div className="bm-bakery-detail-panel"><RecommendCard key={selected.id} bakery={selected} compact onAddToCourse={onAddToCourse} visitInfo={visitInfo} /></div>
+            {nearbyLockers.length > 0 && <details className="bm-locker-details" key={selected.id}>
+              <summary>주변 짐 보관소 <span>{nearbyLockers.length}곳</span></summary>
+              <LuggageStorageSection refPoint={{ ...selected, label: selected.name }} />
+            </details>}
+          </aside>)
+
   return (
     <div className="result result-browse">
+
+
+      {error && <div className="banner error">데이터 오류: {String(error.message)}</div>}
+      {loading && <div className="banner">불러오는 중…</div>}
+
+      <div className={'result-body' + (listCollapsed ? ' list-collapsed' : '')}>
+        <section className={'result-map' + (mapCollapsed ? ' is-collapsed' : '')}>
+          <MapView
+            bakeries={filtered}
+            selectedId={effectiveSelectedId}
+            onSelect={setSelectedId}
+            attractions={recommendation && selectedId && selected?.nearSpot ? [selected.nearSpot] : originAttraction}
+            highlightDistrict={district}
+            search={debouncedSearch}
+            nearbyMode={nearbyMode}
+            rankById={rankById}
+            lockers={nearbyLockers}
+          />
       <header className="result-header">
         {/* "<" 는 항상 홈이 아니라 진짜 뒤로가기 — 이 화면은 근처빵집/검색/찜목록 등 진입
             경로가 여러 개라(LandingPage.jsx의 openBakeryMap/searchBakeryMap/viewBakeryOnMap),
@@ -137,27 +187,50 @@ export default function BakeryMapPage({
           </svg>
         </button>
         <h2>
-          {nearbyMode
+          {recommendation?.illustration ? (
+            <img className="bm-map-title-icon" src={recommendation.illustration} alt="" />
+          ) : (
+            <svg className="bm-map-title-icon bm-map-location-icon" viewBox="0 0 32 40" fill="none" aria-hidden="true">
+              <ellipse cx="16" cy="36" rx="9" ry="3" fill="var(--line)" opacity=".45" />
+              <path d="M16 2C8.8 2 3 7.8 3 15c0 9 13 20 13 20s13-11 13-20C29 7.8 23.2 2 16 2Z" fill="var(--accent)" stroke="var(--card)" strokeWidth="2" />
+              <circle cx="16" cy="15" r="5" fill="var(--card)" />
+            </svg>
+          )}
+          <span>{recommendation && !searchMode && !district
+            ? `${recommendation.title} · ${filtered.length}곳`
+            : nearbyMode
             ? `${origin.name} 근처 빵집 (${filtered.length}곳)`
             : searchMode
               ? `'${search}' 검색 결과 (${filtered.length}곳)`
               : district
                 ? `${district} · 빵집 ${filtered.length}곳`
                 : `대전광역시 · 빵집 ${filtered.length}곳`}
+          </span>
         </h2>
         {source === 'sample' && <span className="badge warn">샘플 데이터 (API 키 미설정)</span>}
         <button
           type="button"
-          className="bm-list-toggle"
+          className="bm-list-toggle" aria-expanded={!listCollapsed}
           onClick={() => setListCollapsed((v) => !v)}
         >
           {listCollapsed ? '목록 보기' : '목록 숨기기'}
         </button>
       </header>
+          {!isMobile && detailPanel}
+          <button
+            type="button"
+            className="result-map-toggle"
+            onClick={() => setMapCollapsed((v) => !v)}
+          >
+            {mapCollapsed ? '지도 펼치기 ▾' : '지도 접기 ▴'}
+          </button>
+        </section>
 
-      {error && <div className="banner error">데이터 오류: {String(error.message)}</div>}
-      {loading && <div className="banner">불러오는 중…</div>}
-
+        <aside ref={mobilePanelRef} className={'result-list-col' + (listCollapsed ? ' is-collapsed' : '')}>
+          {isMobile && detailPanel}
+          {recommendation && <div className="bm-sidebar-back-row"><button type="button" className="bm-sidebar-back" onClick={() => window.history.back()}>← 추천 결과로 돌아가기</button></div>}
+          <div className="bm-sidebar-controls">
+          {recommendation?.locationNotice && <p className="bm-location-notice" role="status">{recommendation.locationNotice}</p>}
       {!nearbyMode && (
         <form
           className="bm-map-search-form"
@@ -166,16 +239,18 @@ export default function BakeryMapPage({
             if (filtered.length > 0) setSelectedId(filtered[0].id)
           }}
         >
+          <svg className="bm-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg>
           <input
             type="text"
             className="bm-map-search-input"
-            placeholder="빵집 이름 검색…"
+            placeholder="빵집 이름을 검색해보세요" aria-label="빵집 이름 검색"
             value={search}
             onChange={(e) => {
               setSearch(e.target.value)
               setSelectedId(null)
             }}
           />
+          {search && <button type="button" className="bm-search-clear" aria-label="검색어 지우기" onClick={() => { setSearch(''); setSelectedId(null) }}>×</button>}
         </form>
       )}
 
@@ -222,41 +297,17 @@ export default function BakeryMapPage({
         </div>
       )}
 
-      {/* 최종 리뷰 4: 목록을 숨겨도(.result-list-col{display:none}) 그리드의 3열 트랙은 그대로라
-          지도가 넓어지지 않고 상세 카드만 엉뚱한 트랙으로 밀렸다 — 접힘 여부를 그리드 컨테이너에도
-          알려 트랙 자체를 2열로 줄인다(데스크톱 전용 규칙, styles.css). */}
-      <div className={'result-body' + (listCollapsed ? ' list-collapsed' : '')}>
-        <section className={'result-map' + (mapCollapsed ? ' is-collapsed' : '')}>
-          <MapView
-            bakeries={filtered}
-            selectedId={selectedId}
-            onSelect={setSelectedId}
-            attractions={originAttraction}
-            highlightDistrict={district}
-            search={debouncedSearch}
-            nearbyMode={nearbyMode}
-            rankById={rankById}
-          />
-          <MapSelectionSummary bakery={selected} />
-          <button
-            type="button"
-            className="result-map-toggle"
-            onClick={() => setMapCollapsed((v) => !v)}
-          >
-            {mapCollapsed ? '지도 펼치기 ▾' : '지도 접기 ▴'}
-          </button>
-        </section>
-
-        <aside className={'result-list-col' + (listCollapsed ? ' is-collapsed' : '')}>
-          <p className="bm-list-subheader">이 지역의 빵집 {filtered.length}곳</p>
+</div>
+          <p className="bm-list-subheader"><span>{recommendation ? '추천 빵집' : '이 지역의 빵집'}</span><span>{filtered.length}곳</span></p>
           <ol className="rec-list">
             {filtered.map((b, i) => {
-              const signature = nearbyMode ? null : signatureBreadName(b.name)
               return (
                 <li
                   key={b.id}
-                  className={'rec-list-item' + (b.id === selectedId ? ' active' : '')}
+                  className={'rec-list-item' + (b.id === selected?.id ? ' active' : '')}
                   onClick={() => setSelectedId(b.id)}
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setSelectedId(b.id) } }}
                 >
                   {/* 순위 배지는 랭킹이 아니라 지도 핀과 대조하는 인덱스(2차 개편, RANK_LIMIT/
                       rankById 참고) — 기본/구 필터/검색 목록의 순서(찜 우선 + API 응답 순)가
@@ -278,7 +329,9 @@ export default function BakeryMapPage({
                         <SaveHeartIcon filled={isSaved(b.id)} />
                       </button>
                     </span>
-                    {signature && <span className="rl-signature">{signature}</span>}
+                    {b.isPossible && <span className="rl-tag">가능성 있음</span>}
+                    {recommendation && b.distInfo && <span className="rl-dist">{b.distInfo.from}에서 {formatDistance(b.distInfo.km)}</span>}
+                    {recommendation && b.nearSpot && <span className="rl-dist">근처 관광지 · {b.nearSpot.name} · {formatDistance(b.nearSpot.km)}</span>}
                     {nearbyMode ? (
                       Number.isFinite(b.distKm) && (
                         <span className="rl-dist">{formatDistance(b.distKm)}</span>
@@ -302,9 +355,7 @@ export default function BakeryMapPage({
           </ol>
         </aside>
 
-        <aside className={'result-detail-col' + (mapCollapsed ? ' is-collapsed' : '')}>
-          <RecommendCard bakery={selected} />
-        </aside>
+
       </div>
     </div>
   )

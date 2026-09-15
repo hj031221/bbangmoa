@@ -41,3 +41,9 @@ test('nearestLockers: 기준점 좌표가 유효하지 않으면 빈 배열', ()
   assert.deepEqual(nearestLockers(null, { lockers: FIXTURE }), [])
   assert.deepEqual(nearestLockers({ lat: null, lng: 1 }, { lockers: FIXTURE }), [])
 })
+
+test('nearestLockers: 기본 반경은 5km로 6km 거리의 보관소를 제외한다', () => {
+  const lockers = [...FIXTURE, { id: 'six-km', lat: DAEJEON_STATION.lat + 0.054, lng: DAEJEON_STATION.lng }]
+  const out = nearestLockers(DAEJEON_STATION, { lockers })
+  assert.deepEqual(out.map((l) => l.id), ['near', 'mid'])
+})

@@ -5,23 +5,13 @@ const PIN_D =
   'M99.78 40.39C97.37 17.71 78.24 0.04 55 0.04 54.54 0.04 54.09 0.04 53.64 0.06 19.84 1.06-.01 38.81 17.47 67.86 26.11 82.23 40.17 105.61 48.41 119.3 51.4 124.28 58.6 124.28 61.59 119.3 70.34 104.75 85.67 79.27 94.08 65.27 98.58 57.8 100.7 49.07 99.78 40.39Z'
 const BREAD_D =
   'M69.84 30.27C66.68 30.27 63.95 32.13 62.68 34.81 61.41 32.13 58.68 30.27 55.52 30.27 52.34 30.27 49.59 32.16 48.33 34.88 47.08 32.16 44.33 30.27 41.14 30.27 36.77 30.27 33.22 33.82 33.22 38.21L33.22 52.04C33.22 54.72 35.39 56.89 38.06 56.89L72.92 56.89C75.59 56.89 77.76 54.72 77.76 52.04L77.76 38.21C77.76 33.82 74.21 30.27 69.84 30.27Z'
-// 순위 배지(2차 개편) — 핀 머리 오른쪽 위에 얹는 작은 흰 원 + 코랄 숫자. 랭킹이 아니라
-// 리스트 항목과 지도 핀을 대조하기 위한 인덱스라, 눈에 띄되 로고 핀 자체보다는 작게 둔다.
-function badgeMarkup(number) {
-  if (!number) return ''
-  return (
-    `<circle cx='82' cy='24' r='19' fill='#fff' stroke='#F97658' stroke-width='4'/>` +
-    `<text x='82' y='25' text-anchor='middle' dominant-baseline='central' font-family='sans-serif' font-weight='700' font-size='22' fill='#F97658'>${number}</text>`
-  )
-}
-
+// 번호가 있는 핀은 목록과 같은 번호를 중앙에 표시한다.
 function svgPin({ w, h, stroke, number }) {
   const strokeAttr = stroke ? " stroke='#fff' stroke-width='7' stroke-linejoin='round'" : ''
   const svg =
     `<svg xmlns='http://www.w3.org/2000/svg' width='${w}' height='${h}' viewBox='0 0 100.7 124.3'>` +
     `<path d='${PIN_D}' fill='#F97658'${strokeAttr}/>` +
-    `<path d='${BREAD_D}' fill='#fff'/>` +
-    badgeMarkup(number) +
+    (number ? `<text x='55' y='49' text-anchor='middle' dominant-baseline='central' font-family='sans-serif' font-weight='600' font-size='39' fill='#fff'>${number}</text>` : `<path d='${BREAD_D}' fill='#fff'/>`) +
     `</svg>`
   return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg)
 }
@@ -53,7 +43,7 @@ export default function MarkerLayer({ map, bakeries, selectedId, onSelect, clust
     if (!imagesRef.current.numbered.has(number)) {
       const { kakao } = window
       imagesRef.current.numbered.set(number, {
-        normal: buildPinImage(kakao, { w: 30, stroke: false, number }),
+        normal: buildPinImage(kakao, { w: 36, stroke: true, number }),
         selected: buildPinImage(kakao, { w: 44, stroke: true, number }),
       })
     }

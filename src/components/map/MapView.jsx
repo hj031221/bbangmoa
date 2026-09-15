@@ -6,6 +6,7 @@ import { DAEJEON_RING } from '../../data/daejeonBoundary'
 import { DISTRICT_RINGS } from '../../data/daejeonDistricts'
 import MarkerLayer from './MarkerLayer'
 import AttractionMarkers from './AttractionMarkers'
+import LuggageMarkers from './LuggageMarkers'
 import { getEnabledFeatures, createClusterer } from './features'
 
 // DISTRICT_RINGS(구별 14~23점, southkorea-maps kostat/2013 단순화)와 DAEJEON_RING(353점, 별도
@@ -126,6 +127,7 @@ export default function MapView({
   search = '',
   nearbyMode = false,
   rankById = null,
+  lockers = [],
 }) {
   const { loaded, error } = useKakaoLoader()
   const regionId = useAppStore((s) => s.regionId)
@@ -319,6 +321,17 @@ export default function MapView({
     return () => cleanups.forEach((c) => c())
   }, [map])
 
+  useEffect(() => {
+    if (!map || !containerRef.current) return
+    const observer = new ResizeObserver(() => {
+      const center = map.getCenter()
+      map.relayout()
+      map.setCenter(center)
+    })
+    observer.observe(containerRef.current)
+    return () => observer.disconnect()
+  }, [map])
+
   return (
     <div className="map-wrap">
       {error && (
@@ -328,9 +341,11 @@ export default function MapView({
         </div>
       )}
       <div ref={containerRef} className="map-canvas" />
+      {map && <div className="bm-map-zoom"><button type="button" aria-label="지도 확대" onClick={() => map.setLevel(map.getLevel() - 1)}>+</button><button type="button" aria-label="지도 축소" onClick={() => map.setLevel(map.getLevel() + 1)}>−</button></div>}
       {map && (
         <>
           <AttractionMarkers map={map} attractions={attractions} />
+          <LuggageMarkers map={map} lockers={lockers} />
           <MarkerLayer
             map={map}
             bakeries={bakeries}

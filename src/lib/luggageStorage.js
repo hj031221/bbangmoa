@@ -5,7 +5,7 @@ import { haversineKm, hasValidCoords } from './distance.js'
 import { LUGGAGE_STORAGE } from '../data/luggageStorage.js'
 
 // 반환: [{ ...locker, km }] — km 오름차순, 최대 limit 개, maxKm 이내만.
-export function nearestLockers(point, { limit = 3, maxKm = 8, lockers = LUGGAGE_STORAGE } = {}) {
+export function nearestLockers(point, { limit = 3, maxKm = 5, lockers = LUGGAGE_STORAGE } = {}) {
   if (!hasValidCoords(point)) return []
   return lockers
     .filter(hasValidCoords)

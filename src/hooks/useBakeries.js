@@ -19,7 +19,7 @@ import { SAMPLE_BAKERIES } from '../data/sampleBakeries'
 //   loading   : 로딩 여부
 //   error     : 에러 객체 | null
 //   source    : 'api' | 'sample'  (키 미설정 시 sample 폴백)
-export function useBakeries({ regionId, answers, origin, limit = MAX_RESULTS }) {
+export function useBakeries({ regionId, answers, origin, limit = MAX_RESULTS, enabled = true }) {
   const [raw, setRaw] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -27,6 +27,7 @@ export function useBakeries({ regionId, answers, origin, limit = MAX_RESULTS }) 
 
   // 데이터 fetch 는 지역이 바뀔 때만. (추천 정렬은 아래에서 answers 로 매번 재계산)
   useEffect(() => {
+    if (!enabled) return
     let alive = true
     const anyKey = tourEnabled() || kakaoLocalEnabled()
 
@@ -74,7 +75,7 @@ export function useBakeries({ regionId, answers, origin, limit = MAX_RESULTS }) 
     return () => {
       alive = false
     }
-  }, [regionId])
+  }, [regionId, enabled])
 
   // 설문 응답 기반 추천 점수 부여 → origin 에서 가까운 순 정렬 (fetch 없이 재계산)
   // 구(district) 필터는 제거: 전 구를 다 긁고 위치(origin) 기준으로 가까운 순만 보여준다.
