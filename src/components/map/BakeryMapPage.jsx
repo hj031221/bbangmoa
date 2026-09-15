@@ -13,6 +13,12 @@ import { getBreadById } from '../../data/breadCandidates'
 
 const DISTRICTS = getRegion().districts
 const NEARBY_LIMIT = 10
+// 이슈 #80 2차 개편: 순위 배지 — "랭킹"이 아니라 지도 핀과 대조하는 인덱스. 근처빵집 모드는
+// 이미 NEARBY_LIMIT(10)으로 리스트 자체가 잘려 전부 번호가 붙는다. 전체/구필터/검색 모드는
+// 리스트를 그대로 다 보여주되(최대 259곳), 지도에 259개 번호 핀을 그리는 건 의미도 없고
+// 비용도 커서 상위 RANK_LIMIT개에만 번호를 붙인다 — 아래 rankById가 그 번호를 매기고,
+// MarkerLayer.jsx의 rankById prop으로 넘어가 지도 핀에도 같은 번호를 단다.
+const RANK_LIMIT = 10
 
 // "빵 지도" 메뉴 전용 화면. 취향 설문 없이 지역 전체 빵집을 지도에 뿌리고,
 // 구 단위 필터 칩으로 표시 범위를 좁힌다. (설문 기반 추천 화면인 MapResult 와는 별개)
@@ -79,6 +85,21 @@ export default function BakeryMapPage({
     const savedIds = savedOrderRef.current.ids
     return [...base].sort((a, b) => Number(savedIds.has(b.id)) - Number(savedIds.has(a.id)))
   }, [bakeries, district, nearbyMode, origin, search, sortContextKey])
+
+  // 순위 배지 → id. 리스트의 배열 위치(i)로 바로 매기면, 좌표가 없어 지도에 마커 자체가
+  // 안 그려지는 항목(MarkerLayer.jsx가 lat/lng 없으면 건너뜀)이 상위 RANK_LIMIT 안에 있을 때
+  // "리스트엔 번호가 있는데 지도엔 그 핀이 없는" 불일치가 생긴다(코드 리뷰 지적) — 좌표가
+  // 있는 항목만 세어서 번호를 매기고, id로 지도 쪽(MarkerLayer)과 맞춘다.
+  const rankById = useMemo(() => {
+    const map = new Map()
+    let n = 0
+    for (const b of filtered) {
+      if (n >= RANK_LIMIT) break
+      if (!Number.isFinite(b.lat) || !Number.isFinite(b.lng)) continue
+      map.set(b.id, ++n)
+    }
+    return map
+  }, [filtered])
 
   // 목록 항목의 "대표메뉴" — 큐레이션 데이터(bakeryBreadMenu.js)에서 이 빵집이 판다고 확인된
   // 빵 중 첫 번째. 없으면 표시하지 않는다(추측성 정보를 지어내지 않음).
@@ -209,6 +230,7 @@ export default function BakeryMapPage({
             highlightDistrict={district}
             search={debouncedSearch}
             nearbyMode={nearbyMode}
+            rankById={rankById}
           />
           <MapSelectionSummary bakery={selected} />
           <button
@@ -231,10 +253,11 @@ export default function BakeryMapPage({
                   className={'rec-list-item' + (b.id === selectedId ? ' active' : '')}
                   onClick={() => setSelectedId(b.id)}
                 >
-                  {/* 최종 리뷰 6: 순위 배지는 거리순으로 정렬되는 "근처 빵집"(nearbyMode)에서만
-                      의미가 있다. 기본/구 필터/검색 목록의 순서는 "찜 우선 + API 응답 순"이라
-                      번호를 달면 데이터가 뒷받침하지 못하는 랭킹을 암시한다. */}
-                  {nearbyMode && <span className="rank">{i + 1}</span>}
+                  {/* 순위 배지는 랭킹이 아니라 지도 핀과 대조하는 인덱스(2차 개편, RANK_LIMIT/
+                      rankById 참고) — 기본/구 필터/검색 목록의 순서(찜 우선 + API 응답 순)가
+                      품질 순위를 뜻하는 건 아니지만, 상위 항목만 지도 핀에도 같은 번호를 달아
+                      "이 번호가 곧 이 핀"이라는 대조 용도로만 쓴다. */}
+                  {rankById.has(b.id) && <span className="rank">{rankById.get(b.id)}</span>}
                   <span className="rl-body">
                     <span className="rl-name-row">
                       <span className="rl-name">{b.name}</span>

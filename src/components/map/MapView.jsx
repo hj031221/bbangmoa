@@ -125,6 +125,7 @@ export default function MapView({
   highlightDistrict = null,
   search = '',
   nearbyMode = false,
+  rankById = null,
 }) {
   const { loaded, error } = useKakaoLoader()
   const regionId = useAppStore((s) => s.regionId)
@@ -336,6 +337,7 @@ export default function MapView({
             selectedId={selectedId}
             onSelect={onSelect}
             clusterer={clusterer}
+            rankById={rankById}
           />
         </>
       )}
