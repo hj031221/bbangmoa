@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { isSurveyComplete } from '../lib/breadRecommend'
 import SurveyFlow from '../components/survey/SurveyFlow'
@@ -26,6 +26,7 @@ import { buildHistoryState, restoreHistoryState } from '../lib/viewHistory'
 export default function LandingPage() {
   const { sendRequestByCode } = useFriends()
   const { invite, notice, confirm, dismiss, dismissNotice } = useInviteLink(sendRequestByCode)
+  const [menuRevision, setMenuRevision] = useState(0)
   const [view, setView] = useState(() => getAppView(window.location.pathname))
   const [stage, setStage] = useState('survey') // 'survey' | 'reveal' | 'map'
   // MyPage 는 기록장 상세 등 내부 화면 전환을 자체 상태(panel/selectedId)로 관리한다.
@@ -174,10 +175,22 @@ export default function LandingPage() {
     setDirectBread(breadId)
     enterBreadFlow('reveal', { directBreadId: breadId })
   }
-  // 메뉴바에서 "빵집 찾기"를 다시 고른 경우: 이전 결과를 버리고 설문 처음부터.
+  // 현재 빵집모아에서 메뉴를 재클릭하면 초기화하고, 다른 메뉴에서 돌아오면 완료한 결과를 유지한다.
   const startTestFromNav = () => {
-    resetAnswers()
-    enterBreadFlow('survey', { directBreadId: null })
+    if (view === 'bread') {
+      resetAnswers()
+      enterBreadFlow('survey', { directBreadId: null })
+      return
+    }
+    enterBreadFlow(surveyDone || directBreadId ? 'reveal' : 'survey')
+  }
+  const openTourFromNav = () => {
+    if (view === 'tour') {
+      resetTourAnswers()
+      enterTourFlow('survey')
+      return
+    }
+    openTour()
   }
   const openMyPage = () => {
     setMyPageResetKey((k) => k + 1)
@@ -246,6 +259,12 @@ export default function LandingPage() {
   const goHome = () => {
     navigateToView('home')
   }
+  // "다른 빵 고르기"(빵 종류 바로가기로 들어온 리빌 화면의 재시도 버튼) — 설문을 거치지
+  // 않고 골랐던 거라 홈으로 내보낼 이유가 없다. 칩 선택 화면(SurveyFlow step 0)으로 돌아간다.
+  const pickAnotherBread = () => {
+    clearDirectBread()
+    enterBreadFlow('survey', { directBreadId: null })
+  }
   const retakeSurvey = () => {
     resetAnswers()
     setStage('survey')
@@ -277,18 +296,26 @@ export default function LandingPage() {
     pushSubState({ tourStage: 'reveal' })
   }
 
+  // Menu clicks restart the destination even when its URL has not changed.
+  const refreshMenu = (open) => {
+    setMenuRevision((revision) => revision + 1)
+    open()
+    window.scrollTo({ top: 0, behavior: 'instant' })
+  }
+
   return (
-    <div className={`bm-landing${isHome ? ' is-home' : ''}`}>
+    <div className={`bm-landing${isHome ? ' is-home' : ''}`} data-view={view}>
       <NavBar
-        onGoHome={goHome}
-        onOpenInfo={openInfo}
-        onStartTest={startTest}
-        onOpenMap={openBakeryMap}
-        onOpenTour={openTour}
-        onOpenPilgrimage={openPilgrimage}
-        onOpenMyPage={openMyPage}
+        onGoHome={() => refreshMenu(goHome)}
+        onOpenInfo={() => refreshMenu(openInfo)}
+        onStartTest={() => refreshMenu(startTestFromNav)}
+        onOpenMap={() => refreshMenu(openBakeryMap)}
+        onOpenTour={() => refreshMenu(openTourFromNav)}
+        onOpenPilgrimage={() => refreshMenu(openPilgrimage)}
+        onOpenMyPage={() => refreshMenu(openMyPage)}
       />
 
+      <Fragment key={menuRevision}>
       {invite && (
         <InviteFriendModal nickname={invite.nickname} onConfirm={confirm} onCancel={dismiss} />
       )}
@@ -309,8 +336,9 @@ export default function LandingPage() {
       {view === 'info' && <InfoPage onStart={startTest} />}
 
       {view === 'map' && (
-        <div className="page">
+        <div className="page bm-map-page">
           <BakeryMapPage
+              onAddToCourse={(bakery) => loadCourseIntoPilgrimage({ stops: [{ ...bakery, type: 'bakery' }] })}
             origin={nearbyOrigin}
             onClearOrigin={() => setNearbyOrigin(null)}
             initialSearch={mapSearch}
@@ -359,7 +387,7 @@ export default function LandingPage() {
       )}
 
       {view === 'bread' && (
-        <div className="page">
+        <div className={stage === 'map' ? 'page bm-map-page' : 'page'}>
           {stage === 'survey' && (
             <SurveyFlow
               onComplete={handleSurveyComplete}
@@ -369,14 +397,14 @@ export default function LandingPage() {
           )}
           {stage === 'reveal' && (
             <BreadReveal
-              onRetake={directBreadId ? goHome : retakeSurvey}
+              onRetake={directBreadId ? pickAnotherBread : retakeSurvey}
               onShowMap={showMapResult}
               tourDone={tourSurveyDone}
               onGoToTour={openTour}
               onGoToPilgrimage={openPilgrimage}
             />
           )}
-          {stage === 'map' && <MapResult />}
+          {stage === 'map' && <MapResult onAddToCourse={(bakery) => loadCourseIntoPilgrimage({ stops: [{ ...bakery, type: 'bakery' }] })} />}
         </div>
       )}
 
@@ -390,6 +418,7 @@ export default function LandingPage() {
           />
         </div>
       )}
+      </Fragment>
     </div>
   )
 }

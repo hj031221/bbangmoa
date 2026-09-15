@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useSavedBakeries } from '../../hooks/useSavedBakeries'
+import { SaveHeartIcon } from '../mypage/PreviewIcons'
 
 const TABS = [
   { id: 'bakery', label: '빵집 검색' },
@@ -90,7 +91,11 @@ export default function AddStopModal({
                 disabled={added}
               >
                 <span>
-                  {tab === 'bakery' && isSaved(p.id) && <span aria-hidden="true">❤️ </span>}
+                  {tab === 'bakery' && isSaved(p.id) && (
+                    <span className="rl-saved-heart">
+                      <SaveHeartIcon filled />
+                    </span>
+                  )}
                   {p.name}
                   {suggestedIds?.has(p.id) && <span className="pil-modal-suggested-tag">취향 후보</span>}
                 </span>
