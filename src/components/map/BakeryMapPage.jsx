@@ -30,7 +30,6 @@ export default function BakeryMapPage({
   onClearOrigin,
   initialSearch = '',
   initialSelectedId = null,
-  onBack,
 }) {
   const [district, setDistrict] = useState(null) // null = 전체
   const [selectedId, setSelectedId] = useState(initialSelectedId)
@@ -124,13 +123,19 @@ export default function BakeryMapPage({
   return (
     <div className="result result-browse">
       <header className="result-header">
-        {onBack && (
-          <button type="button" className="result-back" onClick={onBack} aria-label="처음으로">
-            <svg viewBox="0 0 16 28" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="13 4 3 14 13 24" />
-            </svg>
-          </button>
-        )}
+        {/* "<" 는 항상 홈이 아니라 진짜 뒤로가기 — 이 화면은 근처빵집/검색/찜목록 등 진입
+            경로가 여러 개라(LandingPage.jsx의 openBakeryMap/searchBakeryMap/viewBakeryOnMap),
+            경로별로 "어디로 돌아갈지"를 각각 정의하는 대신 브라우저 히스토리에 맡긴다. */}
+        <button
+          type="button"
+          className="result-back"
+          onClick={() => window.history.back()}
+          aria-label="뒤로가기"
+        >
+          <svg viewBox="0 0 16 28" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="13 4 3 14 13 24" />
+          </svg>
+        </button>
         <h2>
           {nearbyMode
             ? `${origin.name} 근처 빵집 (${filtered.length}곳)`

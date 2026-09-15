@@ -315,7 +315,6 @@ export default function LandingPage() {
             onClearOrigin={() => setNearbyOrigin(null)}
             initialSearch={mapSearch}
             initialSelectedId={mapSelectId}
-            onBack={goHome}
           />
         </div>
       )}
@@ -377,7 +376,7 @@ export default function LandingPage() {
               onGoToPilgrimage={openPilgrimage}
             />
           )}
-          {stage === 'map' && <MapResult onRetake={directBreadId ? goHome : retakeSurvey} />}
+          {stage === 'map' && <MapResult />}
         </div>
       )}
 

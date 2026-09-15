@@ -26,8 +26,8 @@ function nearestAttraction(bakery, spots) {
   return best
 }
 
-// 취향 일치율 기반 지도 + 추천 리스트. onRetake: 취향 설문 다시 하기.
-export default function MapResult({ onRetake }) {
+// 취향 일치율 기반 지도 + 추천 리스트.
+export default function MapResult() {
   const regionId = useAppStore((s) => s.regionId)
   const origin = useAppStore((s) => s.origin)
   const answers = useAppStore((s) => s.answers)
@@ -135,7 +135,17 @@ export default function MapResult({ onRetake }) {
   return (
     <div className="result result-quiz">
       <header className="result-header">
-        <button type="button" className="result-back" onClick={onRetake} aria-label="취향 다시 설정">
+        {/* "<" 는 랭킹/설문 리셋이 아니라 진짜 뒤로가기 — 이 화면은 항상 BreadReveal의
+            "지도에서 보기"에서만 오므로, 브라우저 히스토리로 돌아가면 정확히 그 리빌 화면이
+            복원된다(viewHistory.js). 예전엔 onRetake(설문 다시 하기/홈)를 여기 붙여놔서
+            "<"를 누르면 리빌이 아니라 설문 0단계나 홈으로 튀었다 — 설문 재시작은 리빌
+            화면 자체의 "다시 하기" 버튼으로도 갈 수 있으니 기능은 그대로 남는다. */}
+        <button
+          type="button"
+          className="result-back"
+          onClick={() => window.history.back()}
+          aria-label="뒤로가기"
+        >
           <svg viewBox="0 0 16 28" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="13 4 3 14 13 24" />
           </svg>
