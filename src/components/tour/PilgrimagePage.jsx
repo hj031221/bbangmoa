@@ -1,3 +1,4 @@
+import { appendCourseStops } from '../../lib/courseDraft'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAppStore } from '../../store/useAppStore'
 import { useAuth } from '../../hooks/useAuth'
@@ -27,11 +28,11 @@ const MODES = [
 function CompletionMark() {
   return (
     <svg className="pil-completion-mark" viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="12" cy="12" r="10" fill="#E8F1F5" stroke="#5C839A" strokeWidth="1.7" />
+      <circle cx="12" cy="12" r="10" fill="#EAF6D9" stroke="#9BC97A" strokeWidth="1.7" />
       <path
         d="m7.4 12.2 3.05 3.05 6.4-6.55"
         fill="none"
-        stroke="#416D86"
+        stroke="#5D8F3E"
         strokeWidth="2.2"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -115,11 +116,12 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
     ? { ...breadPick, bakeries: matchBakeries(allBakeries, breadPick.bread, 5) }
     : null
 
-  const [travelMode, setTravelMode] = useState('car')
-  const [customStops, setCustomStops] = useState(null) // null = 아직 기본 코스로 초기화 전
+  const draft = useAppStore.getState().courseDraft
+  const [travelMode, setTravelMode] = useState(() => draft?.travelMode || 'car')
+  const [customStops, setCustomStops] = useState(() => draft?.stops ?? null) // null = 아직 기본 코스로 초기화 전
   // null = 아직 손대기 전(그리디 자동 정렬 사용). 한 번이라도 드래그하면 순서 id 배열이 들어가고,
   // 그 뒤로는 add/remove를 해도 이 순서를 존중한다(그리디로 되돌아가지 않는다).
-  const [manualOrderIds, setManualOrderIds] = useState(null)
+  const [manualOrderIds, setManualOrderIds] = useState(() => draft?.orderIds ?? null)
   const [addOpen, setAddOpen] = useState(false)
   const [saveState, setSaveState] = useState('idle') // 'idle' | 'saving' | 'saved' | 'error'
   // useSavedCourses는 마운트 시점 한 번만 조회해서, 이 화면에서 방금 막 저장한 코스는 반영이
@@ -132,7 +134,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
   // 마이페이지 "찜한 코스"에서 불러온 경우엔 설문 미완료여도 게이트를 우회한다(§CP10-3) — 이미
   // 확정된 경유지 목록이 있으니 설문이 필요 없다. pendingCourseLoad는 아래 effect가 한 번 소비하고
   // 비우므로, 그 뒤에도 게이트를 계속 우회하려면 별도 플래그(gateBypassed)로 기억해둬야 한다.
-  const [gateBypassed, setGateBypassed] = useState(false)
+  const [gateBypassed, setGateBypassed] = useState(() => draft?.gateBypassed || false)
   const loadedFromSavedRef = useRef(false)
 
   useEffect(() => {
@@ -150,9 +152,16 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
     const validStops = pendingCourseLoad.stops.filter(hasValidCoords)
     loadedFromSavedRef.current = true
     setGateBypassed(true)
-    setCustomStops(validStops)
-    setManualOrderIds(validStops.map((s) => s.id))
-    setTravelMode(pendingCourseLoad.travel_mode || 'car')
+    if (pendingCourseLoad.mode === 'append') {
+      const existing = customStops || []
+      const next = appendCourseStops(existing, manualOrderIds, validStops)
+      setCustomStops(next.stops)
+      setManualOrderIds(next.orderIds)
+    } else {
+      setCustomStops(validStops)
+      setManualOrderIds(validStops.map((s) => s.id))
+      setTravelMode(pendingCourseLoad.travel_mode || 'car')
+    }
     if (!origin && pendingCourseLoad.origin) setOrigin(pendingCourseLoad.origin)
     setPendingCourseLoad(null)
     // origin/setOrigin/setPendingCourseLoad는 안정적인 참조/스토어 상태라 deps에서 뺀다 —
@@ -247,6 +256,13 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
     }
     return recalcRoute(origin, customStops, travelMode)
   }, [customStops, manualOrderIds, realOrderIds, travelMode, origin])
+
+  useEffect(() => {
+    if (customStops === null) return
+    useAppStore.getState().setCourseDraft({
+      stops: customStops, orderIds: route?.stops.map((s) => s.id) || manualOrderIds, travelMode, gateBypassed,
+    })
+  }, [customStops, route, manualOrderIds, travelMode, gateBypassed])
 
   const excludeIds = useMemo(() => new Set((customStops || []).map((s) => s.id)), [customStops])
 
@@ -469,6 +485,24 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
             )}
           </div>
         </div>
+        {(breadDone || tourDone) && (
+          <div className="pil-gate-preview">
+            {breadDone && (
+              <p>
+                오늘의 빵은 <b>{breadResult.bread.emoji} {breadResult.bread.name}</b>이에요 — 관광모아까지 마치면 이 빵집으로 이어지는 코스가 완성돼요.
+              </p>
+            )}
+            {tourDone && tourResult.results[0] && (
+              <p>
+                <b>{tourResult.results[0].attraction.name}</b> 같은 곳이 어울려요 — 빵집모아까지 마치면 여기로 이어지는 코스가 완성돼요.
+              </p>
+            )}
+          </div>
+        )}
+        <ul className="pil-gate-tips">
+          <li>코스는 저장한 뒤에도 자유롭게 수정할 수 있어요.</li>
+          <li>로그인하면 코스를 저장하고 나중에 다시 볼 수 있어요.</li>
+        </ul>
       </div>
     )
   }

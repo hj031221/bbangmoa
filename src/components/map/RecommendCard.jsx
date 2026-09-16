@@ -48,7 +48,7 @@ export default function RecommendCard({ bakery, compact = false, onAddToCourse, 
   // 둘 다 생김) — 접힌 상태에서 실제 DOM이 overflow 됐는지(scrollHeight > clientHeight)를
   // 재서 판단한다. 펼친 상태에선 clamp 자체가 없어 항상 같아지므로 재지 않고 이전 값을 유지.
   useEffect(() => {
-    if (compact || descExpanded) return
+    if (descExpanded) return
     const el = descRef.current
     if (!el) {
       setDescTruncated(false)
@@ -95,16 +95,16 @@ export default function RecommendCard({ bakery, compact = false, onAddToCourse, 
       )}
       {bakery.phone && <p className="rec-tel">📞 {bakery.phone}</p>}
       {overview && (
-        <div className={'rec-desc-wrap' + (compact || descExpanded ? ' expanded' : '')}>
+        <div className={'rec-desc-wrap' + (descExpanded ? ' expanded' : '')}>
           {/* 데스크탑은 원문 그대로 보여주고, 모바일 3줄 clamp는 CSS(.rec-desc-wrap)가 담당한다.
               1000자 슬라이스는 뷰포트와 무관하게 원문이 지나치게 길 때만 걸리는 안전장치. */}
           <p className="rec-desc" ref={descRef}>
-            {!compact && overview.length > 1000 ? overview.slice(0, 1000) + '…' : overview}
+            {overview.length > 1000 ? overview.slice(0, 1000) + '…' : overview}
           </p>
-          {!compact && descTruncated && (
+          {descTruncated && (
             <button
               type="button"
-              className="rec-desc-toggle"
+              className="rec-desc-toggle" aria-expanded={descExpanded}
               onClick={() => setDescExpanded((v) => !v)}
             >
               {descExpanded ? '접기' : '더보기'}

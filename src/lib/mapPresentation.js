@@ -11,8 +11,8 @@ export function nearestAttraction(bakery, spots, { maxKm = Infinity } = {}) {
   return best
 }
 
-export function resolveMapSelection(bakeries, selectedId, recommendationMode = false) {
-  return bakeries.find((b) => b.id === selectedId) || (recommendationMode ? bakeries[0] : null) || null
+export function resolveMapSelection(bakeries, selectedId) {
+  return bakeries.find((b) => b.id === selectedId) || null
 }
 
 export function mapLocationNotice({ origin, status, coords, label, bbox }) {

@@ -38,6 +38,8 @@ export const useAppStore = create(
       // 마이페이지 "찜한 코스"에서 "불러오기"를 누르면 여기 담겼다가, 대전한바퀴 화면이 마운트되면서
       // 한 번 소비하고 다시 null로 비운다(§CP10-3). LandingPage가 화면 전환을, PilgrimagePage가 소비를 맡는다.
       pendingCourseLoad: null,
+      courseDraft: null,
+      setCourseDraft: (courseDraft) => set({ courseDraft }),
 
       setAnswer: (questionId, optionId) =>
         set((s) => ({ answers: { ...s.answers, [questionId]: optionId } })),
@@ -50,11 +52,11 @@ export const useAppStore = create(
       setDistrict: (district) => set({ district }),
 
       resetAnswers: () =>
-        set({ answers: {}, origin: null, district: null, selectedBakeryId: null, directBreadId: null }),
+        set({ courseDraft: null, answers: {}, origin: null, district: null, selectedBakeryId: null, directBreadId: null }),
 
       // 빵 종류 바로가기 진입: 설문 응답을 비우고 고른 빵을 세팅한다(둘은 상호배타).
       setDirectBread: (breadId) =>
-        set({ directBreadId: breadId, answers: {}, origin: null, district: null, selectedBakeryId: null }),
+        set({ courseDraft: null, directBreadId: breadId, answers: {}, origin: null, district: null, selectedBakeryId: null }),
 
       // 바로가기 상태만 해제(설문 응답은 건드리지 않음) — 홈 CTA로 설문에 다시 들어갈 때 등.
       clearDirectBread: () => set({ directBreadId: null }),
@@ -64,7 +66,7 @@ export const useAppStore = create(
       // 상태만 되돌리는 거라 진행 중이던 설문 답변까지 지우면 안 된다. directBreadId 만 되돌린다.
       restoreDirectBread: (breadId) => set({ directBreadId: breadId }),
 
-      resetTourAnswers: () => set({ tourAnswers: {} }),
+      resetTourAnswers: () => set({ tourAnswers: {}, courseDraft: null }),
 
       selectBakery: (id) => set({ selectedBakeryId: id }),
 

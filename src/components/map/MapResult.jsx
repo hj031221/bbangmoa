@@ -10,7 +10,7 @@ import { getBreadById } from '../../data/breadCandidates'
 import { useAttractions } from '../../hooks/useAttractions'
 import BakeryMapPage from './BakeryMapPage'
 // 취향 일치율 기반 지도 + 추천 리스트.
-export default function MapResult({ onAddToCourse }) {
+export default function MapResult({ onAddToCourse, onBack }) {
   const regionId = useAppStore((s) => s.regionId)
   const origin = useAppStore((s) => s.origin)
   const answers = useAppStore((s) => s.answers)
@@ -95,12 +95,15 @@ export default function MapResult({ onAddToCourse }) {
   return (
     <BakeryMapPage
       onAddToCourse={onAddToCourse}
+      onBack={onBack}
       recommendation={{
         bakeries: listReady ? bakeriesWithDist : [],
         loading: !listReady,
         error,
         source,
         locationNotice: mapLocationNotice({ origin, status: locStatus, coords, label: locLabel, bbox: region.bbox }),
+        locationTone: !origin && (locStatus === 'denied' || locStatus === 'unsupported') ? 'warn' : '',
+        emptyMessage: `이 지역엔 아직 추천할 ${breadResult?.bread?.name ? breadResult.bread.name + ' ' : ''}맛집 정보가 없어요.`,
         title: breadResult ? `${breadResult.bread.name} 맛집 추천` : '대전 빵집 추천',
         illustration: breadResult?.bread.illustration,
         selectedId: selectedBakeryId,

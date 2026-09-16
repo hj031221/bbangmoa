@@ -14,11 +14,7 @@ import { SaveHeartIcon } from '../mypage/PreviewIcons'
 
 const DISTRICTS = getRegion().districts
 const NEARBY_LIMIT = 10
-// 이슈 #80 2차 개편: 순위 배지 — "랭킹"이 아니라 지도 핀과 대조하는 인덱스. 근처빵집 모드는
-// 이미 NEARBY_LIMIT(10)으로 리스트 자체가 잘려 전부 번호가 붙는다. 전체/구필터/검색 모드는
-// 리스트를 그대로 다 보여주되(최대 259곳), 지도에 259개 번호 핀을 그리는 건 의미도 없고
-// 비용도 커서 상위 RANK_LIMIT개에만 번호를 붙인다 — 아래 rankById가 그 번호를 매기고,
-// MarkerLayer.jsx의 rankById prop으로 넘어가 지도 핀에도 같은 번호를 단다.
+// 순번은 설문 추천 결과에서만 표시한다. 일반·근처 빵 지도에는 표시하지 않는다.
 const RANK_LIMIT = 10
 
 // "빵 지도" 메뉴 전용 화면. 취향 설문 없이 지역 전체 빵집을 지도에 뿌리고,
@@ -27,6 +23,7 @@ const RANK_LIMIT = 10
 // origin 이 주어지면(관광지 상세의 "근처 빵집 보기") 구 필터 대신 origin 기준 거리순
 // 상위 NEARBY_LIMIT 곳만 보여주는 "근처 빵집" 모드로 전환된다.
 export default function BakeryMapPage({
+  onBack,
   origin = null,
   onClearOrigin,
   initialSearch = '',
@@ -120,7 +117,7 @@ export default function BakeryMapPage({
     return map
   }, [filtered, recommendation])
 
-const selected = resolveMapSelection(filtered, selectedId, !!recommendation)
+  const selected = resolveMapSelection(filtered, selectedId)
   const effectiveSelectedId = selectedId && selected ? selected.id : null
 
   const nearbyLockers = useMemo(() => selected ? nearestLockers(selected) : [], [selected])
@@ -154,6 +151,9 @@ const selected = resolveMapSelection(filtered, selectedId, !!recommendation)
 
   return (
     <div className="result result-browse">
+      <p className="bm-sr-only" aria-live="polite" aria-atomic="true">
+        {selected ? `${selected.name} 선택됨. ${selected.address || ''}${selected.distInfo ? `, ${selected.distInfo.from}에서 ${formatDistance(selected.distInfo.km)}` : ''}` : ''}
+      </p>
 
 
       {error && <div className="banner error">데이터 오류: {String(error.message)}</div>}
@@ -173,13 +173,11 @@ const selected = resolveMapSelection(filtered, selectedId, !!recommendation)
             lockers={nearbyLockers}
           />
       <header className="result-header">
-        {/* "<" 는 항상 홈이 아니라 진짜 뒤로가기 — 이 화면은 근처빵집/검색/찜목록 등 진입
-            경로가 여러 개라(LandingPage.jsx의 openBakeryMap/searchBakeryMap/viewBakeryOnMap),
-            경로별로 "어디로 돌아갈지"를 각각 정의하는 대신 브라우저 히스토리에 맡긴다. */}
+        {/* 앱 내부 이력이 없으면 홈으로 돌아간다. */}
         <button
           type="button"
           className="result-back"
-          onClick={() => window.history.back()}
+          onClick={onBack}
           aria-label="뒤로가기"
         >
           <svg viewBox="0 0 16 28" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round">
@@ -228,9 +226,9 @@ const selected = resolveMapSelection(filtered, selectedId, !!recommendation)
 
         <aside ref={mobilePanelRef} className={'result-list-col' + (listCollapsed ? ' is-collapsed' : '')}>
           {isMobile && detailPanel}
-          {recommendation && <div className="bm-sidebar-back-row"><button type="button" className="bm-sidebar-back" onClick={() => window.history.back()}>← 추천 결과로 돌아가기</button></div>}
+          {recommendation && <div className="bm-sidebar-back-row"><button type="button" className="bm-sidebar-back" onClick={onBack}>← 추천 결과로 돌아가기</button></div>}
           <div className="bm-sidebar-controls">
-          {recommendation?.locationNotice && <p className="bm-location-notice" role="status">{recommendation.locationNotice}</p>}
+          {recommendation?.locationNotice && <p className={'bm-location-notice ' + (recommendation.locationTone || '')} role="status">{recommendation.locationNotice}</p>}
       {!nearbyMode && (
         <form
           className="bm-map-search-form"
@@ -309,10 +307,6 @@ const selected = resolveMapSelection(filtered, selectedId, !!recommendation)
                   tabIndex={0}
                   onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setSelectedId(b.id) } }}
                 >
-                  {/* 순위 배지는 랭킹이 아니라 지도 핀과 대조하는 인덱스(2차 개편, RANK_LIMIT/
-                      rankById 참고) — 기본/구 필터/검색 목록의 순서(찜 우선 + API 응답 순)가
-                      품질 순위를 뜻하는 건 아니지만, 상위 항목만 지도 핀에도 같은 번호를 달아
-                      "이 번호가 곧 이 핀"이라는 대조 용도로만 쓴다. */}
                   {rankById.has(b.id) && <span className="rank">{rankById.get(b.id)}</span>}
                   <span className="rl-body">
                     <span className="rl-name-row">
@@ -349,7 +343,11 @@ const selected = resolveMapSelection(filtered, selectedId, !!recommendation)
                   ? '근처에 표시할 빵집이 없어요.'
                   : searchMode
                     ? '검색 결과가 없어요.'
-                    : '해당 구에는 표시할 빵집이 없어요.'}
+                    : district
+                      ? '해당 구에는 표시할 빵집이 없어요.'
+                      : recommendation
+                        ? recommendation.emptyMessage
+                        : '이 지역에는 표시할 빵집이 없어요.'}
               </li>
             )}
           </ol>

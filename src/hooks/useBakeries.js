@@ -21,13 +21,17 @@ import { SAMPLE_BAKERIES } from '../data/sampleBakeries'
 //   source    : 'api' | 'sample'  (키 미설정 시 sample 폴백)
 export function useBakeries({ regionId, answers, origin, limit = MAX_RESULTS, enabled = true }) {
   const [raw, setRaw] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(enabled)
   const [error, setError] = useState(null)
   const [source, setSource] = useState('api')
 
   // 데이터 fetch 는 지역이 바뀔 때만. (추천 정렬은 아래에서 answers 로 매번 재계산)
   useEffect(() => {
-    if (!enabled) return
+    if (!enabled) {
+      setLoading(false)
+      return
+    }
+    setError(null)
     let alive = true
     const anyKey = tourEnabled() || kakaoLocalEnabled()
 
@@ -85,7 +89,7 @@ export function useBakeries({ regionId, answers, origin, limit = MAX_RESULTS, en
     : scored
   const bakeries = sorted.slice(0, limit)
 
-  return { bakeries, loading, error, source }
+  return { bakeries, loading: enabled && loading, error, source }
 }
 
 // origin → 빵집 직선거리(km). 좌표 없으면 맨 뒤로 밀리도록 Infinity.

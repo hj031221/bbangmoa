@@ -2,11 +2,11 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { nearestAttraction, resolveMapSelection, mapLocationNotice } from './mapPresentation.js'
 
-test('추천 목록에서 없어진 선택은 첫 빵집으로 복구한다', () => {
+test('추천 목록에서 없어진 선택을 다른 빵집으로 대체하지 않는다', () => {
   const bakeries = [{ id: 'a' }, { id: 'b' }]
-  assert.equal(resolveMapSelection(bakeries, 'old', true), bakeries[0])
+  assert.equal(resolveMapSelection(bakeries, 'old', true), null)
   assert.equal(resolveMapSelection(bakeries, 'b', true), bakeries[1])
-  assert.equal(resolveMapSelection(bakeries, null, true), bakeries[0])
+  assert.equal(resolveMapSelection(bakeries, null, true), null)
   assert.equal(resolveMapSelection([], 'old', true), null)
   assert.equal(resolveMapSelection(bakeries, 'old', false), null)
 })

@@ -50,6 +50,7 @@ export default function LandingPage() {
   const tourAnswers = useAppStore((s) => s.tourAnswers)
   const resetTourAnswers = useAppStore((s) => s.resetTourAnswers)
   const setPendingCourseLoad = useAppStore((s) => s.setPendingCourseLoad)
+  const setCourseDraft = useAppStore((s) => s.setCourseDraft)
 
   const surveyDone = !!origin && isSurveyComplete(answers)
   const tourSurveyDone = isTourSurveyComplete(tourAnswers)
@@ -76,7 +77,7 @@ export default function LandingPage() {
     setView(nextView)
     const nextPath = getAppPath(nextView)
     const url = `${nextPath}${window.location.search}${window.location.hash}`
-    const state = buildHistoryState(historyStateRef.current, patch || {})
+    const state = { ...buildHistoryState(historyStateRef.current, patch || {}), appDepth: (window.history.state?.appDepth || 0) + 1 }
     if (window.location.pathname !== nextPath || patch) {
       window.history.pushState(state, '', url)
     }
@@ -150,7 +151,7 @@ export default function LandingPage() {
   // 이슈 #80 B-1: navigateToView는 최상위 view 전환만 pushState한다. 같은 view 안에서
   // stage/tourStage 등이 바뀌는 하위 전환은 이 함수로 별도 히스토리 항목을 남긴다.
   const pushSubState = (patch) => {
-    const state = buildHistoryState(historyStateRef.current, patch)
+    const state = { ...buildHistoryState(historyStateRef.current, patch), appDepth: (window.history.state?.appDepth || 0) + 1 }
     window.history.pushState(state, '', window.location.pathname + window.location.search + window.location.hash)
   }
 
@@ -243,19 +244,29 @@ export default function LandingPage() {
     setMapSelectId(bakery.id ?? null)
     navigateToView('map')
   }
+  // 네비 "대전한바퀴"·리빌 화면의 "대전한바퀴로" 등 "기본 코스로 새로 시작" 진입점 —
+  // 마이페이지에서 불러온 코스가 courseDraft에 남아있으면 여길 거쳐도 계속 그 코스만 보이고
+  // 초기화가 안 됐다(리뷰 발견). 여기서 draft를 비워야 PilgrimagePage가 설문 기반 기본 코스로
+  // 다시 채운다. loadCourseIntoPilgrimage(불러오기·지도 담기)는 이 함수를 거치지 않고 따로
+  // navigateToView를 호출해서 draft를 지우지 않는다 — 안 그러면 그쪽의 이어담기(append)가 깨진다.
   const openPilgrimage = () => {
+    setCourseDraft(null)
     navigateToView('pilgrimage')
   }
   // 마이페이지 "찜한 코스"에서 "불러오기" → 그 코스를 스토어에 담아두고 대전한바퀴로 이동한다.
   // PilgrimagePage가 마운트되면서 pendingCourseLoad를 소비해 화면을 채운다(§CP10-3).
   const loadCourseIntoPilgrimage = (course) => {
     setPendingCourseLoad(course)
-    openPilgrimage()
+    navigateToView('pilgrimage')
   }
   // 예전엔 홈으로 나가면 두 설문 결과를 모두 초기화했다(피드백4) — 그런데 로고를 눌러 홈을
   // 거쳤다가 대전한바퀴로 돌아오면 코스가 사라지는 게 이슈 #70 2번으로 다시 지적됐다. 리셋은
   // 사용자가 명시적으로 요청할 때(아래 retakeSurvey, "다시 해보기" 버튼)만 걸고, 그냥 홈으로
   // 나가는 것만으로는 아무것도 지우지 않는다.
+  const goBackInApp = () => {
+    if (window.history.state?.appDepth > 0) window.history.back()
+    else navigateToView('home')
+  }
   const goHome = () => {
     navigateToView('home')
   }
@@ -296,9 +307,9 @@ export default function LandingPage() {
     pushSubState({ tourStage: 'reveal' })
   }
 
-  // Menu clicks restart the destination even when its URL has not changed.
-  const refreshMenu = (open) => {
-    setMenuRevision((revision) => revision + 1)
+  // 현재 메뉴를 다시 눌렀을 때만 화면을 초기화한다.
+  const refreshMenu = (target, open) => {
+    if (view === target) setMenuRevision((revision) => revision + 1)
     open()
     window.scrollTo({ top: 0, behavior: 'instant' })
   }
@@ -306,13 +317,13 @@ export default function LandingPage() {
   return (
     <div className={`bm-landing${isHome ? ' is-home' : ''}`} data-view={view}>
       <NavBar
-        onGoHome={() => refreshMenu(goHome)}
-        onOpenInfo={() => refreshMenu(openInfo)}
-        onStartTest={() => refreshMenu(startTestFromNav)}
-        onOpenMap={() => refreshMenu(openBakeryMap)}
-        onOpenTour={() => refreshMenu(openTourFromNav)}
-        onOpenPilgrimage={() => refreshMenu(openPilgrimage)}
-        onOpenMyPage={() => refreshMenu(openMyPage)}
+        onGoHome={() => refreshMenu('home', goHome)}
+        onOpenInfo={() => refreshMenu('info', openInfo)}
+        onStartTest={() => refreshMenu('bread', startTestFromNav)}
+        onOpenMap={() => refreshMenu('map', openBakeryMap)}
+        onOpenTour={() => refreshMenu('tour', openTourFromNav)}
+        onOpenPilgrimage={() => refreshMenu('pilgrimage', openPilgrimage)}
+        onOpenMyPage={() => refreshMenu('mypage', openMyPage)}
       />
 
       <Fragment key={menuRevision}>
@@ -338,7 +349,8 @@ export default function LandingPage() {
       {view === 'map' && (
         <div className="page bm-map-page">
           <BakeryMapPage
-              onAddToCourse={(bakery) => loadCourseIntoPilgrimage({ stops: [{ ...bakery, type: 'bakery' }] })}
+            onBack={goBackInApp}
+              onAddToCourse={(bakery) => loadCourseIntoPilgrimage({ mode: 'append', stops: [{ ...bakery, type: 'bakery' }] })}
             origin={nearbyOrigin}
             onClearOrigin={() => setNearbyOrigin(null)}
             initialSearch={mapSearch}
@@ -404,7 +416,7 @@ export default function LandingPage() {
               onGoToPilgrimage={openPilgrimage}
             />
           )}
-          {stage === 'map' && <MapResult onAddToCourse={(bakery) => loadCourseIntoPilgrimage({ stops: [{ ...bakery, type: 'bakery' }] })} />}
+          {stage === 'map' && <MapResult onBack={goBackInApp} onAddToCourse={(bakery) => loadCourseIntoPilgrimage({ mode: 'append', stops: [{ ...bakery, type: 'bakery' }] })} />}
         </div>
       )}
 
