@@ -11,6 +11,7 @@ import { estimateActualRoute } from '../../lib/travelTime'
 import { formatDistance, midpointOf, hasValidCoords } from '../../lib/distance'
 import { sanitizeOriginForSave } from '../../lib/originPrivacy'
 import { uniqueDefaultTitle } from '../../lib/courseLabel'
+import { josa } from '../../lib/josa'
 import { fetchDestinationsMatrix } from '../../api'
 import { getRegion } from '../../config/regions'
 import { supabase } from '../../lib/supabase'
@@ -493,7 +494,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
           <div className="pil-gate-preview">
             {breadDone && (
               <p>
-                오늘의 빵은 <b>{breadResult.bread.name}</b>이에요 — 관광모아까지 마치면 이 빵집으로 이어지는 코스가 완성돼요.
+                오늘의 빵은 <b>{breadResult.bread.name}</b>{josa(breadResult.bread.name, '이에요', '예요')} — 관광모아까지 마치면 이 빵집으로 이어지는 코스가 완성돼요.
               </p>
             )}
             {tourDone && tourResult.results[0] && (
