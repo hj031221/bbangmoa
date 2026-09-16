@@ -1,0 +1,38 @@
+.pil-gate {
+  max-width: 920px;
+  margin: 20px auto 36px;
+  text-align: left;
+}
+.pil-gate-intro { display:grid; grid-template-columns:1fr 1fr; align-items:center; gap:32px; padding-block:12px 8px; }
+.pil-gate-art { display:block; width:100%; height:190px; object-fit:contain; }
+.pil-gate .pil-gate-eyebrow { margin: 0 0 12px; color: var(--accent-text); font-size: .82rem; }
+.pil-gate-intro h2 { color: var(--ink); font-size: clamp(1.5rem, 2.6vw, 2rem); line-height: 1.45; letter-spacing: -.025em; }
+.pil-gate .pil-gate-description { margin: 14px 0 0; color: var(--brown); font-size: .9rem; line-height: 1.8; }
+.pil-gate-route { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: center; padding: 18px 0; margin: 20px 0 26px; list-style: none; border-block: 1px solid var(--line); }
+.pil-gate-route li { position:relative; display:flex; justify-content:center; align-items:center; gap:10px; padding-inline:16px; font-size:.86rem; color:var(--brown); }
+.pil-gate-route li + li::before { content:'→'; position:absolute; left:0; transform:translateX(-50%); color:var(--muted); }
+.pil-gate-route span { color: var(--accent-text); font-size: .72rem; font-variant-numeric: tabular-nums; }
+.pil-gate-progress { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
+.pil-gate-progress h3 { margin: 0; font-size: 1rem; }
+.pil-gate-progress > span { font-size: .78rem; color: var(--brown); }
+.pil-gate-card { padding:28px 22px; gap:12px; text-align:center; }
+.pil-gate .pil-gate-card-description { margin: 0 0 6px; color: var(--brown); font-size: .82rem; line-height: 1.6; }
+.pil-gate-card .primary-btn { margin-top: auto; }
+.pil-completion-check { color:#4C7A32; font-size:1.15rem; line-height:1; }
+.pil-gate .pil-gate-tips { margin-top: 18px; }
+.pil-gate .pil-gate-tips li { color: var(--brown); }
+@media (max-width: 600px) {
+  .pil-gate { margin-top: 8px; }
+  .pil-gate-intro { grid-template-columns:1fr; gap:20px; padding-block:4px 8px; }
+  .pil-gate-art { max-width:380px; height:165px; margin-inline:auto; }
+  .pil-gate-route { margin-top: 12px; gap: 12px; align-items: flex-start; }
+  .pil-gate-route li { display:block; padding-inline:0; text-align:center; font-size:.74rem; line-height:1.6; }
+  .pil-gate-route span { display: block; margin-bottom: 4px; }
+  .pil-gate-route li + li::before { content: none; }
+  .pil-gate-cards { gap: 10px; }
+  .pil-gate-card { padding: 18px 12px; }
+  .pil-gate-card.done b { font-size: 1rem; }
+}
+@media (max-width: 360px) {
+  .pil-gate-cards { grid-template-columns: 1fr; }
+}

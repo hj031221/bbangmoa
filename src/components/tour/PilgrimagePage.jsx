@@ -18,6 +18,7 @@ import { useAttractions } from '../../hooks/useAttractions'
 import { useSavedCourses } from '../../hooks/useSavedCourses'
 import AddStopModal from './AddStopModal'
 import CourseNameModal from './CourseNameModal'
+import gateIllustration from '../../assets/survey-city-illustration.png'
 
 const MODES = [
   { id: 'car', label: '🚗 자동차' },
@@ -25,21 +26,7 @@ const MODES = [
   { id: 'walk', label: '🚶 도보' },
 ]
 
-function CompletionMark() {
-  return (
-    <svg className="pil-completion-mark" viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="12" cy="12" r="10" fill="#EAF6D9" stroke="#9BC97A" strokeWidth="1.7" />
-      <path
-        d="m7.4 12.2 3.05 3.05 6.4-6.55"
-        fill="none"
-        stroke="#5D8F3E"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
+function CompletionMark() { return <span className="pil-completion-check" aria-hidden="true">✓</span> }
 
 // 코스의 "정체성" — 경유지 타입+id를 순서대로 이어붙인 키. 순서가 바뀌면 다른 코스로 본다
 // (§CP10-7 — "똑같은 코스 저장 방지" 요청 대응). lat/lng/name/order 등은 무시한다(같은 id면
@@ -459,14 +446,30 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
   if ((!breadDone || !tourDone) && !gateBypassed && !pendingCourseLoad) {
     return (
       <div className="pil-gate">
-        <h2>대전한바퀴</h2>
-        <p>관광모아와 빵집모아 설문을 모두 마치면, 취향에 맞는 기본 코스를 짜드려요.</p>
+        <div className="pil-gate-intro">
+          <div>
+            <p className="pil-gate-eyebrow">빵 한 입, 대전 한 바퀴</p>
+            <h2>좋아하는 빵과 풍경을 잇는<br />나만의 대전한바퀴</h2>
+            <p className="pil-gate-description">먹고 싶은 빵, 머물고 싶은 곳.<br />두 가지 취향을 모아 하나의 여행 코스로 만들어드려요.</p>
+          </div>
+          <img className="pil-gate-art" src={gateIllustration} alt="" width="460" height="205" aria-hidden="true" />
+        </div>
+        <ol className="pil-gate-route" aria-label="코스를 만드는 순서">
+          <li><span>01</span> 취향에 맞는 빵집</li>
+          <li><span>02</span> 들르고 싶은 관광지</li>
+          <li><span>03</span> 나만의 여행 코스</li>
+        </ol>
+        <div className="pil-gate-progress">
+          <h3>두 가지 취향을 알려주세요</h3>
+          <span>{Number(breadDone) + Number(tourDone)} / 2 완료</span>
+        </div>
         <div className="pil-gate-cards">
           <div className={`pil-gate-card${breadDone ? ' done' : ''}`}>
             <b>
               {breadDone && <CompletionMark />}
               {breadDone ? '빵집모아 완료' : '빵집모아'}
             </b>
+            <p className="pil-gate-card-description">{breadDone ? '빵 취향을 코스에 담을 준비가 됐어요.' : '좋아하는 맛과 식감으로 빵집을 찾아요.'}</p>
             {!breadDone && (
               <button type="button" className="primary-btn" onClick={onStartBreadSurvey}>
                 내 빵집 찾기
@@ -478,6 +481,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
               {tourDone && <CompletionMark />}
               {tourDone ? '관광모아 완료' : '관광모아'}
             </b>
+            <p className="pil-gate-card-description">{tourDone ? '여행 취향을 코스에 담을 준비가 됐어요.' : '동행과 분위기에 어울리는 장소를 찾아요.'}</p>
             {!tourDone && (
               <button type="button" className="primary-btn" onClick={onStartTourSurvey}>
                 내 코스 찾기
@@ -489,7 +493,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
           <div className="pil-gate-preview">
             {breadDone && (
               <p>
-                오늘의 빵은 <b>{breadResult.bread.emoji} {breadResult.bread.name}</b>이에요 — 관광모아까지 마치면 이 빵집으로 이어지는 코스가 완성돼요.
+                오늘의 빵은 <b>{breadResult.bread.name}</b>이에요 — 관광모아까지 마치면 이 빵집으로 이어지는 코스가 완성돼요.
               </p>
             )}
             {tourDone && tourResult.results[0] && (
