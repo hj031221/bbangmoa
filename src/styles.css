@@ -432,6 +432,16 @@ a{ color:var(--accent-text); }
 .survey-options{ display:grid; gap:12px; }
 .survey-option{ padding:16px 20px; border:1.5px solid var(--line); border-radius:20px; background:var(--card); text-align:left; font-size:1rem; font-weight:600; color:var(--ink); box-shadow:0 8px 20px rgba(76,49,13,.06); transition:.15s; }
 .survey-option.selected{ border-color:var(--accent); background:var(--card2); box-shadow:0 8px 20px rgba(249,118,88,.18); }
+.survey-option{ display:flex; align-items:center; gap:18px; }
+.survey-option-art{ display:grid; place-items:center; flex:0 0 42px; width:42px; height:42px; border-radius:50%; background:#FFF2D9; }
+.survey-option-art svg{ width:28px; height:28px; }
+.survey-option-label{ min-width:0; line-height:1.6; }
+.survey-option:focus-visible{ outline:3px solid var(--accent-text); outline-offset:3px; }
+@media (max-width:600px){
+  .survey-option{ gap:12px; padding:12px 14px; }
+  .survey-option-art{ flex-basis:36px; width:36px; height:36px; }
+  .survey-option-art svg{ width:25px; height:25px; }
+}
 .survey-nav{ display:flex; align-items:center; justify-content:space-between; margin-top:28px; }
 /* 이슈 #60 검토 — "이전"/"건너뛰고 결과 보기"가 38px라는 제보와 달리, 실측(getBoundingClientRect)
    해보니 이 화면의 body 폰트(커스텀 한글 웹폰트)의 line-height:normal이 이미 커서 실제로는

@@ -32,7 +32,7 @@ export default function TourSurveyFlow({ onComplete, onSkip }) {
   return (
     <div className="survey">
       <SurveyProgress current={step} total={TOTAL_STEPS} />
-      <SurveyStep question={question} selectedOptionId={answers[question.id]} onSelect={choose} />
+      <SurveyStep kind="tour" question={question} selectedOptionId={answers[question.id]} onSelect={choose} />
       <div className="survey-nav">
         {step > 0 && (
           <button className="ghost-btn" onClick={() => setStep((s) => s - 1)}>
