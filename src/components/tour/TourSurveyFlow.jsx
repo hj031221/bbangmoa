@@ -4,6 +4,7 @@ import { Q0, Q1, BRANCHES } from '../../data/tourSurveyConfig'
 import { resolveBranch } from '../../lib/tourRecommend'
 import SurveyStep from '../survey/SurveyStep'
 import SurveyProgress from '../survey/SurveyProgress'
+import SurveyJourney from '../survey/SurveyJourney'
 
 // 관광모아 설문: Q0(행정구, 점수 미반영 필터) → Q1(동행자→Branch A~E) → 해당 Branch의 Q2~Q5.
 // 응답은 전역 store의 tourAnswers 에 저장한다 — 빵모아 answers 와는 별개 네임스페이스라
@@ -42,6 +43,7 @@ export default function TourSurveyFlow({ onComplete, onSkip }) {
           관광지 모두 보기 →
         </button>
       </div>
+      <SurveyJourney kind="tour" />
     </div>
   )
 }

@@ -6,6 +6,7 @@ import LocationStep from './LocationStep'
 import SurveyStep from './SurveyStep'
 import SurveyProgress from './SurveyProgress'
 import BreadTypePicker from './BreadTypePicker'
+import SurveyJourney from './SurveyJourney'
 
 // 모든 branch(A~E)가 Q2~Q5 4문항으로 고정이라 총 스텝 수는 항상 동일하다:
 // 0=위치 선택, 1=Q1(분기), 2~5=선택된 branch 의 Q2~Q5.
@@ -60,6 +61,7 @@ export default function SurveyFlow({ onComplete, onSkip, onPickBreadType }) {
           </button>
         </div>
       )}
+      {step > 0 && <SurveyJourney kind="bread" />}
     </div>
   )
 }
