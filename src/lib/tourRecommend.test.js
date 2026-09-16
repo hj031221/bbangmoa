@@ -183,3 +183,28 @@ test('getTourRecommendation: 전체 파이프라인이 district/branch/theme/res
 test('getTourRecommendation: 응답이 부족하면 null', () => {
   assert.equal(getTourRecommendation({}, []), null)
 })
+
+test('적합도는 성향 80%·동행 20%이며 작은 점수 차이도 반올림 전에 정렬한다', () => {
+  const answers = sampleAnswers('A', [0, 0, 0, 0], '중구')
+  const attractions = ['a', 'b', 'c'].map(id => mockAttraction(id, '중구', ['nature']))
+  attractions[0].companion.solo = 50
+  attractions[1].companion.solo = 51
+  attractions[2].companion.solo = 52
+  const { results } = scoreAttractions({ district: '중구', theme: 'nature', branchId: 'A', answers, attractions })
+  assert.deepEqual(results.map(r => r.attraction.id), ['c', 'b', 'a'])
+  const vector = buildUserTraitVector('A', answers)
+  for (const row of results) {
+    assert.equal(row.finalScore, cosineSimilarity(vector, row.attraction.traits) * 100 * .8 + row.attraction.companion.solo * .2)
+  }
+  const displayed = getTourRecommendation(answers, attractions)
+  assert.deepEqual(displayed.results.map(r => r.attraction.id), ['c', 'b', 'a'])
+  assert.deepEqual(displayed.results.map(r => r.score), results.map(r => Math.round(r.finalScore)))
+})
+
+test('실제 성향과 동행 점수가 같으면 순위용 가산점으로 적합도를 조작하지 않는다', () => {
+  const answers = sampleAnswers('A', [0, 0, 0, 0], '중구')
+  const attractions = ['c', 'a', 'b'].map(id => mockAttraction(id, '중구', ['nature']))
+  const { results } = getTourRecommendation(answers, attractions)
+  assert.deepEqual(results.map(r => r.attraction.id), ['a', 'b', 'c'])
+  assert.equal(new Set(results.map(r => r.score)).size, 1)
+})
