@@ -143,7 +143,7 @@ const TRAIT_BOOSTS = [
   { pattern: /사당|종가|정려각|묘소일원|숭절사/, boost: { immersion: 2 } },
   { pattern: /마애여래좌상|불상|석불/, boost: { appreciation: 2 } },
   { pattern: /석장승/, boost: { uniqueness: 2 } },
-  { pattern: /기념관|의거/, boost: { knowledge: 2, appreciation: 1 } },
+  { pattern: /기념관|의거(?!리)/, boost: { knowledge: 2, appreciation: 1 } }, // '문화예술의거리'의 '의거' 오매칭 제외(리뷰: 129행과 동일 클래스)
   { pattern: /뿌리공원/, boost: { uniqueness: 2 } },
   { pattern: /벽화마을/, boost: { uniqueness: 2, appreciation: 1 } },
   { pattern: /소제동/, boost: { uniqueness: 2 } },

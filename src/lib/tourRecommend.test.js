@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { Q0, Q1, BRANCHES } from '../data/tourSurveyConfig.js'
+import { TAGGED_ATTRACTIONS } from '../data/tourAttractionTags.js'
 import {
   resolveDistrict, resolveBranch, computeThemeScores, pickTheme,
   buildUserTraitVector, cosineSimilarity, scoreAttractions,
@@ -207,4 +208,45 @@ test('실제 성향과 동행 점수가 같으면 순위용 가산점으로 적�
   const { results } = getTourRecommendation(answers, attractions)
   assert.deepEqual(results.map(r => r.attraction.id), ['a', 'b', 'c'])
   assert.equal(new Set(results.map(r => r.score)).size, 1)
+})
+
+function* cartesian(counts) {
+  const indexes = new Array(counts.length).fill(0)
+  while (true) {
+    yield [...indexes]
+    let i = counts.length - 1
+    while (i >= 0) {
+      indexes[i]++
+      if (indexes[i] < counts[i]) break
+      indexes[i] = 0
+      i--
+    }
+    if (i < 0) return
+  }
+}
+
+// 코드리뷰 발견: PR 설명이 내세운 "동일 벡터 쌍 68→0, 전부 동일 케이스 22.6%→3.2%"를 검증하는
+// 테스트가 없었다(위 벡터 중복 테스트는 데이터 차원만 봄). 실제 설문 조합(구5×브랜치5×문항4×5지선다
+// = 15,625개) 전수를 실제 TAGGED_ATTRACTIONS로 돌려 top-3 반올림 점수가 전부 같아지는 비율을 재고,
+// 이후 SITE_TRAIT_OVERRIDES를 손대다 동점률이 다시 오르면 잡아내는 회귀 가드로 둔다.
+test('설문 조합 전수 순회(15,625개): top-3 적합도가 전부 같아지는 비율이 낮게 유지된다 (PR #82 주장: 22.6%→3.2%)', () => {
+  let total = 0
+  let allTied = 0
+  for (const districtOpt of Q0.options) {
+    for (const branchId of Object.keys(BRANCHES)) {
+      const branch = BRANCHES[branchId]
+      const counts = branch.questions.map((q) => q.options.length)
+      for (const indexes of cartesian(counts)) {
+        const answers = sampleAnswers(branchId, indexes, districtOpt.district)
+        const rec = getTourRecommendation(answers, TAGGED_ATTRACTIONS)
+        if (!rec || rec.results.length < 3) continue
+        total++
+        const [s0, s1, s2] = rec.results.map((r) => r.score)
+        if (s0 === s1 && s1 === s2) allTied++
+      }
+    }
+  }
+  assert.equal(total, 15625, `조합 수가 예상과 다름: ${total}`)
+  const rate = allTied / total
+  assert.ok(rate <= 0.05, `top-3 전부 동점 비율이 임계값(5%)을 넘음: ${(rate * 100).toFixed(1)}% (${allTied}/${total})`)
 })

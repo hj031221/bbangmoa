@@ -137,3 +137,18 @@ test('getAttractionById는 존재하는 id를 반환하고 없으면 null', () =
   assert.equal(getAttractionById(first.id).id, first.id)
   assert.equal(getAttractionById('__없는_id__'), null)
 })
+
+// 코드리뷰 발견: /기념관|의거/ 가 '문화예술의거리'의 '의거리'(=거리)를 '의거'(봉기)로 오매칭해
+// knowledge 1→3, appreciation 4→5(상한)로 부풀렸다. 129행과 같은 클래스의 버그(부정전방탐색 누락).
+test('"의거"는 boost 매칭하되 "…의거리"는 매칭하지 않는다 (대흥동 문화예술의거리 오매칭 회귀 방지)', () => {
+  const street = TAGGED_ATTRACTIONS.find((a) => a.name === '대흥동 문화예술의거리')
+  const memorial = TAGGED_ATTRACTIONS.find((a) => a.name === '3.8민주의거기념관')
+  assert.ok(street, '대흥동 문화예술의거리를 찾을 수 없음')
+  assert.ok(memorial, '3.8민주의거기념관을 찾을 수 없음')
+  // cat=A02030600 nudge(appreciation+1)만 반영되어야 한다 — '의거' boost(knowledge+2, appreciation+1)가 더해지면 안 됨
+  assert.equal(street.traits.knowledge, 1, `문화예술의거리 knowledge가 부풀려짐: ${street.traits.knowledge}`)
+  assert.equal(street.traits.appreciation, 4, `문화예술의거리 appreciation이 부풀려짐: ${street.traits.appreciation}`)
+  // '기념관' 키워드로 정상적으로 boost는 계속 적용돼야 한다
+  assert.equal(memorial.traits.knowledge, 5)
+  assert.equal(memorial.traits.appreciation, 2)
+})
