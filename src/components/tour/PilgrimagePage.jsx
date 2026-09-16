@@ -86,7 +86,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
     : null
 
   // 빵집 매칭은 대전 전역 풀에서(BreadReveal과 동일 방식) — origin 근처 10곳으로 잘리면 안 됨.
-  const { bakeries: allBakeries, loading: bakeriesLoading } = useBakeries({
+  const { bakeries: allBakeries, loading: bakeriesLoading, error: bakeriesError, reload: reloadBakeries } = useBakeries({
     regionId,
     answers: {},
     origin,
@@ -124,6 +124,11 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
   // 비우므로, 그 뒤에도 게이트를 계속 우회하려면 별도 플래그(gateBypassed)로 기억해둬야 한다.
   const [gateBypassed, setGateBypassed] = useState(() => draft?.gateBypassed || false)
   const loadedFromSavedRef = useRef(false)
+  // PR #82 리뷰: 빵 지도 "코스에 담기"(append)로 이 화면에 처음 들어오면 customStops가 아직 null이라
+  // "빈 코스 + 방금 담은 1곳"이 돼버리고, loadedFromSavedRef까지 켜져 아래 기본 코스 채우기가 영영
+  // 안 돌았다 — 설문을 다 마친 사용자가 기대한 "빵+관광지 기본 코스"가 통째로 사라졌다.
+  // 첫 진입의 append는 여기 보류해뒀다가, 기본 코스가 준비되는 시점에 그 위에 얹는다.
+  const pendingAppendRef = useRef(null)
 
   useEffect(() => {
     if (!pendingCourseLoad) return
@@ -138,14 +143,18 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
     // 됐다(리뷰 발견). 애초에 customStops에 못 들어오게 막는 게 근본 해결 — 이후 로직들은
     // "customStops 안엔 항상 유효 좌표만 있다"는 전제를 그대로 믿어도 된다.
     const validStops = pendingCourseLoad.stops.filter(hasValidCoords)
-    loadedFromSavedRef.current = true
     setGateBypassed(true)
-    if (pendingCourseLoad.mode === 'append') {
-      const existing = customStops || []
-      const next = appendCourseStops(existing, manualOrderIds, validStops)
+    if (pendingCourseLoad.mode === 'append' && customStops === null) {
+      // 첫 진입 — 기본 코스가 아직 없다. 아래 채우기 effect가 기본 코스 위에 얹도록 보류한다
+      // (loadedFromSavedRef는 켜지 않는다 — 켜면 그 effect가 영영 안 돈다).
+      pendingAppendRef.current = appendCourseStops(pendingAppendRef.current || [], null, validStops).stops
+    } else if (pendingCourseLoad.mode === 'append') {
+      loadedFromSavedRef.current = true
+      const next = appendCourseStops(customStops, manualOrderIds, validStops)
       setCustomStops(next.stops)
       setManualOrderIds(next.orderIds)
     } else {
+      loadedFromSavedRef.current = true
       setCustomStops(validStops)
       setManualOrderIds(validStops.map((s) => s.id))
       setTravelMode(pendingCourseLoad.travel_mode || 'car')
@@ -168,17 +177,25 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
   // 같이 봐야 한다). → 두 로딩이 다 끝난 뒤 딱 한 번만 기본 코스로 채운다.
   // 찜한 코스를 불러온 경우엔(loadedFromSavedRef) 이 자동 채우기를 건너뛴다 — 위 effect가 이미
   // customStops를 채웠는데, 같은 렌더에서 이 effect도 "아직 null"로 보고 덮어쓸 수 있어서다.
+  // 첫 진입에 보류해둔 "코스에 담기"(pendingAppendRef)가 있으면 기본 코스 위에 얹는다. 설문이
+  // 안 끝나 기본 코스가 없으면(baseRoute null) 담은 것만으로 시작한다 — 예전 동작과 같다.
+  // PR #82 리뷰: 빵집 로드가 실패하면(bakeriesError) 목록이 []인데 loading은 false라, 그대로 채우면
+  // "관광지만 있는 코스"가 조용히 만들어졌다. 실패 중엔 채우지 않고 아래에서 다시 시도를 띄운다.
   useEffect(() => {
-    if (
-      customStops === null &&
-      baseRoute &&
-      !bakeriesLoading &&
-      !attractionsLoading &&
-      !loadedFromSavedRef.current
-    ) {
-      setCustomStops(baseRoute.stops)
+    if (customStops !== null || bakeriesLoading || bakeriesError || attractionsLoading || loadedFromSavedRef.current) return
+    const pending = pendingAppendRef.current
+    if (baseRoute) {
+      pendingAppendRef.current = null
+      setCustomStops(pending ? appendCourseStops(baseRoute.stops, null, pending).stops : baseRoute.stops)
+    } else if (pending) {
+      pendingAppendRef.current = null
+      loadedFromSavedRef.current = true
+      setCustomStops(pending)
+      setManualOrderIds(pending.map((s) => s.id))
     }
-  }, [baseRoute, customStops, bakeriesLoading, attractionsLoading])
+    // pendingCourseLoad: 위 effect가 보류(pendingAppendRef)를 채운 뒤 null로 비우므로, 그 변화로
+    // 이 effect가 한 번 더 돌아 보류분을 소비한다.
+  }, [baseRoute, customStops, bakeriesLoading, bakeriesError, attractionsLoading, pendingCourseLoad])
 
   // CP12 — car 모드에서만: haversine 그리디(recalcRoute)로 먼저 즉시 렌더한 뒤, 카카오 1:N
   // 목적지 API로 매 스텝(마지막 방문지 → 남은 stop들) 실주행시간을 받아 그리디를 다시 돈다.
@@ -515,6 +532,14 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
   // customStops === null 인 동안만 "로딩 중" — 사용자가 다 지워서 []가 된 것과는 구분해야 한다.
   // 이 구분이 없으면 전부 지웠을 때도 계속 "준비하는 중…"이 떠서 화면이 통째로 날아간 것처럼 보였다.
   if (customStops === null) {
+    if (bakeriesError) {
+      return (
+        <div className="pil-gate">
+          <div className="banner error" role="alert">빵집 정보를 불러오지 못해 코스를 만들 수 없어요. 잠시 후 다시 시도해 주세요.</div>
+          <button type="button" className="primary-btn" onClick={reloadBakeries}>다시 시도</button>
+        </div>
+      )
+    }
     return <div className="banner">코스를 준비하는 중…</div>
   }
 
