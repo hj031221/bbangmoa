@@ -160,6 +160,71 @@ test('buildAttractionReason: 후보군에서 이 장소만 특정 성향이 두�
   assert.match(reasonC, /탐방/)
 })
 
+// PR #82 리뷰: 사용자 상위 태그 2개가 이 장소에서 4 미만이면 이유가 통째로 빈 문자열이었다
+// (전수조사 시 조합의 35%). 카드에 빈 칸 대신 그 장소 자체의 두드러진 성향으로 채운다.
+test('buildAttractionReason: 상위 태그가 안 겹쳐도 빈 문자열 대신 기본 문구를 만든다', () => {
+  const userVec = { walk: 5, rest: 5, scenery: 0, exploration: 0, immersion: 0, appreciation: 0, sightseeing: 0, experience: 0, knowledge: 0, uniqueness: 0, activity: 0 }
+  const attraction = mockAttraction('x', '중구', ['culture'], { walk: 1, rest: 1, appreciation: 4 })
+  const reason = buildAttractionReason(userVec, attraction)
+  assert.notEqual(reason, '')
+  assert.match(reason, /감상/)
+})
+
+// PR #82 리뷰: "볼거리과", "볼거리을" 같은 비문 — 받침 유무에 따라 과/와, 을/를을 고른다.
+test('buildAttractionReason: 조사(과/와, 을/를)를 받침에 맞게 고른다', () => {
+  const base = { walk: 0, rest: 0, scenery: 0, exploration: 0, immersion: 0, appreciation: 0, sightseeing: 0, experience: 0, knowledge: 0, uniqueness: 0, activity: 0 }
+  // 볼거리(받침 없음) + 감상(받침 있음) → "볼거리와 감상을"
+  const a = mockAttraction('a', '중구', ['culture'], { sightseeing: 5, appreciation: 5 })
+  assert.match(buildAttractionReason({ ...base, sightseeing: 5, appreciation: 4 }, a), /볼거리와 감상을 /)
+  // 볼거리 하나만 → "볼거리를"
+  const b = mockAttraction('b', '중구', ['culture'], { sightseeing: 5, appreciation: 1 })
+  assert.match(buildAttractionReason({ ...base, sightseeing: 5, appreciation: 4 }, b), /볼거리를 /)
+  // 감상(받침) + 볼거리 → "감상과 볼거리를"
+  assert.match(buildAttractionReason({ ...base, appreciation: 5, sightseeing: 4 }, a), /감상과 볼거리를 /)
+})
+
+// PR #82 리뷰: 동점 후보끼리 이유까지 완전히 같아지는 경우(서구·혼자: 대전시립미술관·대전예술의전당).
+// 두 장소는 지식 2 vs 1, 체험 1 vs 2 처럼 4 미만 구간에서만 다른데, 예전 구분 로직은 4 이상인
+// 태그만 봐서 아무것도 못 골랐다 — 낮은 값이라도 이 장소가 유일하게 더 높은 태그가 있으면
+// 그걸로 문장을 나눈다(단, 4 미만이면 "두드러진다" 대신 완곡한 표현).
+test('buildAttractionReason: 4 미만 구간에서만 다른 후보끼리도 이유가 갈린다', () => {
+  const userVec = { walk: 0, rest: 0, scenery: 0, exploration: 0, immersion: 0, appreciation: 5, sightseeing: 5, experience: 0, knowledge: 0, uniqueness: 0, activity: 0 }
+  const low = { walk: 1, rest: 1, scenery: 1, exploration: 1, immersion: 1, experience: 1, knowledge: 1, uniqueness: 1, activity: 1, appreciation: 5, sightseeing: 5 }
+  const museum = mockAttraction('museum', '서구', ['culture'], { ...low, knowledge: 2 })
+  const hall = mockAttraction('hall', '서구', ['culture'], { ...low, experience: 2 })
+  const rMuseum = buildAttractionReason(userVec, museum, [museum, hall])
+  const rHall = buildAttractionReason(userVec, hall, [museum, hall])
+  assert.notEqual(rMuseum, rHall)
+  assert.match(rMuseum, /지식/)
+  assert.match(rHall, /체험/)
+  assert.doesNotMatch(rMuseum, /두드러집니다/) // 2점짜리 차이를 "두드러진다"고 과장하지 않는다
+  // 4 이상이면 기존 표현 유지
+  const strong = mockAttraction('strong', '서구', ['culture'], { ...low, knowledge: 5 })
+  assert.match(buildAttractionReason(userVec, strong, [strong, hall]), /지식 면에서 다른 추천지보다 두드러집니다/)
+})
+
+// 후보 3곳 중 A가 모든 태그에서 B·C 이상이고 B는 C보다 체험이 높은 경우 — B는 "후보 전부보다
+// 높은 태그"가 없어 C와 같은 문장이 됐다. 같은 문장이 될 후보(C)와 1:1로 비교해 이름을 들어 나눈다.
+test('buildAttractionReason: 전체 대비로 못 나누면 같은 문장이 될 후보와 1:1로 비교해 나눈다', () => {
+  const userVec = { walk: 0, rest: 0, scenery: 0, exploration: 0, immersion: 0, appreciation: 0, sightseeing: 0, experience: 0, knowledge: 0, uniqueness: 5, activity: 5 }
+  const low = { walk: 1, rest: 1, scenery: 1, exploration: 1, immersion: 1, appreciation: 1, sightseeing: 1, knowledge: 1, activity: 3 }
+  const a = mockAttraction('대동벽화마을', '동구', ['etc'], { ...low, uniqueness: 5, experience: 3 })
+  const b = mockAttraction('찬샘마을', '동구', ['etc'], { ...low, uniqueness: 4, experience: 3 })
+  const c = mockAttraction('대전트래블라운지', '동구', ['etc'], { ...low, uniqueness: 4, experience: 2 })
+  const rB = buildAttractionReason(userVec, b, [a, b, c])
+  const rC = buildAttractionReason(userVec, c, [a, b, c])
+  assert.notEqual(rB, rC)
+  assert.match(rB, /대전트래블라운지보다 체험 요소가 더 있는 곳입니다/)
+  // 기본 문장에 쓴 태그(이색성)는 "다른 추천지보다" 구분 문장에선 피하지만, 1:1 비교에서 그게
+  // 유일한 차이면 허용한다(못 나누는 것보다 낫다)
+  const rA = buildAttractionReason(userVec, a, [a, b, c])
+  assert.match(rA, /찬샘마을보다 이색성 요소가 더 있는 곳입니다/)
+  const d = mockAttraction('d', '동구', ['etc'], { ...low, uniqueness: 5, experience: 3, knowledge: 2 })
+  const rD = buildAttractionReason(userVec, d, [d, b, c])
+  assert.match(rD, /다른 추천지와 비교하면 지식 요소가 조금 더/)
+  assert.equal((rD.match(/이색성/g) || []).length, 1)
+})
+
 test('buildAttractionReason: peers를 안 넘기면(기존 호출부) 기존 동작 그대로 유지된다', () => {
   const userVec = { walk: 1, rest: 1, scenery: 1, exploration: 1, immersion: 1, appreciation: 1, sightseeing: 1, experience: 1, knowledge: 1, uniqueness: 5, activity: 5 }
   const attraction = mockAttraction('x', '중구', ['etc'], { uniqueness: 5, activity: 5 })
