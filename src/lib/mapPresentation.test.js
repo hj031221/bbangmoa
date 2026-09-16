@@ -2,13 +2,16 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { nearestAttraction, resolveMapSelection, mapLocationNotice } from './mapPresentation.js'
 
+// 예전엔 세 번째 인자(recommendationMode)가 있어 true면 bakeries[0]으로 폴백했다. 그 인자를
+// 없애면서 테스트가 계속 세 번째 인자를 넘기고 있었다(리뷰 지적) — JS가 여분 인자를 조용히
+// 무시해 초록불이었지만 시그니처와 어긋난 호출이라 정리한다.
 test('추천 목록에서 없어진 선택을 다른 빵집으로 대체하지 않는다', () => {
   const bakeries = [{ id: 'a' }, { id: 'b' }]
-  assert.equal(resolveMapSelection(bakeries, 'old', true), null)
-  assert.equal(resolveMapSelection(bakeries, 'b', true), bakeries[1])
-  assert.equal(resolveMapSelection(bakeries, null, true), null)
-  assert.equal(resolveMapSelection([], 'old', true), null)
-  assert.equal(resolveMapSelection(bakeries, 'old', false), null)
+  assert.equal(resolveMapSelection(bakeries, 'old'), null)
+  assert.equal(resolveMapSelection(bakeries, 'b'), bakeries[1])
+  assert.equal(resolveMapSelection(bakeries, null), null)
+  assert.equal(resolveMapSelection([], 'old'), null)
+  assert.equal(resolveMapSelection.length, 2) // 폴백 모드 인자가 다시 생기면 여기서 잡힌다
 })
 test('관광지 탐색은 잘못된 좌표를 제외하고 거리 상한을 지킨다', () => {
   const point = { lat: 36.33, lng: 127.43 }
