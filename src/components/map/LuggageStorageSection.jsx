@@ -1,24 +1,21 @@
-import { useMemo } from 'react'
-import { nearestLockers } from '../../lib/luggageStorage'
 import { formatDistance } from '../../lib/distance'
 import { hoursBadgeText } from '../../lib/hours'
 
 const TYPE_LABEL = { subway: '지하철', station: '기차역', tourist: '관광안내' }
 
-// 기준점(refPoint: {lat,lng,label}) 근처 짐 보관함 최대 3곳. 관광객이 빵집으로 출발하기 전
-// 캐리어를 맡길 곳을 찾는 용도 — 지도 아래 독립 섹션(MapResult). 반경 밖이면 아무것도 안 그린다.
-export default function LuggageStorageSection({ refPoint }) {
-  const lockers = useMemo(
-    () => (refPoint ? nearestLockers(refPoint, { limit: 3 }) : []),
-    [refPoint],
-  )
+// 선택한 빵집 근처 짐 보관함 목록(nearestLockers 결과). 관광객이 빵집으로 출발하기 전 캐리어를
+// 맡길 곳을 찾는 용도 — 상세 패널의 접이식 섹션(BakeryMapPage). 비어 있으면 아무것도 안 그린다.
+// PR #82 리뷰: 예전엔 refPoint를 받아 여기서 nearestLockers를 다시 돌렸는데, 호출부가 이미 지도
+// 마커용으로 같은 계산(nearbyLockers)을 해둔 상태라 중복이었고, refPoint가 매 렌더 새 객체라
+// 그 중복 계산이 키 입력마다 반복됐다 — 계산된 목록을 그대로 받는다.
+export default function LuggageStorageSection({ lockers = [], label }) {
   if (lockers.length === 0) return null
 
   return (
     <section className="luggage-section" aria-labelledby="luggage-heading">
       <h3 id="luggage-heading" className="luggage-title">
         가까운 짐 보관소
-        {refPoint.label && <span className="luggage-ref"> · {refPoint.label} 기준</span>}
+        {label && <span className="luggage-ref"> · {label} 기준</span>}
       </h3>
       <ul className="luggage-list">
         {lockers.map((l) => {

@@ -9,6 +9,8 @@ import { pickBreadResult, matchBakeries, matchBakeriesGrouped } from '../../lib/
 import { getBreadById } from '../../data/breadCandidates'
 import { useAttractions } from '../../hooks/useAttractions'
 import BakeryMapPage from './BakeryMapPage'
+
+const EMPTY = [] // 로딩 중 빈 목록 — 렌더마다 새 []를 만들면 memo가 깨진다
 // 취향 일치율 기반 지도 + 추천 리스트.
 export default function MapResult({ onAddToCourse, onBack }) {
   const regionId = useAppStore((s) => s.regionId)
@@ -43,19 +45,29 @@ export default function MapResult({ onAddToCourse, onBack }) {
   // 결과가 없으면(Q1 미응답 등) 대전 전역을 가까운 순으로 보여주는 기존 방식으로 폴백한다.
   // 로딩 중엔 bakeries 가 비어있어 필터가 자연히 no-op 되고, 로딩이 끝나면 실제 목록으로 재계산된다
   // (§CP10-2 — 연결된 빵집이 없는 빵은 애초에 후보에서 제외).
-  const breadResult = directBread
-    ? { bread: directBread, branch: null, score: null }
-    : pickBreadResult(answers, bakeries)
+  //
+  // PR #82 리뷰: 이 아래 값들이 매 렌더 새 객체/배열이면 bakeriesWithDist → BakeryMapPage의
+  // selected → nearbyLockers 까지 연쇄로 새 참조가 되어, 짐 보관함 InfoWindow가 무관한
+  // 리렌더에 닫히고 LuggageStorageSection이 같은 계산을 한 번 더 했다. 입력이 같으면 같은
+  // 참조를 유지하도록 useMemo로 묶는다(useBakeries 쪽 bakeries도 같은 이유로 memo).
+  const breadResult = useMemo(
+    () => (directBread ? { bread: directBread, branch: null, score: null } : pickBreadResult(answers, bakeries)),
+    [directBread, answers, bakeries],
+  )
   // 바로가기: 확인된 곳 + (빈약할 때만) 가능성 있는 곳. possibleIds 로 "가능성 있음" 배지를 단다.
-  const groups = directBread
-    ? matchBakeriesGrouped(bakeries, directBread, { limit: 10, minConfirmed: 3 })
-    : null
-  const possibleIds = groups ? new Set(groups.possible.map((b) => b.id)) : null
-  const filteredBakeries = groups
-    ? [...groups.confirmed, ...groups.possible]
-    : breadResult
-      ? matchBakeries(bakeries, breadResult.bread, 10)
-      : bakeries
+  const { filteredBakeries, possibleIds } = useMemo(() => {
+    if (directBread) {
+      const groups = matchBakeriesGrouped(bakeries, directBread, { limit: 10, minConfirmed: 3 })
+      return {
+        filteredBakeries: [...groups.confirmed, ...groups.possible],
+        possibleIds: new Set(groups.possible.map((b) => b.id)),
+      }
+    }
+    return {
+      filteredBakeries: breadResult ? matchBakeries(bakeries, breadResult.bread, 10) : bakeries,
+      possibleIds: null,
+    }
+  }, [directBread, bakeries, breadResult])
 
   // 빵집별 거리: 설문서 고른 origin 우선, 없으면 현재 위치/역 폴백
   const bakeriesWithDist = useMemo(
@@ -69,18 +81,7 @@ export default function MapResult({ onAddToCourse, onBack }) {
         breadTypeIllustration: breadResult?.bread?.illustration,
         isPossible: possibleIds ? possibleIds.has(b.id) : false,
       })),
-    [
-      filteredBakeries,
-      origin,
-      coords,
-      region,
-      tourSpots,
-      attractionsLoading,
-      breadResult?.bread?.name,
-      breadResult?.bread?.emoji,
-      breadResult?.bread?.illustration,
-      directBreadId,
-    ],
+    [filteredBakeries, possibleIds, origin, coords, region, tourSpots, attractionsLoading, breadResult],
   )
 
   // 재검증 발견: attractionsLoading을 nearSpot 계산에만 반영했더니, 로딩 중이든 아니든
@@ -92,23 +93,21 @@ export default function MapResult({ onAddToCourse, onBack }) {
   // 대가: 목록이 뜨는 시점이 근소하게 늦어지지만(빵집 로딩만 끝났을 때 대신 관광지까지
   // 끝난 뒤), 한 번 뜨면 완성된 상태로 뜨고 이후에 항목이 튀지 않는다.
   const listReady = !loading && !attractionsLoading
-  return (
-    <BakeryMapPage
-      onAddToCourse={onAddToCourse}
-      onBack={onBack}
-      recommendation={{
-        bakeries: listReady ? bakeriesWithDist : [],
-        loading: !listReady,
-        error,
-        source,
-        locationNotice: mapLocationNotice({ origin, status: locStatus, coords, label: locLabel, bbox: region.bbox }),
-        locationTone: !origin && (locStatus === 'denied' || locStatus === 'unsupported') ? 'warn' : '',
-        emptyMessage: `이 지역엔 아직 추천할 ${breadResult?.bread?.name ? breadResult.bread.name + ' ' : ''}맛집 정보가 없어요.`,
-        title: breadResult ? `${breadResult.bread.name} 맛집 추천` : '대전 빵집 추천',
-        illustration: breadResult?.bread.illustration,
-        selectedId: selectedBakeryId,
-        onSelect: selectBakery,
-      }}
-    />
+  const recommendation = useMemo(
+    () => ({
+      bakeries: listReady ? bakeriesWithDist : EMPTY,
+      loading: !listReady,
+      error,
+      source,
+      locationNotice: mapLocationNotice({ origin, status: locStatus, coords, label: locLabel, bbox: region.bbox }),
+      locationTone: !origin && (locStatus === 'denied' || locStatus === 'unsupported') ? 'warn' : '',
+      emptyMessage: `이 지역엔 아직 추천할 ${breadResult?.bread?.name ? breadResult.bread.name + ' ' : ''}맛집 정보가 없어요.`,
+      title: breadResult ? `${breadResult.bread.name} 맛집 추천` : '대전 빵집 추천',
+      illustration: breadResult?.bread.illustration,
+      selectedId: selectedBakeryId,
+      onSelect: selectBakery,
+    }),
+    [listReady, bakeriesWithDist, error, source, origin, locStatus, coords, locLabel, region, breadResult, selectedBakeryId, selectBakery],
   )
+  return <BakeryMapPage onAddToCourse={onAddToCourse} onBack={onBack} recommendation={recommendation} />
 }

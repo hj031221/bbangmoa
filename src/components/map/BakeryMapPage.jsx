@@ -145,7 +145,7 @@ export default function BakeryMapPage({
   const detailPanel = (selected && <aside className={isMobile ? 'bm-mobile-detail' : 'bm-floating-detail'}><div className="bm-bakery-detail-panel"><RecommendCard key={selected.id} bakery={selected} compact onAddToCourse={onAddToCourse} visitInfo={visitInfo} /></div>
             {nearbyLockers.length > 0 && <details className="bm-locker-details" key={selected.id}>
               <summary>주변 짐 보관소 <span>{nearbyLockers.length}곳</span></summary>
-              <LuggageStorageSection refPoint={{ ...selected, label: selected.name }} />
+              <LuggageStorageSection lockers={nearbyLockers} label={selected.name} />
             </details>}
           </aside>)
 

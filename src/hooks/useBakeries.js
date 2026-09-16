@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   fetchTourBakeries,
   fetchKakaoBakeries,
@@ -19,11 +19,17 @@ import { SAMPLE_BAKERIES } from '../data/sampleBakeries'
 //   loading   : 로딩 여부
 //   error     : 에러 객체 | null
 //   source    : 'api' | 'sample'  (키 미설정 시 sample 폴백)
+//   reload    : 실패했을 때 다시 가져오기(캐시가 없을 때만 실제 재호출)
 export function useBakeries({ regionId, answers, origin, limit = MAX_RESULTS, enabled = true }) {
   const [raw, setRaw] = useState([])
   const [loading, setLoading] = useState(enabled)
   const [error, setError] = useState(null)
   const [source, setSource] = useState('api')
+  // PR #82 리뷰: 첫 로드가 실패하면(error) raw=[]인 채 loading만 false가 돼, 호출부가 "데이터는
+  // 왔는데 0곳"으로 오해했다(리빌 "추천할 OO 맛집 정보가 없어요", 대전한바퀴 빵집 0곳 코스).
+  // 실패는 표시하고 다시 시도할 수 있어야 한다 — 이 키를 올리면 fetch effect가 다시 돈다.
+  const [reloadKey, setReloadKey] = useState(0)
+  const reload = useCallback(() => setReloadKey((k) => k + 1), [])
 
   // 데이터 fetch 는 지역이 바뀔 때만. (추천 정렬은 아래에서 answers 로 매번 재계산)
   useEffect(() => {
@@ -79,17 +85,27 @@ export function useBakeries({ regionId, answers, origin, limit = MAX_RESULTS, en
     return () => {
       alive = false
     }
-  }, [regionId, enabled])
+  }, [regionId, enabled, reloadKey])
 
   // 설문 응답 기반 추천 점수 부여 → origin 에서 가까운 순 정렬 (fetch 없이 재계산)
   // 구(district) 필터는 제거: 전 구를 다 긁고 위치(origin) 기준으로 가까운 순만 보여준다.
-  const scored = recommend(raw, answers)
-  const sorted = origin
-    ? [...scored].sort((a, b) => distKm(origin, a) - distKm(origin, b))
-    : scored
-  const bakeries = sorted.slice(0, limit)
+  //
+  // PR #82 리뷰: 매 렌더 새 배열을 돌려주면 호출부(MapResult)의 useMemo 체인이 전부 무효화돼
+  // 선택된 빵집 객체 → 주변 짐 보관함 배열까지 렌더마다 새로 만들어졌고, 그 배열을 deps로 쓰는
+  // LuggageMarkers effect가 재실행되면서 열어둔 InfoWindow가 무관한 리렌더에도 닫혔다.
+  // 입력이 같으면 같은 배열을 돌려준다. answers는 모든 호출부가 {} 리터럴을 넘겨 참조가 매번
+  // 달라지므로 내용 키로 비교한다.
+  const answersKey = JSON.stringify(answers ?? {})
+  const bakeries = useMemo(() => {
+    const scored = recommend(raw, answers)
+    const sorted = origin
+      ? [...scored].sort((a, b) => distKm(origin, a) - distKm(origin, b))
+      : scored
+    return sorted.slice(0, limit)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [raw, answersKey, origin, limit])
 
-  return { bakeries, loading: enabled && loading, error, source }
+  return { bakeries, loading: enabled && loading, error, source, reload }
 }
 
 // origin → 빵집 직선거리(km). 좌표 없으면 맨 뒤로 밀리도록 Infinity.
