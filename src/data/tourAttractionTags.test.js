@@ -109,6 +109,29 @@ test('같은 (구, 테마) 풀 안에서도 trait 벡터가 다양화된다: 동
   assert.ok(distinct.size > 1, `동구 nature ${pool.length}곳이 여전히 ${distinct.size}개 벡터로 수렴함`)
 })
 
+// 같은 풀 안에서 벡터가 같으면 성향일치도·동행적합도가 모두 같아져 표시 적합도가 겹친다.
+// 반올림·가중치 조정으로는 갈라낼 수 없으므로 데이터 단계에서 중복을 막는다.
+test('같은 (구, 테마) 풀 안에 trait 벡터가 완전히 같은 관광지 쌍은 없다', () => {
+  const pools = new Map()
+  for (const a of TAGGED_ATTRACTIONS) {
+    for (const t of a.themes) {
+      const key = `${a.district}/${t}`
+      if (!pools.has(key)) pools.set(key, [])
+      pools.get(key).push(a)
+    }
+  }
+  const dups = []
+  for (const [key, list] of pools) {
+    const seen = new Map()
+    for (const a of list) {
+      const vec = JSON.stringify(a.traits)
+      if (seen.has(vec)) dups.push(`${key}: ${seen.get(vec)} = ${a.name}`)
+      else seen.set(vec, a.name)
+    }
+  }
+  assert.deepEqual(dups, [], `동일 벡터 ${dups.length}쌍:\n${dups.join('\n')}`)
+})
+
 test('getAttractionById는 존재하는 id를 반환하고 없으면 null', () => {
   const first = TAGGED_ATTRACTIONS[0]
   assert.equal(getAttractionById(first.id).id, first.id)

@@ -126,7 +126,7 @@ const CAT_TRAIT_NUDGES = {
 
 const TRAIT_BOOSTS = [
   { pattern: /체험/, boost: { experience: 2, uniqueness: 1 } },
-  { pattern: /전시|미술관/, boost: { appreciation: 2, sightseeing: 1 } },
+  { pattern: /(?<!대)전시|미술관/, boost: { appreciation: 2, sightseeing: 1 } }, // '대전시립…'의 '전시' 오매칭 제외
   { pattern: /박물관|과학관|과학공원/, boost: { knowledge: 2, experience: 1 } },
   { pattern: /수목원|식물원|학습원/, boost: { knowledge: 2, experience: 2 } }, // 교육적 자연 체험
   { pattern: /공원|산림|숲|수목원/, boost: { walk: 1, rest: 1 } },
@@ -149,20 +149,143 @@ const TRAIT_BOOSTS = [
   { pattern: /소제동/, boost: { uniqueness: 2 } },
 ]
 
+// 관광지 개별 성향 보정. cat 코드·이름 키워드 규칙만으로는 같은 (구, 테마) 풀 안의 장소들이
+// 완전히 같은 벡터로 수렴해(173곳 → 고유 벡터 53개) 추천 결과 3곳의 적합도가 전부 같아지는
+// 경우가 전체 설문 조합의 22%였다. 벡터가 같으면 반올림·가중치를 바꿔도 점수가 갈라지지 않으므로
+// 장소의 실제 성격(전망대·꽃 명소·연구원·정자 등)을 1~3개 태그 델타로 데이터에 반영한다.
+// 음수는 규칙이 과하게 준 값을 깎는 용도(예: 유허비는 볼거리 5가 아니다).
+const SITE_TRAIT_OVERRIDES = {
+  // 동구 · 자연
+  '대청호': { activity: 1, exploration: 1 },
+  '대동하늘공원': { uniqueness: 2, sightseeing: 1 },
+  '대청호 마산동 쉼터': { immersion: 1 },
+  '초지공원 (대별수변공원)': { activity: 1, experience: 1 },
+  '식장산 문화공원(해돋이전망대)': { sightseeing: 2, uniqueness: 1 },
+  '식장산 정상쉼터': { activity: 1, immersion: 1 },
+  '노고산': { exploration: 1 },
+  '상소동 산림욕장': { uniqueness: 1, sightseeing: 1 },
+  '만인산 자연휴양림': { immersion: 1, knowledge: 1 },
+  // 동구 · 문화/교육/역사
+  '박팽년선생유허비': { exploration: 2, knowledge: 1, sightseeing: -2 },
+  '헤레디움': { appreciation: 2, uniqueness: 1 },
+  '대전문학관': { knowledge: 2, immersion: 1 },
+  '우송예술회관': { experience: 1, activity: 1 },
+  '한밭교육박물관': { immersion: 2, uniqueness: 1 },
+  '대전대학교박물관': { appreciation: 1, exploration: 1 },
+  '삼매당': { rest: 1 },
+  '남간정사': { appreciation: 2, uniqueness: 1 },
+  '김정선생묘소일원': { walk: 1, scenery: 1 },
+  '문충사': { appreciation: 1, rest: 1 },
+  // 중구
+  '중촌시민공원': { activity: 1 },
+  '사정공원': { scenery: 1, immersion: 1 },
+  '서대전공원': { sightseeing: 1, activity: 1 },
+  '테미공원': { scenery: 1, uniqueness: 1 },
+  '대전예술가의집': { appreciation: 1, experience: 1 },
+  '씨네 인디 유': { immersion: 2, uniqueness: 1 },
+  '테미오래': { uniqueness: 2, exploration: 1, walk: 1 },
+  '한국효문화진흥원': { knowledge: 2, experience: 1 },
+  '대전아쿠아리움': { sightseeing: 2, uniqueness: 1 },
+  '대전한밭도서관': { knowledge: 2, rest: 1 },
+  '대전학생교육문화원': { knowledge: 1, activity: 1 },
+  '대전목재문화체험장': { knowledge: 1 },
+  '무수천하마을': { walk: 1, rest: 1, scenery: 1 },
+  '창계숭절사': { appreciation: 1 },
+  '유회당사당': { scenery: 1, walk: 1 },
+  // 서구 · 자연
+  '보라매공원(대전)': { activity: 1 },
+  '장태산자연휴양림': { scenery: 2, uniqueness: 2, immersion: 1 },
+  '정부대전청사 자연마당': { knowledge: 1, scenery: 1 },
+  '아름드리소공원': { immersion: 1 },
+  '들의공원': { activity: 1, experience: 1 },
+  '갈마공원': { scenery: 1 },
+  '둔산대공원': { sightseeing: 2, activity: 1 },
+  '대전 괴곡동 느티나무': { uniqueness: 2, knowledge: 1 },
+  '대전곤충생태관': { knowledge: 2, experience: 1, uniqueness: 1 },
+  '남선공원': { activity: 1 },
+  '대전엑스포시민광장': { sightseeing: 2, uniqueness: 1 },
+  '대전광역시청 시민잔디광장': { sightseeing: 1 },
+  '마치광장': { experience: 1 },
+  '흑석유원지': { experience: 1 },
+  '상보안 유원지': { uniqueness: 1 },
+  // 서구 · 문화/역사
+  '아트브릿지(대전)': { uniqueness: 1, activity: 1 },
+  '대전예술의전당': { appreciation: 2, experience: 1 },
+  '대전시립미술관': { knowledge: 1 },
+  '대전시립연정국악원': { experience: 1, immersion: 1 },
+  '이응노 미술관': { uniqueness: 1, immersion: 1 },
+  '용화사(대전)': { rest: 1 },
+  '내원사(대전)': { scenery: 1, walk: 1 },
+  // 유성구 · 교육
+  '대전솔로몬로파크': { activity: 1, uniqueness: 1 },
+  '한국생명공학연구원': { knowledge: 2 },
+  '한국핵융합에너지연구원': { knowledge: 2, uniqueness: 1 },
+  '대전 엑스포 아쿠아리움': { sightseeing: 2, appreciation: 1 },
+  '대전 수학문화관': { knowledge: 1, activity: 1 },
+  '유성도서관': { knowledge: 1, rest: 1 },
+  '지질박물관': { appreciation: 1, uniqueness: 1 },
+  '국립중앙과학관': { sightseeing: 2, activity: 1 },
+  '충남대학교박물관': { immersion: 1 },
+  '대전선사박물관': { exploration: 1, immersion: 1 },
+  '화폐박물관': { uniqueness: 1, sightseeing: 1 },
+  // 유성구 · 기타/역사/문화/자연
+  '한빛탑': { sightseeing: 1, scenery: 2 },
+  '엑스포다리': { walk: 2, scenery: 1 },
+  '대전교통문화연수원': { knowledge: 2, activity: 1 },
+  '꿀잼도시 대전홍보관': { knowledge: 1, sightseeing: 1 },
+  '디즈니스토어 현대프리미엄아울렛 대전점': { appreciation: 1, activity: 1 },
+  '유성온천지구': { rest: 2 },
+  '유성 관광특구': { sightseeing: 1, experience: 1 },
+  '국립 대전 현충원': { walk: 2, scenery: 1, appreciation: 1 },
+  '수운교도솔천': { uniqueness: 2, appreciation: 1 },
+  '광수사': { rest: 1 },
+  '자광사(대전)': { scenery: 1 },
+  '대전 신흥사': { walk: 1, uniqueness: 1 },
+  '숭현서원지': { scenery: 1, rest: 1 },
+  '진잠향교': { experience: 1 },
+  '대전컨벤션센터(DCC)': { activity: 1, experience: 1 },
+  '넥스페리움': { experience: 2, knowledge: 1 },
+  '유성문화원': { knowledge: 1, immersion: 1 },
+  '카이스트 강당·노천극장': { walk: 1, uniqueness: 1 },
+  '충남대학교 정심화국제문화회관': { appreciation: 1 },
+  '갑천': { exploration: 1, uniqueness: 1 },
+  '동화울수변공원': { experience: 1 },
+  '은구비공원': { activity: 1 },
+  '유림공원': { scenery: 1, uniqueness: 1, sightseeing: 1 },
+  // 대덕구
+  '초연물외암각': { scenery: 1, uniqueness: 1 },
+  '이시직공정려각': { appreciation: 1 },
+  '회덕향교': { experience: 1, walk: 1 },
+  '옥오재': { rest: 1 },
+  '옥류각': { scenery: 1, walk: 1 },
+  '취백정': { appreciation: 1 },
+  '제월당': { uniqueness: 1 },
+  '길치문화공원': { sightseeing: 1 },
+  '을미기공원': { experience: 1 },
+  '장동만남공원': { uniqueness: 2, immersion: 1 },
+  '금강로하스산호빛공원': { scenery: 1, activity: 1 },
+  '금강로하스대청공원': { scenery: 1, immersion: 1 },
+  '한남대학교 성지관': { knowledge: 1, uniqueness: 1 },
+  '대덕문예회관': { appreciation: 1, experience: 1 },
+  '회덕메타세쿼이아길': { walk: 3, scenery: 2 },
+  "It's 수 홍보관": { knowledge: 2, experience: 1 },
+}
+
+function applyDeltas(vector, deltas) {
+  for (const [tag, delta] of Object.entries(deltas)) {
+    vector[tag] = Math.max(0, Math.min(5, (vector[tag] ?? 0) + delta))
+  }
+}
+
 function traitsFor(site, themes) {
   const vector = { ...THEME_BASELINE_TRAITS[themes[0]] }
   const catNudge = site.cat && CAT_TRAIT_NUDGES[site.cat]
-  if (catNudge) {
-    for (const [tag, delta] of Object.entries(catNudge)) {
-      vector[tag] = Math.min(5, (vector[tag] ?? 0) + delta)
-    }
-  }
+  if (catNudge) applyDeltas(vector, catNudge)
   for (const { pattern, boost } of TRAIT_BOOSTS) {
-    if (!pattern.test(site.name)) continue
-    for (const [tag, delta] of Object.entries(boost)) {
-      vector[tag] = Math.min(5, (vector[tag] ?? 0) + delta)
-    }
+    if (pattern.test(site.name)) applyDeltas(vector, boost)
   }
+  const siteOverride = SITE_TRAIT_OVERRIDES[site.name]
+  if (siteOverride) applyDeltas(vector, siteOverride)
   return vector
 }
 
