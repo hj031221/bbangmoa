@@ -110,6 +110,9 @@ end;
 $$;
 
 -- 신규 가입자: auth.users insert 시 profiles 행 자동 생성
+-- (아래 정의는 이슈 #84 블록에서 nickname → full_name → name 우선순위로 재정의된다 —
+-- 이 파일을 순서대로 실행하면 그 정의가 최종 반영되므로, 우선순위 로직을 고칠 땐 여기가
+-- 아니라 이슈 #84 블록을 고칠 것.)
 create or replace function handle_new_user_profile()
 returns trigger
 language plpgsql
@@ -867,3 +870,65 @@ grant execute on function create_diary_entry(jsonb, text, double precision, doub
 
 alter function create_diary_entry(jsonb, text, double precision, double precision)
   set search_path = public, pg_temp;
+
+-- ===== 이슈 #84: 구글 로그인 사용자 친구 화면 닉네임 '이름 없음' 표시 수정 =====
+--
+-- 구글 OAuth 는 보통 raw_user_meta_data 에 nickname 이 없고 full_name/name 만 온다.
+-- 트리거가 nickname 만 복사해 profiles.nickname 이 null 로 저장됐다. 본인 화면(getDisplayName,
+-- src/lib/displayName.js)은 nickname → full_name → name → email 순 폴백이라 정상으로
+-- 보이지만, 친구 요청/목록/초대 링크는 profiles.nickname 만 조회해(useFriends.js) '이름 없음'
+-- 으로 표시됐다. 트리거에 같은 우선순위(email 은 profiles 에 없어 제외)를 적용한다.
+--
+-- 코드리뷰 발견: full_name/name 이 표시 이름 대신 이메일 주소로 채워지는 OAuth 계정이
+-- 있을 수 있다 — 그런 값을 그대로 넣으면 이 필드 하나로 "이름 없음"보다 더 나쁜, 이메일이
+-- 친구/초대 링크에 노출되는 회귀가 생긴다. '@' 포함 값은 후보에서 제외한다.
+create or replace function handle_new_user_profile()
+returns trigger
+language plpgsql
+security definer
+as $$
+begin
+  insert into profiles (user_id, nickname, friend_code)
+  values (
+    new.id,
+    coalesce(
+      nullif(btrim(new.raw_user_meta_data->>'nickname'), ''),
+      case when new.raw_user_meta_data->>'full_name' not like '%@%'
+        then nullif(btrim(new.raw_user_meta_data->>'full_name'), '') end,
+      case when new.raw_user_meta_data->>'name' not like '%@%'
+        then nullif(btrim(new.raw_user_meta_data->>'name'), '') end
+    ),
+    generate_friend_code()
+  )
+  on conflict (user_id) do nothing;
+  return new;
+end;
+$$;
+
+-- create or replace 는 함수 설정(search_path)을 유지한다고 보장되지 않으므로 다시 명시한다
+-- (앞선 "트리거 체인 search_path 고정" 블록과 동일 이유 — 이게 빠지면 트리거가 GoTrue
+-- 연결의 기본 search_path 로 실행돼 "relation profiles does not exist" 로 신규 가입
+-- 자체가 막힌다).
+alter function handle_new_user_profile() set search_path = public, pg_temp;
+
+-- 백필: DB 소유자/service_role 권한으로 Supabase 대시보드 SQL Editor 에서 실행해야 한다
+-- (auth.users 는 일반 authenticated 롤이 조회할 수 없는 보호된 스키마).
+-- 이미 사용자가 직접 설정한 nickname 은 절대 덮어쓰지 않고, 비어 있는 행만 채운다.
+-- 여러 번 실행해도 안전(이미 채워진 행은 where 조건에서 제외됨).
+-- 트리거와 동일하게 '@' 포함 값(이메일로 채워진 full_name/name)은 후보에서 제외한다.
+update profiles p
+set nickname = coalesce(
+  case when u.raw_user_meta_data->>'full_name' not like '%@%'
+    then nullif(btrim(u.raw_user_meta_data->>'full_name'), '') end,
+  case when u.raw_user_meta_data->>'name' not like '%@%'
+    then nullif(btrim(u.raw_user_meta_data->>'name'), '') end
+)
+from auth.users u
+where p.user_id = u.id
+  and nullif(btrim(p.nickname), '') is null
+  and coalesce(
+    case when u.raw_user_meta_data->>'full_name' not like '%@%'
+      then nullif(btrim(u.raw_user_meta_data->>'full_name'), '') end,
+    case when u.raw_user_meta_data->>'name' not like '%@%'
+      then nullif(btrim(u.raw_user_meta_data->>'name'), '') end
+  ) is not null;
