@@ -20,7 +20,7 @@ import { useSavedCourses } from '../../hooks/useSavedCourses'
 import AddStopModal from './AddStopModal'
 import CourseNameModal from './CourseNameModal'
 import LocationStep from '../survey/LocationStep'
-import gateIllustration from '../../assets/survey-city-illustration.png'
+import gateIllustration from '../../assets/survey-city-illustration.webp'
 
 const MODES = [
   { id: 'car', label: '🚗 자동차' },
