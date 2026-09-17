@@ -26,8 +26,8 @@ export const REGIONS = {
     districtKeywords: ['빵집', '베이커리'],
     specialtyQueries: ['대전 성심당', '대전 유명 빵집'],
     tourKeywords: ['대전 빵', '대전 베이커리', '대전 제과', '대전 디저트'],
-    // 출발 위치 프리셋 (설문 0단계). name = origin.label 로 저장, icon = LocationIcons.jsx의
-    // LOCATION_ICONS 키(화면 표기용 — 이모지 대신 브랜드 톤 SVG 픽토그램).
+    // 출발 위치 프리셋 (설문 0단계). name = origin.label 로 저장. icon 은 현재 화면에서 쓰지 않는
+    // 분류 힌트(train/bus/...)로만 남겨둔다.
     origins: [
       { id: 'daejeon-st', icon: 'train', name: '대전역', lat: 36.33184, lng: 127.43417 },
       { id: 'seodaejeon-st', icon: 'train', name: '서대전역', lat: 36.31984, lng: 127.40287 },
