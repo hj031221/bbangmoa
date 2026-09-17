@@ -82,6 +82,10 @@ export function useBakeries({ regionId, answers, origin, limit = MAX_RESULTS, en
           setSource('api')
         }
       })
+      // allSettled 자체는 reject하지 않지만, 위 .then 콜백(resolveFetchOutcome/mergeBakeries)이
+      // 예상 밖 응답 모양으로 동기 throw하면 이 체인이 unhandled rejection이 되어 error가 영영
+      // 안 잡히고 loading만 꺼지는 조용한 실패로 돌아간다(코드리뷰 발견) — 다시 잡아준다.
+      .catch((e) => alive && setError(e))
       .finally(() => alive && setLoading(false))
 
     return () => {
