@@ -1,6 +1,9 @@
+import { Suspense, lazy } from 'react'
 import LandingPage from './pages/LandingPage'
-import StampSharePage from './pages/StampSharePage'
 import ServerConnectionBadge from './components/dev/ServerConnectionBadge'
+
+// /s/* 공유 페이지는 랜딩과 같은 번들에 실릴 이유가 없어 분리 로드한다.
+const StampSharePage = lazy(() => import('./pages/StampSharePage'))
 
 // 라우터 없음 — pathname 만 본다. vercel.json 이 /s/* 를 index.html 로 rewrite 한다.
 export default function App() {
@@ -17,7 +20,9 @@ export default function App() {
     return (
       <>
         {badge}
-        <StampSharePage code={code} />
+        <Suspense fallback={null}>
+          <StampSharePage code={code} />
+        </Suspense>
       </>
     )
   }

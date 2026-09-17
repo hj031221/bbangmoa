@@ -1,4 +1,4 @@
-import heroIllustration from '../../assets/survey-city-illustration.png'
+import heroIllustration from '../../assets/survey-city-illustration.webp'
 import './SurveyJourney.css'
 
 const CONTENT = {

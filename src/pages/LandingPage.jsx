@@ -1,24 +1,34 @@
-import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Fragment, Suspense, lazy, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { isSurveyComplete } from '../lib/breadRecommend'
-import SurveyFlow from '../components/survey/SurveyFlow'
-import BreadReveal from '../components/result/BreadReveal'
-import MapResult from '../components/map/MapResult'
-import MyPage from './MyPage'
-import InfoPage from './InfoPage'
 import NavBar from '../components/landing/NavBar'
 import MainHero from '../components/landing/MainHero'
-import BakeryMapPage from '../components/map/BakeryMapPage'
-import TourPage from '../components/tour/TourPage'
-import TourSurveyFlow from '../components/tour/TourSurveyFlow'
-import TourReveal from '../components/tour/TourReveal'
-import PilgrimagePage from '../components/tour/PilgrimagePage'
 import { resolveDistrict, isTourSurveyComplete } from '../lib/tourRecommend'
 import { useFriends } from '../hooks/useFriends'
 import { useInviteLink } from '../hooks/useInviteLink'
 import InviteFriendModal from '../components/mypage/InviteFriendModal'
 import { getAppPath, getAppView } from '../lib/appRoute'
 import { buildHistoryState, restoreHistoryState, MAP_STATE_DEFAULTS } from '../lib/viewHistory'
+
+// 홈 이외의 화면은 view 별로 분리 로드한다. 첫 진입에서 마이페이지·대전한바퀴·카카오맵 코드까지
+// 한 번에 내려받지 않도록 — 홈에 필요한 NavBar/MainHero 만 정적 import 로 남긴다.
+const SurveyFlow = lazy(() => import('../components/survey/SurveyFlow'))
+const BreadReveal = lazy(() => import('../components/result/BreadReveal'))
+const MapResult = lazy(() => import('../components/map/MapResult'))
+const MyPage = lazy(() => import('./MyPage'))
+const InfoPage = lazy(() => import('./InfoPage'))
+const BakeryMapPage = lazy(() => import('../components/map/BakeryMapPage'))
+const TourPage = lazy(() => import('../components/tour/TourPage'))
+const TourSurveyFlow = lazy(() => import('../components/tour/TourSurveyFlow'))
+const TourReveal = lazy(() => import('../components/tour/TourReveal'))
+const PilgrimagePage = lazy(() => import('../components/tour/PilgrimagePage'))
+
+// 청크를 내려받는 짧은 순간의 자리표시자 — 기존 "불러오는 중…" 배너 톤을 그대로 쓴다.
+const viewFallback = (
+  <div className="page">
+    <div className="banner">불러오는 중…</div>
+  </div>
+)
 
 // 랜딩 = 마케팅 사이트. 상단 메뉴바(NavBar)는 어떤 화면에서도 항상 떠 있고,
 // 메뉴 클릭에 따라 그 아래 본문만 바뀐다. "취향 테스트 시작" 계열 버튼을 누르면
@@ -374,6 +384,7 @@ export default function LandingPage() {
         </div>
       )}
 
+      <Suspense fallback={viewFallback}>
       {view === 'info' && <InfoPage onStart={startTest} />}
 
       {view === 'map' && (
@@ -450,6 +461,7 @@ export default function LandingPage() {
           {stage === 'map' && <MapResult mapState={resultMap} onMapChange={(next, replace) => changeMap('resultMap', next, replace)} onBack={goBackInApp} onBackToResult={backToBreadReveal} onAddToCourse={(bakery) => loadCourseIntoPilgrimage({ mode: 'append', stops: [{ ...bakery, type: 'bakery' }] })} />}
         </div>
       )}
+      </Suspense>
 
       {isHome && (
         <div className="bm-home">
