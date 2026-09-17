@@ -1,8 +1,8 @@
 import { useRef } from 'react'
 import { useAppStore } from '../../store/useAppStore'
 import { useBakeries } from '../../hooks/useBakeries'
-import { pickBreadResult, buildReason, matchBakeries } from '../../lib/breadRecommend'
-import { pickBreadStory } from '../../data/breadCandidates'
+import { pickBreadResult, buildReason, matchBakeries, matchBakeriesGrouped } from '../../lib/breadRecommend'
+import { pickBreadStory, getBreadById } from '../../data/breadCandidates'
 import { getBakeryDistanceInfo } from '../../lib/bakeryDistance'
 import { formatDistance } from '../../lib/distance'
 import { hoursBadgeText } from '../../lib/hours'
@@ -13,13 +13,17 @@ export default function BreadReveal({ onRetake, onShowMap, tourDone, onGoToTour,
   const regionId = useAppStore((s) => s.regionId)
   const origin = useAppStore((s) => s.origin)
   const answers = useAppStore((s) => s.answers)
+  const directBreadId = useAppStore((s) => s.directBreadId)
   const selectBakery = useAppStore((s) => s.selectBakery)
+  // 빵 종류 바로가기(이슈 #73 B1): 설문을 건너뛰고 고른 빵. 있으면 스코어링(pickBreadResult) 대신
+  // 이 빵을 그대로 쓰고, 취향 적합도·추천 이유(설문 파생값)는 표시하지 않는다.
+  const directBread = directBreadId ? getBreadById(directBreadId) : null
   // answers 는 일부러 넘기지 않는다 — 이 화면의 빵집 목록은 아래 matchBakeries(빵 keywords 기반)로만
   // 정하고, 옛 태그-가중치 정렬(recommend.js)은 관여하지 않는다(빵 취향 점수와 빵집 정보 분리 원칙).
   // limit: Infinity — useBakeries 의 기본 limit(10)은 "출발지 근처 10곳"까지만 남기고 잘라버려서,
   // 대전 전역에 흩어진 빵집 중 이 빵을 파는 곳을 못 찾는 경우가 많았다. 매칭은 전체 풀에서 하고
   // matchBakeries 가 그중 상위 5곳만 추리게 한다(그마저도 origin 기준 가까운 순으로 이미 정렬돼 있다).
-  const { bakeries, loading } = useBakeries({ regionId, answers: {}, origin, limit: Infinity })
+  const { bakeries, loading, error, reload } = useBakeries({ regionId, answers: {}, origin, limit: Infinity })
   // "💡 빵 이야기"로 보여줄 후보(빵당 3개) 중 하나를 이 화면이 살아있는 동안 하나로 고정한다 —
   // 리렌더마다 문구가 바뀌지 않게. 홈으로 나갔다 새 결과를 받으면 다시 마운트되며 새로 뽑힌다.
   // useRef(Math.random()) 로 쓰면 리렌더마다 Math.random() 이 호출되고 결과만 버려진다
@@ -37,8 +41,26 @@ export default function BreadReveal({ onRetake, onShowMap, tourDone, onGoToTour,
       </div>
     )
   }
+  // PR #82 리뷰: 빵집 목록 로드가 실패하면 useBakeries가 빈 배열을 돌려주는데, 그걸 "데이터는
+  // 왔는데 0곳"으로 보고 빵을 고른 뒤 "추천할 OO 맛집 정보가 없어요"를 띄웠다(재진입해 로드가
+  // 성공하면 정상 표시되는 것과 대비). 위 로딩 가드와 같은 이유(빵집 0곳 기준으로 고른 빵이
+  // 나중에 바뀌는 깜빡임 방지)로 결과를 그리지 않고 실패를 알리고 다시 시도하게 한다.
+  if (error) {
+    return (
+      <div className="bread-reveal">
+        <div className="banner error" role="alert">빵집 정보를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.</div>
+        <div className="bread-reveal-actions">
+          <button type="button" className="primary-btn" onClick={reload}>
+            다시 시도
+          </button>
+        </div>
+      </div>
+    )
+  }
 
-  const result = pickBreadResult(answers, bakeries)
+  const result = directBread
+    ? { bread: directBread, branch: null, score: null }
+    : pickBreadResult(answers, bakeries)
 
   if (!result) {
     return (
@@ -55,19 +77,56 @@ export default function BreadReveal({ onRetake, onShowMap, tourDone, onGoToTour,
   }
 
   const { bread, branch, score } = result
-  const reason = buildReason(bread.id, branch, answers)
-  const spotlight = matchBakeries(bakeries, bread, 5)
+  const reason = branch ? buildReason(bread.id, branch, answers) : ''
+  // 바로가기(directBread): 확인된 곳 / 가능성 있는 곳을 나눠 보여준다.
+  // 설문 결과: 기존대로 상위 5곳을 한 목록으로.
+  const groups = directBread
+    ? matchBakeriesGrouped(bakeries, bread, { limit: 10, minConfirmed: 3 })
+    : { confirmed: matchBakeries(bakeries, bread, 5), possible: [] }
+  const spotlightCount = groups.confirmed.length + groups.possible.length
   const story = pickBreadStory(bread, () => storySeed)
+
+  const renderBakeryCard = (b) => {
+    const distInfo = getBakeryDistanceInfo(b, { origin })
+    const hoursText = hoursBadgeText(b.hours)
+    const openOnMap = () => {
+      selectBakery(b.id)
+      onShowMap()
+    }
+    return (
+      <div
+        key={b.id}
+        className="bakery-mini-card"
+        role="button"
+        tabIndex={0}
+        onClick={openOnMap}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            openOnMap()
+          }
+        }}
+      >
+        <div className="bakery-mini-name">{b.name}</div>
+        {b.address && <div className="bakery-mini-addr">📍 {b.address}</div>}
+        {distInfo && (
+          <div className="bakery-mini-dist">📏 {distInfo.from}에서 {formatDistance(distInfo.km)}</div>
+        )}
+        {hoursText && <div className="bakery-mini-hours">🕒 {hoursText}</div>}
+        {b.phone && <div className="bakery-mini-tel">📞 {b.phone}</div>}
+      </div>
+    )
+  }
 
   return (
     <div className="bread-reveal">
-      <p className="bread-reveal-eyebrow">오늘의 빵은...</p>
+      <p className="bread-reveal-eyebrow">{directBread ? '고른 빵은...' : '오늘의 빵은...'}</p>
       <div className="bread-reveal-icon">
         <img src={bread.illustration} alt={`${bread.name} 일러스트`} />
       </div>
       <h2 className="bread-reveal-title">&lt; {bread.name} &gt;</h2>
       <p className="bread-reveal-desc">{bread.description}</p>
-      <p className="bread-reveal-score">취향 적합도 {score}%</p>
+      {score != null && <p className="bread-reveal-score">취향 적합도 {score}%</p>}
 
       {reason && <p className="bread-reveal-reason">{reason}</p>}
 
@@ -87,45 +146,34 @@ export default function BreadReveal({ onRetake, onShowMap, tourDone, onGoToTour,
       )}
 
       <div className="bread-reveal-list">
-        {spotlight.length === 0 && (
+        {spotlightCount === 0 && (
           <div className="rec-card empty">이 지역엔 아직 추천할 {bread.name} 맛집 정보가 없어요.</div>
         )}
-        {spotlight.map((b) => {
-          const distInfo = getBakeryDistanceInfo(b, { origin })
-          const hoursText = hoursBadgeText(b.hours)
-          const openOnMap = () => {
-            selectBakery(b.id)
-            onShowMap()
-          }
-          return (
-            <div
-              key={b.id}
-              className="bakery-mini-card"
-              role="button"
-              tabIndex={0}
-              onClick={openOnMap}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault()
-                  openOnMap()
-                }
-              }}
-            >
-              <div className="bakery-mini-name">{b.name}</div>
-              {b.address && <div className="bakery-mini-addr">📍 {b.address}</div>}
-              {distInfo && (
-                <div className="bakery-mini-dist">📏 {distInfo.from}에서 {formatDistance(distInfo.km)}</div>
-              )}
-              {hoursText && <div className="bakery-mini-hours">🕒 {hoursText}</div>}
-              {b.phone && <div className="bakery-mini-tel">📞 {b.phone}</div>}
-            </div>
-          )
-        })}
+        {directBread ? (
+          <>
+            {groups.confirmed.length > 0 && (
+              <>
+                <p className="bread-reveal-list-label">
+                  이 빵을 파는 곳으로 확인된 {groups.confirmed.length}곳
+                </p>
+                {groups.confirmed.map(renderBakeryCard)}
+              </>
+            )}
+            {groups.possible.length > 0 && (
+              <>
+                <p className="bread-reveal-list-label">가능성 있는 곳</p>
+                {groups.possible.map(renderBakeryCard)}
+              </>
+            )}
+          </>
+        ) : (
+          groups.confirmed.map(renderBakeryCard)
+        )}
       </div>
 
       <div className="bread-reveal-actions">
         <button className="ghost-btn" onClick={onRetake}>
-          다시 추천받기
+          {directBread ? '다른 빵 고르기' : '다시 추천받기'}
         </button>
         <button className="primary-btn" onClick={onShowMap}>
           지도에서 보기
@@ -142,7 +190,7 @@ export default function BreadReveal({ onRetake, onShowMap, tourDone, onGoToTour,
         !tourDone && onGoToTour && (
           <div className="reveal-crosslink">
             <button type="button" className="ghost-btn" onClick={onGoToTour}>
-              관광모아 설문하러 가기 →
+              그럼 내 취향 코스는? →
             </button>
           </div>
         )

@@ -1,14 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   fetchTourBakeries,
   fetchKakaoBakeries,
-  mergeBakeries,
   tourEnabled,
   kakaoLocalEnabled,
 } from '../api'
 import { normalizeKakao } from '../api/normalize'
 import { recommend } from '../lib/recommend'
 import { haversineKm } from '../lib/distance'
+import { resolveFetchOutcome } from '../lib/bakeriesFetchOutcome'
 import { SAMPLE_BAKERIES } from '../data/sampleBakeries'
 
 // 빵집 데이터 파이프라인 훅.
@@ -19,14 +19,25 @@ import { SAMPLE_BAKERIES } from '../data/sampleBakeries'
 //   loading   : 로딩 여부
 //   error     : 에러 객체 | null
 //   source    : 'api' | 'sample'  (키 미설정 시 sample 폴백)
-export function useBakeries({ regionId, answers, origin, limit = MAX_RESULTS }) {
+//   reload    : 실패했을 때 다시 가져오기(캐시가 없을 때만 실제 재호출)
+export function useBakeries({ regionId, answers, origin, limit = MAX_RESULTS, enabled = true }) {
   const [raw, setRaw] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(enabled)
   const [error, setError] = useState(null)
   const [source, setSource] = useState('api')
+  // PR #82 리뷰: 첫 로드가 실패하면(error) raw=[]인 채 loading만 false가 돼, 호출부가 "데이터는
+  // 왔는데 0곳"으로 오해했다(리빌 "추천할 OO 맛집 정보가 없어요", 대전한바퀴 빵집 0곳 코스).
+  // 실패는 표시하고 다시 시도할 수 있어야 한다 — 이 키를 올리면 fetch effect가 다시 돈다.
+  const [reloadKey, setReloadKey] = useState(0)
+  const reload = useCallback(() => setReloadKey((k) => k + 1), [])
 
   // 데이터 fetch 는 지역이 바뀔 때만. (추천 정렬은 아래에서 answers 로 매번 재계산)
   useEffect(() => {
+    if (!enabled) {
+      setLoading(false)
+      return
+    }
+    setError(null)
     let alive = true
     const anyKey = tourEnabled() || kakaoLocalEnabled()
 
@@ -49,42 +60,58 @@ export function useBakeries({ regionId, answers, origin, limit = MAX_RESULTS }) 
     setLoading(true)
     setSource('api')
     const t0 = performance.now()
-    Promise.all([
-      fetchTourBakeries(regionId).catch(() => []),
-      fetchKakaoBakeries(regionId).catch(() => []),
-    ])
-      .then(([tour, kakao]) => {
+    // 검증 발견 — 이전엔 각 요청의 실패를 여기서 빈 배열로 바꿔 삼켰다. 그러면 Promise.all이
+    // 절대 reject하지 않아 아래 .catch(setError)가 죽은 코드가 되고, 두 요청이 모두 실패해도
+    // merged.length === 0 인 "정상적인 0건"과 구분 없이 샘플 데이터로 조용히 대체됐다.
+    // allSettled로 실제 실패 여부를 따로 들고 있다가, 결과가 0건인데 요청 중 하나라도 실패했으면
+    // (실패 없이 정말 0건인 경우와 구분해) 샘플 대신 에러로 표시해 재시도 경로를 태운다.
+    Promise.allSettled([fetchTourBakeries(regionId), fetchKakaoBakeries(regionId)])
+      .then(([tourResult, kakaoResult]) => {
         if (!alive) return
-        const merged = mergeBakeries(tour, kakao)
+        const outcome = resolveFetchOutcome(tourResult, kakaoResult)
         console.log(`[bakeries] 로드 ${Math.round(performance.now() - t0)}ms`)
-        logBakeryStats({ tour, kakao, merged })
-        // 둘 다 0건이면 폴백
-        if (merged.length === 0) {
+        logBakeryStats({ tour: outcome.tour, kakao: outcome.kakao, merged: outcome.merged })
+        if (outcome.status === 'error') {
+          setError(outcome.error)
+        } else if (outcome.status === 'sample') {
           setRaw(SAMPLE_BAKERIES)
           setSource('sample')
         } else {
-          mergedCache.set(regionId, merged)
-          setRaw(merged)
+          mergedCache.set(regionId, outcome.merged)
+          setRaw(outcome.merged)
           setSource('api')
         }
       })
+      // allSettled 자체는 reject하지 않지만, 위 .then 콜백(resolveFetchOutcome/mergeBakeries)이
+      // 예상 밖 응답 모양으로 동기 throw하면 이 체인이 unhandled rejection이 되어 error가 영영
+      // 안 잡히고 loading만 꺼지는 조용한 실패로 돌아간다(코드리뷰 발견) — 다시 잡아준다.
       .catch((e) => alive && setError(e))
       .finally(() => alive && setLoading(false))
 
     return () => {
       alive = false
     }
-  }, [regionId])
+  }, [regionId, enabled, reloadKey])
 
   // 설문 응답 기반 추천 점수 부여 → origin 에서 가까운 순 정렬 (fetch 없이 재계산)
   // 구(district) 필터는 제거: 전 구를 다 긁고 위치(origin) 기준으로 가까운 순만 보여준다.
-  const scored = recommend(raw, answers)
-  const sorted = origin
-    ? [...scored].sort((a, b) => distKm(origin, a) - distKm(origin, b))
-    : scored
-  const bakeries = sorted.slice(0, limit)
+  //
+  // PR #82 리뷰: 매 렌더 새 배열을 돌려주면 호출부(MapResult)의 useMemo 체인이 전부 무효화돼
+  // 선택된 빵집 객체 → 주변 짐 보관함 배열까지 렌더마다 새로 만들어졌고, 그 배열을 deps로 쓰는
+  // LuggageMarkers effect가 재실행되면서 열어둔 InfoWindow가 무관한 리렌더에도 닫혔다.
+  // 입력이 같으면 같은 배열을 돌려준다. answers는 모든 호출부가 {} 리터럴을 넘겨 참조가 매번
+  // 달라지므로 내용 키로 비교한다.
+  const answersKey = JSON.stringify(answers ?? {})
+  const bakeries = useMemo(() => {
+    const scored = recommend(raw, answers)
+    const sorted = origin
+      ? [...scored].sort((a, b) => distKm(origin, a) - distKm(origin, b))
+      : scored
+    return sorted.slice(0, limit)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [raw, answersKey, origin, limit])
 
-  return { bakeries, loading, error, source }
+  return { bakeries, loading: enabled && loading, error, source, reload }
 }
 
 // origin → 빵집 직선거리(km). 좌표 없으면 맨 뒤로 밀리도록 Infinity.

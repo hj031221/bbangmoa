@@ -2,6 +2,7 @@
 //   Q0(구) + Q1(동행자→Branch) + Q2~Q5(테마 가중치+성향 태그) → 테마 결정 → 코사인 유사도
 //   → 동행 적합도 → 80:20 최종 점수 → TOP3.
 import { Q0, Q1, BRANCHES, THEMES, TRAIT_TAGS } from '../data/tourSurveyConfig.js'
+import { josa } from './josa.js'
 
 export const COMPANION_KEY_BY_BRANCH = {
   A: 'solo', B: 'couple', C: 'friends', D: 'childrenFamily', E: 'parentsFamily',
@@ -161,27 +162,75 @@ export function buildThemeReason(branchId, answers, theme) {
   return `${picks.join(', ')} 같은 성향이 반영되어 ${THEME_LABELS[theme]} 테마가 추천되었습니다.`
 }
 
+// 태그 라벨 목록을 "A와 B를" 꼴로 잇는다 — 과/와, 을/를은 앞말 받침에 따라 고른다
+// (PR #82 리뷰: "볼거리과", "볼거리을" 비문 노출).
+function joinLabelsWithObjectJosa(labels) {
+  const joined = labels.reduce((acc, label, i) => (i === 0 ? label : `${acc}${josa(acc, '과', '와')} ${label}`), '')
+  return `${joined}${josa(joined, '을', '를')}`
+}
+
 // peers: 이번 추천 결과에 함께 노출되는 다른 관광지들(자기 자신 포함해도 됨).
 // 기존 로직은 "내 상위 태그 2개"만 보고 문구를 만들어서, 함께 노출된 후보끼리
 // 그 태그값이 같으면(=벡터가 다르더라도) 문구가 완전히 같아지는 문제가 있었다.
 // → 후보들 사이에서 이 장소만 유독 높은 성향(태그)이 있으면 한 문장 덧붙여 구분한다.
+//
+// PR #82 리뷰 2건:
+//  - 상위 태그 2개가 이 장소에서 모두 4 미만이면 ''를 돌려줘 카드 이유가 빈 칸으로 떴다
+//    (전수조사 15,625조합 중 35%). 이 장소 자체의 가장 강한 성향으로 기본 문구를 만든다.
+//  - 구분 문장이 "4 이상 + 다른 후보 전부보다 큼"인 태그만 봐서, 후보끼리 4 미만 구간에서만
+//    다르면(대전시립미술관 지식2 vs 대전예술의전당 체험2) 여전히 같은 문장이 나왔다. 값이 낮아도
+//    이 장소만 더 높은 태그가 있으면 그걸로 나누되, 4 미만이면 "두드러진다"고 과장하지 않는다.
 export function buildAttractionReason(userVec, attraction, peers = []) {
+  const trait = (a, tag) => a.traits[tag] ?? 0
   const userTop = topTags(userVec, 2)
-  const common = userTop.filter((tag) => (attraction.traits[tag] ?? 0) >= 4)
-  if (common.length === 0) return ''
-  const labels = common.map((tag) => TAG_LABELS[tag])
-  const base = `${labels.join('과 ')}을 중요하게 생각하는 여행 성향과 잘 맞는 장소입니다.`
+  // [문장, 문장에 이미 쓴 태그들(구분 문장에서 같은 태그를 또 말해 겹치지 않게)]
+  const baseOf = (a) => {
+    const common = userTop.filter((tag) => trait(a, tag) >= 4)
+    if (common.length > 0) {
+      return [`${joinLabelsWithObjectJosa(common.map((tag) => TAG_LABELS[tag]))} 중요하게 생각하는 여행 성향과 잘 맞는 장소입니다.`, common]
+    }
+    const own = topTags(a.traits, 1)[0]
+    return [`${TAG_LABELS[own]} 요소가 돋보이는 곳으로, 전체적인 여행 성향과 고르게 어울리는 장소입니다.`, [own]]
+  }
+  const [base, usedTags] = baseOf(attraction)
 
   const others = peers.filter((p) => p !== attraction)
   if (others.length === 0) return base
 
-  const distinguishing = TRAIT_TAGS
-    .filter((tag) => (attraction.traits[tag] ?? 0) >= 4)
-    .filter((tag) => others.every((o) => (attraction.traits[tag] ?? 0) > (o.traits[tag] ?? 0)))
-    .sort((a, b) => (attraction.traits[b] ?? 0) - (attraction.traits[a] ?? 0))
+  // vs 후보들 전부보다 이 장소만 더 높은 태그 — 값이 큰 순, 같으면 격차가 큰 순.
+  const pickDistinguishing = (vs, { allowUsed = false } = {}) =>
+    TRAIT_TAGS
+      .filter((tag) => (allowUsed || !usedTags.includes(tag)) && vs.every((o) => trait(attraction, tag) > trait(o, tag)))
+      .sort((a, b) => {
+        const diff = trait(attraction, b) - trait(attraction, a)
+        if (diff !== 0) return diff
+        const margin = (tag) => trait(attraction, tag) - Math.max(...vs.map((o) => trait(o, tag)))
+        return margin(b) - margin(a)
+      })[0]
 
-  if (distinguishing.length === 0) return base
-  return `${base} 특히 ${TAG_LABELS[distinguishing[0]]} 면에서 다른 추천지보다 두드러집니다.`
+  const tag = pickDistinguishing(others)
+  if (tag) {
+    const label = TAG_LABELS[tag]
+    return trait(attraction, tag) >= 4
+      ? `${base} 특히 ${label} 면에서 다른 추천지보다 두드러집니다.`
+      : `${base} 다른 추천지와 비교하면 ${label} 요소가 조금 더 있는 곳입니다.`
+  }
+
+  // 후보 전체 대비로는 못 나눴다(예: A>B이지만 C와는 같음). 같은 기본 문장을 갖는 후보와
+  // 1:1로만 비교해서, 그 후보 이름을 들어 나눈다 — "다른 추천지보다"라고 뭉뚱그리면 과장이 된다.
+  // 벡터가 가장 비슷한 후보부터 본다 — 그 후보가 결국 이 장소와 같은 문장이 될 가능성이 제일 높아서,
+  // 먼 후보와 먼저 비교하면 정작 닮은 둘이 똑같은 "X보다 …" 문장을 받는 일이 생겼다.
+  const l1 = (o) => TRAIT_TAGS.reduce((sum, tag) => sum + Math.abs(trait(attraction, tag) - trait(o, tag)), 0)
+  const twins = others
+    .filter((o) => o.name && baseOf(o)[0] === base)
+    .sort((a, b) => l1(a) - l1(b))
+  // 1:1 비교에선 기본 문장에 쓴 태그도 허용한다 — 그 태그 값만 다른 둘(소제동 이색성5 vs
+  // 대전트래블라운지 4)은 그게 유일한 차이라, 반복을 피하려다 문장을 못 나누는 것보다 낫다.
+  for (const twin of twins) {
+    const vsTwin = pickDistinguishing([twin]) ?? pickDistinguishing([twin], { allowUsed: true })
+    if (vsTwin) return `${base} ${twin.name}보다 ${TAG_LABELS[vsTwin]} 요소가 더 있는 곳입니다.`
+  }
+  return base
 }
 
 export function getTourRecommendation(answers, attractions) {

@@ -1,0 +1,76 @@
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import { getBreadById } from '../data/breadCandidates.js'
+import { BRANCHES } from '../data/surveyConfig.js'
+import { matchBakeriesGrouped } from './breadRecommend.js'
+
+// 큐레이션(bakeryBreadMenu.js)에서 확인된 실제 이름들:
+//   도넛  → 이상화베이커리, 크리베리, 로삐아노
+//   소금빵 → 레시피, 에코브레드하우스, 보보로베이커리, 토우베이크하우스, 시나몬 ...
+const b = (name, extra = {}) => ({ id: name, name, category: '', ...extra })
+
+test('matchBakeriesGrouped: bread 없으면 빈 그룹', () => {
+  assert.deepEqual(matchBakeriesGrouped([b('아무빵집')], null), { confirmed: [], possible: [] })
+})
+
+test('matchBakeriesGrouped: 확인된 곳 >= minConfirmed 면 가능성 있는 곳은 버린다', () => {
+  const donut = getBreadById('donut')
+  const bakeries = [
+    b('이상화베이커리'),
+    b('크리베리'),
+    b('로삐아노'),
+    b('행복 도너츠'), // keyword('도너츠') 매칭이지만 확인된 곳이 이미 3곳
+  ]
+  const { confirmed, possible } = matchBakeriesGrouped(bakeries, donut, { minConfirmed: 3 })
+  assert.deepEqual(confirmed.map((x) => x.name), ['이상화베이커리', '크리베리', '로삐아노'])
+  assert.deepEqual(possible, [])
+})
+
+test('matchBakeriesGrouped: 확인된 곳 < minConfirmed 면 가능성 있는 곳으로 채운다', () => {
+  const donut = getBreadById('donut')
+  const bakeries = [b('이상화베이커리'), b('크리베리'), b('도넛나라'), b('수제 도너츠집')]
+  const { confirmed, possible } = matchBakeriesGrouped(bakeries, donut, { minConfirmed: 3 })
+  assert.deepEqual(confirmed.map((x) => x.name), ['이상화베이커리', '크리베리'])
+  assert.deepEqual(possible.map((x) => x.name), ['도넛나라', '수제 도너츠집'])
+})
+
+test('matchBakeriesGrouped: 확인된 곳 0 이면 전부 가능성 있는 곳', () => {
+  const donut = getBreadById('donut')
+  const bakeries = [b('도넛나라'), b('수제 도너츠집'), b('상관없는집')]
+  const { confirmed, possible } = matchBakeriesGrouped(bakeries, donut, { minConfirmed: 3 })
+  assert.deepEqual(confirmed, [])
+  assert.deepEqual(possible.map((x) => x.name), ['도넛나라', '수제 도너츠집'])
+})
+
+test('matchBakeriesGrouped: confirmed + possible 합계는 limit 를 넘지 않는다', () => {
+  const salt = getBreadById('saltBread')
+  const confirmedNames = ['레시피', '에코브레드하우스', '보보로베이커리', '토우베이크하우스', '시나몬']
+  const { confirmed, possible } = matchBakeriesGrouped(
+    confirmedNames.map((n) => b(n)),
+    salt,
+    { limit: 3, minConfirmed: 3 },
+  )
+  assert.equal(confirmed.length, 3)
+  assert.deepEqual(possible, [])
+})
+
+test('matchBakeriesGrouped: 확인된 곳이 limit 보다 적고 minConfirmed 미만이면 possible 로 limit 까지만', () => {
+  const donut = getBreadById('donut')
+  const bakeries = [b('이상화베이커리'), b('도넛1'), b('도넛2'), b('도넛3'), b('도넛4')]
+  const { confirmed, possible } = matchBakeriesGrouped(bakeries, donut, { limit: 3, minConfirmed: 3 })
+  assert.deepEqual(confirmed.map((x) => x.name), ['이상화베이커리'])
+  assert.deepEqual(possible.map((x) => x.name), ['도넛1', '도넛2'])
+})
+
+test('이슈 #80 B-3: B_q3_5(쫀득한 식감)에서 donut이 부당한 1위를 차지하지 않는다 — 정체성(폭신한 식감)과 반대', () => {
+  const opt = BRANCHES.B.questions.find((q) => q.id === 'B_q3').options.find((o) => o.id === 'B_q3_5')
+  const realCandidates = BRANCHES.B.candidateIds
+  const maxAmongReal = Math.max(...realCandidates.map((id) => opt.fitness[id] ?? 0))
+  assert.equal(opt.fitness.donut, maxAmongReal, 'donut이 단독 1위면 안 된다(동점 이하만 허용)')
+  assert.ok(opt.fitness.donut <= 2, 'donut은 폭신한 식감이 정체성이라 쫀득함 문항에서 낮아야 한다')
+})
+
+test('이슈 #80 B-3: C_q3_3(폭신한 식감)에서 donut(정체성 해시태그)이 creamBread(부차 해시태그)보다 높다', () => {
+  const opt = BRANCHES.C.questions.find((q) => q.id === 'C_q3').options.find((o) => o.id === 'C_q3_3')
+  assert.ok(opt.fitness.donut > opt.fitness.creamBread)
+})

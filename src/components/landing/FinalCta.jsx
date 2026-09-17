@@ -4,7 +4,7 @@ export default function FinalCta({ onStart }) {
     <section className="bm-final" id="bm-final">
       <h2>이제 당신만의 빵지순례를 시작하세요</h2>
       <button className="bm-btn-primary" onClick={onStart}>
-        내 취향 빵집 찾기
+        내 취향 빵집은?
       </button>
     </section>
   )

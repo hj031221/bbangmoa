@@ -1,3 +1,4 @@
+import { appendCourseStops } from '../../lib/courseDraft'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAppStore } from '../../store/useAppStore'
 import { useAuth } from '../../hooks/useAuth'
@@ -10,6 +11,7 @@ import { estimateActualRoute } from '../../lib/travelTime'
 import { formatDistance, midpointOf, hasValidCoords } from '../../lib/distance'
 import { sanitizeOriginForSave } from '../../lib/originPrivacy'
 import { uniqueDefaultTitle } from '../../lib/courseLabel'
+import { josa } from '../../lib/josa'
 import { fetchDestinationsMatrix } from '../../api'
 import { getRegion } from '../../config/regions'
 import { supabase } from '../../lib/supabase'
@@ -17,6 +19,8 @@ import { useAttractions } from '../../hooks/useAttractions'
 import { useSavedCourses } from '../../hooks/useSavedCourses'
 import AddStopModal from './AddStopModal'
 import CourseNameModal from './CourseNameModal'
+import LocationStep from '../survey/LocationStep'
+import gateIllustration from '../../assets/survey-city-illustration.png'
 
 const MODES = [
   { id: 'car', label: '🚗 자동차' },
@@ -24,21 +28,7 @@ const MODES = [
   { id: 'walk', label: '🚶 도보' },
 ]
 
-function CompletionMark() {
-  return (
-    <svg className="pil-completion-mark" viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="12" cy="12" r="10" fill="#E8F1F5" stroke="#5C839A" strokeWidth="1.7" />
-      <path
-        d="m7.4 12.2 3.05 3.05 6.4-6.55"
-        fill="none"
-        stroke="#416D86"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
+function CompletionMark() { return <span className="pil-completion-check" aria-hidden="true">✓</span> }
 
 // 코스의 "정체성" — 경유지 타입+id를 순서대로 이어붙인 키. 순서가 바뀌면 다른 코스로 본다
 // (§CP10-7 — "똑같은 코스 저장 방지" 요청 대응). lat/lng/name/order 등은 무시한다(같은 id면
@@ -97,7 +87,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
     : null
 
   // 빵집 매칭은 대전 전역 풀에서(BreadReveal과 동일 방식) — origin 근처 10곳으로 잘리면 안 됨.
-  const { bakeries: allBakeries, loading: bakeriesLoading } = useBakeries({
+  const { bakeries: allBakeries, loading: bakeriesLoading, error: bakeriesError, reload: reloadBakeries } = useBakeries({
     regionId,
     answers: {},
     origin,
@@ -115,11 +105,12 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
     ? { ...breadPick, bakeries: matchBakeries(allBakeries, breadPick.bread, 5) }
     : null
 
-  const [travelMode, setTravelMode] = useState('car')
-  const [customStops, setCustomStops] = useState(null) // null = 아직 기본 코스로 초기화 전
+  const draft = useAppStore.getState().courseDraft
+  const [travelMode, setTravelMode] = useState(() => draft?.travelMode || 'car')
+  const [customStops, setCustomStops] = useState(() => draft?.stops ?? null) // null = 아직 기본 코스로 초기화 전
   // null = 아직 손대기 전(그리디 자동 정렬 사용). 한 번이라도 드래그하면 순서 id 배열이 들어가고,
   // 그 뒤로는 add/remove를 해도 이 순서를 존중한다(그리디로 되돌아가지 않는다).
-  const [manualOrderIds, setManualOrderIds] = useState(null)
+  const [manualOrderIds, setManualOrderIds] = useState(() => draft?.orderIds ?? null)
   const [addOpen, setAddOpen] = useState(false)
   const [saveState, setSaveState] = useState('idle') // 'idle' | 'saving' | 'saved' | 'error'
   // useSavedCourses는 마운트 시점 한 번만 조회해서, 이 화면에서 방금 막 저장한 코스는 반영이
@@ -132,8 +123,13 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
   // 마이페이지 "찜한 코스"에서 불러온 경우엔 설문 미완료여도 게이트를 우회한다(§CP10-3) — 이미
   // 확정된 경유지 목록이 있으니 설문이 필요 없다. pendingCourseLoad는 아래 effect가 한 번 소비하고
   // 비우므로, 그 뒤에도 게이트를 계속 우회하려면 별도 플래그(gateBypassed)로 기억해둬야 한다.
-  const [gateBypassed, setGateBypassed] = useState(false)
+  const [gateBypassed, setGateBypassed] = useState(() => draft?.gateBypassed || false)
   const loadedFromSavedRef = useRef(false)
+  // PR #82 리뷰: 빵 지도 "코스에 담기"(append)로 이 화면에 처음 들어오면 customStops가 아직 null이라
+  // "빈 코스 + 방금 담은 1곳"이 돼버리고, loadedFromSavedRef까지 켜져 아래 기본 코스 채우기가 영영
+  // 안 돌았다 — 설문을 다 마친 사용자가 기대한 "빵+관광지 기본 코스"가 통째로 사라졌다.
+  // 첫 진입의 append는 여기 보류해뒀다가, 기본 코스가 준비되는 시점에 그 위에 얹는다.
+  const pendingAppendRef = useRef(null)
 
   useEffect(() => {
     if (!pendingCourseLoad) return
@@ -148,11 +144,22 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
     // 됐다(리뷰 발견). 애초에 customStops에 못 들어오게 막는 게 근본 해결 — 이후 로직들은
     // "customStops 안엔 항상 유효 좌표만 있다"는 전제를 그대로 믿어도 된다.
     const validStops = pendingCourseLoad.stops.filter(hasValidCoords)
-    loadedFromSavedRef.current = true
     setGateBypassed(true)
-    setCustomStops(validStops)
-    setManualOrderIds(validStops.map((s) => s.id))
-    setTravelMode(pendingCourseLoad.travel_mode || 'car')
+    if (pendingCourseLoad.mode === 'append' && customStops === null) {
+      // 첫 진입 — 기본 코스가 아직 없다. 아래 채우기 effect가 기본 코스 위에 얹도록 보류한다
+      // (loadedFromSavedRef는 켜지 않는다 — 켜면 그 effect가 영영 안 돈다).
+      pendingAppendRef.current = appendCourseStops(pendingAppendRef.current || [], null, validStops).stops
+    } else if (pendingCourseLoad.mode === 'append') {
+      loadedFromSavedRef.current = true
+      const next = appendCourseStops(customStops, manualOrderIds, validStops)
+      setCustomStops(next.stops)
+      setManualOrderIds(next.orderIds)
+    } else {
+      loadedFromSavedRef.current = true
+      setCustomStops(validStops)
+      setManualOrderIds(validStops.map((s) => s.id))
+      setTravelMode(pendingCourseLoad.travel_mode || 'car')
+    }
     if (!origin && pendingCourseLoad.origin) setOrigin(pendingCourseLoad.origin)
     setPendingCourseLoad(null)
     // origin/setOrigin/setPendingCourseLoad는 안정적인 참조/스토어 상태라 deps에서 뺀다 —
@@ -171,17 +178,25 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
   // 같이 봐야 한다). → 두 로딩이 다 끝난 뒤 딱 한 번만 기본 코스로 채운다.
   // 찜한 코스를 불러온 경우엔(loadedFromSavedRef) 이 자동 채우기를 건너뛴다 — 위 effect가 이미
   // customStops를 채웠는데, 같은 렌더에서 이 effect도 "아직 null"로 보고 덮어쓸 수 있어서다.
+  // 첫 진입에 보류해둔 "코스에 담기"(pendingAppendRef)가 있으면 기본 코스 위에 얹는다. 설문이
+  // 안 끝나 기본 코스가 없으면(baseRoute null) 담은 것만으로 시작한다 — 예전 동작과 같다.
+  // PR #82 리뷰: 빵집 로드가 실패하면(bakeriesError) 목록이 []인데 loading은 false라, 그대로 채우면
+  // "관광지만 있는 코스"가 조용히 만들어졌다. 실패 중엔 채우지 않고 아래에서 다시 시도를 띄운다.
   useEffect(() => {
-    if (
-      customStops === null &&
-      baseRoute &&
-      !bakeriesLoading &&
-      !attractionsLoading &&
-      !loadedFromSavedRef.current
-    ) {
-      setCustomStops(baseRoute.stops)
+    if (customStops !== null || bakeriesLoading || bakeriesError || attractionsLoading || loadedFromSavedRef.current) return
+    const pending = pendingAppendRef.current
+    if (baseRoute) {
+      pendingAppendRef.current = null
+      setCustomStops(pending ? appendCourseStops(baseRoute.stops, null, pending).stops : baseRoute.stops)
+    } else if (pending) {
+      pendingAppendRef.current = null
+      loadedFromSavedRef.current = true
+      setCustomStops(pending)
+      setManualOrderIds(pending.map((s) => s.id))
     }
-  }, [baseRoute, customStops, bakeriesLoading, attractionsLoading])
+    // pendingCourseLoad: 위 effect가 보류(pendingAppendRef)를 채운 뒤 null로 비우므로, 그 변화로
+    // 이 effect가 한 번 더 돌아 보류분을 소비한다.
+  }, [baseRoute, customStops, bakeriesLoading, bakeriesError, attractionsLoading, pendingCourseLoad])
 
   // CP12 — car 모드에서만: haversine 그리디(recalcRoute)로 먼저 즉시 렌더한 뒤, 카카오 1:N
   // 목적지 API로 매 스텝(마지막 방문지 → 남은 stop들) 실주행시간을 받아 그리디를 다시 돈다.
@@ -247,6 +262,13 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
     }
     return recalcRoute(origin, customStops, travelMode)
   }, [customStops, manualOrderIds, realOrderIds, travelMode, origin])
+
+  useEffect(() => {
+    if (customStops === null) return
+    useAppStore.getState().setCourseDraft({
+      stops: customStops, orderIds: route?.stops.map((s) => s.id) || manualOrderIds, travelMode, gateBypassed,
+    })
+  }, [customStops, route, manualOrderIds, travelMode, gateBypassed])
 
   const excludeIds = useMemo(() => new Set((customStops || []).map((s) => s.id)), [customStops])
 
@@ -443,17 +465,33 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
   if ((!breadDone || !tourDone) && !gateBypassed && !pendingCourseLoad) {
     return (
       <div className="pil-gate">
-        <h2>대전한바퀴</h2>
-        <p>관광모아와 빵집모아 설문을 모두 마치면, 취향에 맞는 기본 코스를 짜드려요.</p>
+        <div className="pil-gate-intro">
+          <div>
+            <p className="pil-gate-eyebrow">빵 한 입, 대전 한 바퀴</p>
+            <h2>좋아하는 빵과 풍경을 잇는<br />나만의 대전한바퀴</h2>
+            <p className="pil-gate-description">먹고 싶은 빵, 머물고 싶은 곳.<br />두 가지 취향을 모아 하나의 여행 코스로 만들어드려요.</p>
+          </div>
+          <img className="pil-gate-art" src={gateIllustration} alt="" width="460" height="205" aria-hidden="true" />
+        </div>
+        <ol className="pil-gate-route" aria-label="코스를 만드는 순서">
+          <li><span>01</span> 취향에 맞는 빵집</li>
+          <li><span>02</span> 들르고 싶은 관광지</li>
+          <li><span>03</span> 나만의 여행 코스</li>
+        </ol>
+        <div className="pil-gate-progress">
+          <h3>두 가지 취향을 알려주세요</h3>
+          <span>{Number(breadDone) + Number(tourDone)} / 2 완료</span>
+        </div>
         <div className="pil-gate-cards">
           <div className={`pil-gate-card${breadDone ? ' done' : ''}`}>
             <b>
               {breadDone && <CompletionMark />}
               {breadDone ? '빵집모아 완료' : '빵집모아'}
             </b>
+            <p className="pil-gate-card-description">{breadDone ? '빵 취향을 코스에 담을 준비가 됐어요.' : '좋아하는 맛과 식감으로 빵집을 찾아요.'}</p>
             {!breadDone && (
               <button type="button" className="primary-btn" onClick={onStartBreadSurvey}>
-                설문하러 가기
+                내 빵집 찾기
               </button>
             )}
           </div>
@@ -462,13 +500,32 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
               {tourDone && <CompletionMark />}
               {tourDone ? '관광모아 완료' : '관광모아'}
             </b>
+            <p className="pil-gate-card-description">{tourDone ? '여행 취향을 코스에 담을 준비가 됐어요.' : '동행과 분위기에 어울리는 장소를 찾아요.'}</p>
             {!tourDone && (
               <button type="button" className="primary-btn" onClick={onStartTourSurvey}>
-                설문하러 가기
+                내 코스 찾기
               </button>
             )}
           </div>
         </div>
+        {(breadDone || tourDone) && (
+          <div className="pil-gate-preview">
+            {breadDone && (
+              <p>
+                오늘의 빵은 <b>{breadResult.bread.name}</b>{josa(breadResult.bread.name, '이에요', '예요')} — 관광모아까지 마치면 이 빵집으로 이어지는 코스가 완성돼요.
+              </p>
+            )}
+            {tourDone && tourResult.results[0] && (
+              <p>
+                <b>{tourResult.results[0].attraction.name}</b> 같은 곳이 어울려요 — 빵집모아까지 마치면 여기로 이어지는 코스가 완성돼요.
+              </p>
+            )}
+          </div>
+        )}
+        <ul className="pil-gate-tips">
+          <li>코스는 저장한 뒤에도 자유롭게 수정할 수 있어요.</li>
+          <li>로그인하면 코스를 저장하고 나중에 다시 볼 수 있어요.</li>
+        </ul>
       </div>
     )
   }
@@ -476,7 +533,27 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
   // customStops === null 인 동안만 "로딩 중" — 사용자가 다 지워서 []가 된 것과는 구분해야 한다.
   // 이 구분이 없으면 전부 지웠을 때도 계속 "준비하는 중…"이 떠서 화면이 통째로 날아간 것처럼 보였다.
   if (customStops === null) {
+    if (bakeriesError) {
+      return (
+        <div className="pil-gate">
+          <div className="banner error" role="alert">빵집 정보를 불러오지 못해 코스를 만들 수 없어요. 잠시 후 다시 시도해 주세요.</div>
+          <button type="button" className="primary-btn" onClick={reloadBakeries}>다시 시도</button>
+        </div>
+      )
+    }
     return <div className="banner">코스를 준비하는 중…</div>
+  }
+
+  // 게이트를 우회해(pendingCourseLoad 등) 설문 없이 들어온 경우 origin이 없을 수 있다. route는
+  // origin 없이 계산되지 않아(위 :255) 그대로 두면 담아둔 항목이 있어도 "코스가 비었어요"로
+  // 보인다(검증 발견 — P1) — customStops는 그대로 두고 출발지만 마저 받는다.
+  if (!origin) {
+    return (
+      <div className="pil-gate">
+        <p className="pil-gate-eyebrow">담아둔 곳을 코스로 만들려면 출발지가 필요해요.</p>
+        <LocationStep />
+      </div>
+    )
   }
 
   // 상단 요약 배지 — "계산 자체가 성공했나"(preciseMinutes/preciseDistanceKm != null)만 보면

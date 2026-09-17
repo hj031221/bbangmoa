@@ -1,9 +1,9 @@
-import { useState } from 'react'
 import { useAppStore } from '../../store/useAppStore'
 import { Q0, Q1, BRANCHES } from '../../data/tourSurveyConfig'
 import { resolveBranch } from '../../lib/tourRecommend'
 import SurveyStep from '../survey/SurveyStep'
 import SurveyProgress from '../survey/SurveyProgress'
+import SurveyJourney from '../survey/SurveyJourney'
 
 // 관광모아 설문: Q0(행정구, 점수 미반영 필터) → Q1(동행자→Branch A~E) → 해당 Branch의 Q2~Q5.
 // 응답은 전역 store의 tourAnswers 에 저장한다 — 빵모아 answers 와는 별개 네임스페이스라
@@ -12,10 +12,9 @@ import SurveyProgress from '../survey/SurveyProgress'
 // 별도 스텝 컴포넌트 없이 통일된 흐름으로 처리한다.
 const TOTAL_STEPS = 6 // Q0, Q1, Q2, Q3, Q4, Q5
 
-export default function TourSurveyFlow({ onComplete, onSkip }) {
+export default function TourSurveyFlow({ onComplete, onSkip, step, onStepChange, onBack }) {
   const answers = useAppStore((s) => s.tourAnswers)
   const setTourAnswer = useAppStore((s) => s.setTourAnswer)
-  const [step, setStep] = useState(0)
 
   const branch = resolveBranch(answers)
   const question = step === 0 ? Q0 : step === 1 ? Q1 : BRANCHES[branch]?.questions[step - 2]
@@ -25,16 +24,16 @@ export default function TourSurveyFlow({ onComplete, onSkip }) {
     const next = { ...answers, [question.id]: optionId }
     setTourAnswer(question.id, optionId)
     if (isLast) onComplete(next)
-    else setStep((s) => s + 1)
+    else onStepChange(step + 1)
   }
 
   return (
     <div className="survey">
       <SurveyProgress current={step} total={TOTAL_STEPS} />
-      <SurveyStep question={question} selectedOptionId={answers[question.id]} onSelect={choose} />
+      <SurveyStep kind="tour" question={question} selectedOptionId={answers[question.id]} onSelect={choose} />
       <div className="survey-nav">
         {step > 0 && (
-          <button className="ghost-btn" onClick={() => setStep((s) => s - 1)}>
+          <button className="ghost-btn" onClick={onBack}>
             ← 이전
           </button>
         )}
@@ -42,6 +41,7 @@ export default function TourSurveyFlow({ onComplete, onSkip }) {
           관광지 모두 보기 →
         </button>
       </div>
+      <SurveyJourney kind="tour" />
     </div>
   )
 }

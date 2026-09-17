@@ -109,8 +109,46 @@ test('같은 (구, 테마) 풀 안에서도 trait 벡터가 다양화된다: 동
   assert.ok(distinct.size > 1, `동구 nature ${pool.length}곳이 여전히 ${distinct.size}개 벡터로 수렴함`)
 })
 
+// 같은 풀 안에서 벡터가 같으면 성향일치도·동행적합도가 모두 같아져 표시 적합도가 겹친다.
+// 반올림·가중치 조정으로는 갈라낼 수 없으므로 데이터 단계에서 중복을 막는다.
+test('같은 (구, 테마) 풀 안에 trait 벡터가 완전히 같은 관광지 쌍은 없다', () => {
+  const pools = new Map()
+  for (const a of TAGGED_ATTRACTIONS) {
+    for (const t of a.themes) {
+      const key = `${a.district}/${t}`
+      if (!pools.has(key)) pools.set(key, [])
+      pools.get(key).push(a)
+    }
+  }
+  const dups = []
+  for (const [key, list] of pools) {
+    const seen = new Map()
+    for (const a of list) {
+      const vec = JSON.stringify(a.traits)
+      if (seen.has(vec)) dups.push(`${key}: ${seen.get(vec)} = ${a.name}`)
+      else seen.set(vec, a.name)
+    }
+  }
+  assert.deepEqual(dups, [], `동일 벡터 ${dups.length}쌍:\n${dups.join('\n')}`)
+})
+
 test('getAttractionById는 존재하는 id를 반환하고 없으면 null', () => {
   const first = TAGGED_ATTRACTIONS[0]
   assert.equal(getAttractionById(first.id).id, first.id)
   assert.equal(getAttractionById('__없는_id__'), null)
+})
+
+// 코드리뷰 발견: /기념관|의거/ 가 '문화예술의거리'의 '의거리'(=거리)를 '의거'(봉기)로 오매칭해
+// knowledge 1→3, appreciation 4→5(상한)로 부풀렸다. 129행과 같은 클래스의 버그(부정전방탐색 누락).
+test('"의거"는 boost 매칭하되 "…의거리"는 매칭하지 않는다 (대흥동 문화예술의거리 오매칭 회귀 방지)', () => {
+  const street = TAGGED_ATTRACTIONS.find((a) => a.name === '대흥동 문화예술의거리')
+  const memorial = TAGGED_ATTRACTIONS.find((a) => a.name === '3.8민주의거기념관')
+  assert.ok(street, '대흥동 문화예술의거리를 찾을 수 없음')
+  assert.ok(memorial, '3.8민주의거기념관을 찾을 수 없음')
+  // cat=A02030600 nudge(appreciation+1)만 반영되어야 한다 — '의거' boost(knowledge+2, appreciation+1)가 더해지면 안 됨
+  assert.equal(street.traits.knowledge, 1, `문화예술의거리 knowledge가 부풀려짐: ${street.traits.knowledge}`)
+  assert.equal(street.traits.appreciation, 4, `문화예술의거리 appreciation이 부풀려짐: ${street.traits.appreciation}`)
+  // '기념관' 키워드로 정상적으로 boost는 계속 적용돼야 한다
+  assert.equal(memorial.traits.knowledge, 5)
+  assert.equal(memorial.traits.appreciation, 2)
 })

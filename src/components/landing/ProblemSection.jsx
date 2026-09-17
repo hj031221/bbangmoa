@@ -7,7 +7,7 @@ export default function ProblemSection() {
       <div className="bm-problem-stats">
         <div className="bm-stat-block">
           <div className="bm-stat-block-num">5.9개</div>
-          <div className="bm-stat-block-label">인구 1만 명당 빵집 수, 전국 3위</div>
+          <div className="bm-stat-block-label">인구 1만 명당 빵집 수</div>
         </div>
         <div className="bm-stat-block">
           <div className="bm-stat-block-num">849개</div>

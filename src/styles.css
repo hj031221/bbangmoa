@@ -52,7 +52,7 @@ body{ margin:0; font-family:"HakgyoansimDunggeunmisoTTF-R","Pretendard","Apple S
 button{ cursor:pointer; font:inherit; }
 a{ color:var(--accent-text); }
 
-.page{ padding:24px; max-width:1200px; margin:0 auto; }
+.page{ padding:24px; width:100%; max-width:none; margin:0; }
 .ghost-btn{ padding:10px 18px; border:1.5px solid var(--line); border-radius:999px; background:var(--card); color:var(--brown); font-weight:600; }
 
 /* 계정 연동 (구글/카카오 로그인 — Supabase Auth) */
@@ -156,7 +156,7 @@ a{ color:var(--accent-text); }
   --bm-shadow-sm:0 8px 20px rgba(76,49,13,.06);
   --bm-shadow-md:0 16px 34px rgba(76,49,13,.08);
   --bm-shadow-lg:0 24px 50px rgba(76,49,13,.16);
-  --bm-container:1180px;
+  --bm-container:100%;
 
   background:var(--bm-bg); color:var(--bm-ink);
 }
@@ -170,7 +170,7 @@ a{ color:var(--accent-text); }
 
 /* nav */
 .bm-nav{ position:sticky; top:0; z-index:50; background:rgba(251,228,183,.9); backdrop-filter:blur(10px); border-bottom:1px solid var(--bm-line); border-top:6px solid var(--bm-gold); }
-.bm-nav-inner{ position:relative; max-width:var(--bm-container); margin:0 auto; padding:var(--bm-sp-2) var(--bm-sp-4); display:flex; align-items:center; justify-content:space-between; gap:var(--bm-sp-4); }
+.bm-nav-inner{ position:relative; max-width:var(--bm-container); margin:0 auto; padding:var(--bm-sp-2) var(--bm-sp-4); display:flex; align-items:center; justify-content:flex-start; gap:var(--bm-sp-4); }
 .bm-logo{ display:flex; align-items:center; gap:var(--bm-sp-2); text-decoration:none; }
 .bm-logo img{ height:40px; width:auto; display:block; }
 .bm-logo span{ font-family:'HakgyoansimDunggeunmisoTTF-B', sans-serif; font-size:18px; color:var(--bm-ink); letter-spacing:.5px; }
@@ -432,11 +432,32 @@ a{ color:var(--accent-text); }
 .survey-options{ display:grid; gap:12px; }
 .survey-option{ padding:16px 20px; border:1.5px solid var(--line); border-radius:20px; background:var(--card); text-align:left; font-size:1rem; font-weight:600; color:var(--ink); box-shadow:0 8px 20px rgba(76,49,13,.06); transition:.15s; }
 .survey-option.selected{ border-color:var(--accent); background:var(--card2); box-shadow:0 8px 20px rgba(249,118,88,.18); }
+.survey-option{ display:flex; align-items:center; gap:18px; }
+.survey-option-art{ display:grid; place-items:center; flex:0 0 42px; width:42px; height:42px; border-radius:50%; background:#FFF2D9; }
+.survey-option-art svg{ width:28px; height:28px; }
+.survey-option-label{ min-width:0; line-height:1.6; }
+.survey-option:focus-visible{ outline:3px solid var(--accent-text); outline-offset:3px; }
+@media (max-width:600px){
+  .survey-option{ gap:12px; padding:12px 14px; }
+  .survey-option-art{ flex-basis:36px; width:36px; height:36px; }
+  .survey-option-art svg{ width:25px; height:25px; }
+}
 .survey-nav{ display:flex; align-items:center; justify-content:space-between; margin-top:28px; }
 /* 이슈 #60 검토 — "이전"/"건너뛰고 결과 보기"가 38px라는 제보와 달리, 실측(getBoundingClientRect)
    해보니 이 화면의 body 폰트(커스텀 한글 웹폰트)의 line-height:normal이 이미 커서 실제로는
    70px로 44px 기준을 이미 만족했다. 여기에 패딩을 더 얹으면 오히려 시각 크기만 불필요하게
    커지므로(원 취지인 "시각 크기 유지"에 반함) 손대지 않는다. */
+
+/* 빵 종류 바로가기(이슈 #73 B1) — 설문 0단계(출발지 선택) 아래. 칩을 누르면 설문 없이 바로 결과로. */
+.survey-bread-shortcut{ margin-top:28px; padding-top:20px; border-top:1px solid var(--line); }
+.survey-bread-shortcut-label{ margin:0 0 12px; font-size:.9rem; color:var(--muted); text-align:center; }
+.survey-bread-chips{ display:flex; flex-wrap:wrap; justify-content:center; gap:8px; }
+.survey-bread-chip{ display:inline-flex; align-items:center; gap:7px; min-height:44px; padding:6px 16px 6px 8px;
+  border:1px solid var(--line); border-radius:999px; background:var(--card);
+  font-size:.85rem; font-weight:600; color:var(--ink); cursor:pointer; transition:.15s; }
+.survey-bread-chip:hover{ border-color:var(--accent); background:var(--card2); }
+.survey-bread-chip:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+.survey-bread-chip-img{ width:28px; height:28px; object-fit:contain; mix-blend-mode:multiply; flex:0 0 auto; }
 
 /* 출발 위치 선택 (설문 0단계) — 카카오맵 길찾기 출발지 화면 톤: 검색바가 최상단 고정 →
    그 아래 큰 지도(클릭해서 직접 찍기도 가능) → 검색 중엔 지도 위로 결과 리스트가 덮인다.
@@ -482,6 +503,13 @@ a{ color:var(--accent-text); }
 .result-map{ height:100%; }
 .map-wrap{ position:relative; width:100%; height:100%; border-radius:14px; overflow:hidden; border:1px solid var(--line); }
 .map-canvas{ width:100%; height:100%; background:#eef0f2; }
+/* 이슈 #80 B-2: 모바일에서 지도가 화면 상당 부분(sticky 40vh)을 차지해, 페이지를 스크롤하려고
+   세로로 스와이프하면 손가락이 지도 위에 떨어져 카카오맵이 그 제스처를 팬으로 가로챘다.
+   touch-action:pan-y로 세로 스와이프는 페이지 스크롤로 넘기고, 지도 팬은 두 손가락 드래그
+   (또는 마우스 드래그)로만 가능하게 한다 — 선택지①(PDF 회의 브리핑 B-2). */
+@media (max-width:820px){
+  .map-canvas{ touch-action:pan-y; }
+}
 .map-error{ position:absolute; inset:0; z-index:5; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; background:rgba(251,234,203,.94); padding:20px; font-size:.9rem; color:var(--brown); }
 .mobile-map-summary{ display:none; }
 
@@ -505,6 +533,7 @@ a{ color:var(--accent-text); }
 .rec-tags{ display:flex; flex-wrap:wrap; gap:6px; margin:6px 0; }
 .rec-tag{ font-size:.75rem; color:var(--accent-text); background:var(--card2); padding:2px 8px; border-radius:999px; }
 .rec-addr,.rec-tel,.rec-desc,.rec-dist{ font-size:.85rem; color:#6b5a44; margin:4px 0; }
+.rec-desc{ white-space:pre-line; font-size:.82rem; }
 .rec-desc-wrap{ position:relative; }
 .rec-desc-toggle{ display:none; font-size:.8rem; font-weight:600; color:var(--accent-text); margin:-2px 0 4px; padding:0; background:none; border:none; }
 /* 이슈 #74-3: 데스크탑은 사이드 패널 공간이 넉넉해 원문을 그대로 보여주고,
@@ -523,13 +552,52 @@ a{ color:var(--accent-text); }
 .rec-list-item{ display:flex; align-items:center; flex-wrap:wrap; gap:6px 10px; padding:10px; border-radius:10px; cursor:pointer; }
 .rec-list-item.active{ background:var(--card2); }
 .rec-list-item .rank{ width:22px; height:22px; border-radius:50%; background:var(--accent); color:#fff; font-size:.75rem; display:flex; align-items:center; justify-content:center; font-weight:700; }
+/* 이슈 #80 빵 지도 개편: 헤더 목록 숨기기 토글 + 리스트 부제 + 항목 내 찜하기 하트 버튼.
+   목록 숨기기는 "지도를 넓게 보려고 접는" 데스크톱 전용 기능(그리드 트랙 조정도 데스크톱
+   전용, 위 .result-browse .result-body.list-collapsed 참고) — 모바일은 지도/목록이 세로
+   1열 스택이라 접어도 지도가 넓어지는 이득이 없고, 목록을 통째로 잃기만 한다(리뷰 지적).
+   버튼과 실제 숨김 규칙 둘 다 데스크톱에만 걸어, 데스크톱에서 접은 채로 창을 모바일
+   폭까지 줄여도(리사이즈) 목록이 다시 보이게 한다. */
+.bm-list-toggle{ margin-left:auto; background:none; border:1px solid var(--line); border-radius:8px; padding:6px 12px; font-size:.8rem; cursor:pointer; }
+.bm-list-subheader{ margin:0 0 8px; font-size:.82rem; font-weight:700; color:var(--muted); }
+@media (min-width:821px){
+  .result-list-col.is-collapsed{ display:none; }
+}
+@media (max-width:820px){
+  .bm-list-toggle{ display:none; }
+}
+.rl-body{ flex:1; display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 8px; min-width:0; }
+.rl-name-row{ flex-basis:100%; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.rl-heart-btn{ background:none; border:none; padding:2px; cursor:pointer; line-height:0; color:var(--muted); }
+.rl-heart-btn.saved{ color:#e0575a; }
 .rl-name{ flex:1; font-size:.9rem; }
 .rl-saved-heart{ display:inline-flex; vertical-align:-3px; margin-right:5px; }
 .rl-saved-heart .save-heart-icon{ width:16px; height:16px; }
 .rl-dist{ font-size:.75rem; color:var(--muted); }
+/* 빵 종류 바로가기(이슈 #73 B1): 큐레이션 미확인, keyword 추측 매칭 표시 */
+.rl-tag{ font-size:.68rem; font-weight:700; color:#8a6d1f; background:#FBF0D2; border-radius:6px; padding:2px 7px; }
 /* 근처 관광지: 이름/거리 줄 아래 전체 폭 한 줄(랭크 뱃지 폭만큼 들여쓰기) */
 .rl-near{ flex-basis:100%; margin-left:32px; margin-top:2px; font-size:.76rem; font-weight:600; color:#1c6b48; background:#EAF6EF; border-radius:6px; padding:3px 8px; display:inline-block; }
 .rec-list-empty{ padding:10px; color:var(--muted); font-size:.85rem; }
+
+/* 짐 보관함 섹션(이슈 #73 C2): MapResult 지도/목록 아래 전체 폭. 기준점 근처 락커 최대 3곳.
+   위쪽 지도·목록 영역과 구분되도록 구분선 + 여백을 둔다. */
+.luggage-section{ margin:16px 16px 0; padding:16px 0; border-top:1px solid var(--line); }
+.luggage-title{ margin:0 0 10px; font-size:.95rem; font-weight:800; color:var(--ink); }
+.luggage-ref{ font-weight:600; color:var(--muted); }
+.luggage-list{ list-style:none; padding:0; margin:0; display:grid; gap:8px; }
+.luggage-item{ background:var(--card3); border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
+.luggage-item-head{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
+.luggage-name{ font-size:.88rem; font-weight:700; color:var(--ink); }
+.luggage-dist{ flex:0 0 auto; font-size:.75rem; color:var(--muted); }
+.luggage-meta{ display:flex; flex-wrap:wrap; align-items:center; gap:5px 8px; margin-top:4px; font-size:.76rem; color:var(--muted); }
+.luggage-type{ font-weight:700; color:#8a6d1f; background:#FBF0D2; border-radius:6px; padding:2px 7px; }
+.luggage-approx{ font-weight:700; color:#9a5a2e; background:#F6E2D3; border-radius:6px; padding:2px 7px; }
+.luggage-hours{ font-weight:600; color:#1c6b48; background:#EAF6EF; border-radius:6px; padding:2px 7px; }
+.luggage-fee{ margin-top:5px; font-size:.8rem; color:var(--ink); }
+.luggage-note{ margin-top:3px; font-size:.74rem; color:var(--muted); }
+.luggage-src{ margin:8px 0 0; font-size:.7rem; color:var(--muted); }
+@media (max-width:820px){ .luggage-section{ margin:12px 12px 0; padding:14px 0 20px; } }
 
 /* 빵 지도: 구 필터 칩 */
 .bm-map-search-input{ display:block; width:100%; padding:10px 14px; border:1px solid var(--line); border-radius:10px; font:inherit; margin-bottom:10px; }
@@ -601,6 +669,19 @@ a{ color:var(--accent-text); }
 .result-quiz .result-list-col{ overflow-y:auto; }
 .result-quiz .result-detail-col{ overflow-y:auto; }
 
+/* 이슈 #80 C-4 보류 — 아래 데스크톱 레이아웃 변경은 짐 보관함 섹션(LuggageStorageSection)을
+   지도/목록 아래에 놓을 자리를 만들려고 넣은 것이다(목록·상세 열의 자체 스크롤을 없애고
+   .result-body 고정 높이 70vh 를 풀어 페이지 흐름에 맡긴다). 그 섹션이 보류로 렌더링되지
+   않는 동안에는 이 레이아웃 변경만 남아 아무 이득 없이 데스크톱 배치를 바꾸므로 같이 비활성화한다.
+   준비되면 MapResult.jsx 의 <LuggageStorageSection> 주석과 함께 해제할 것.
+@media (min-width:821px){
+  .result-quiz .result-body{ height:auto; align-items:start; }
+  .result-quiz .result-map{ height:70vh; }
+  .result-quiz .result-list-col,
+  .result-quiz .result-detail-col{ overflow:visible; }
+}
+*/
+
 @media (max-width:820px){
   .result-quiz{ overflow:visible; }
   /* 모바일에선 .result-quiz 가 overflow:visible(sticky 지도 때문) 이라 카드 radius 가 헤더를
@@ -641,6 +722,12 @@ a{ color:var(--accent-text); }
 .result-browse .result-body{ grid-template-columns:1fr 260px 300px; padding:16px; }
 .result-browse .result-list-col{ overflow-y:auto; }
 .result-browse .result-detail-col{ overflow-y:auto; }
+/* "목록 숨기기"(최종 리뷰 4): 목록 열을 display:none 으로 빼도 트랙 3개는 그대로라 지도가
+   넓어지지 않고 상세 카드만 가운데 트랙으로 밀렸다 — 트랙 자체를 2열로 줄여 남은 폭을 지도에
+   준다(상세 카드는 300px 유지). 모바일(≤820px)은 어차피 1열 스택이라 데스크톱에만 건다. */
+@media (min-width:821px){
+  .result-browse .result-body.list-collapsed{ grid-template-columns:1fr 300px; }
+}
 
 @media (max-width:820px){
   .result-browse{ overflow:visible; }
@@ -679,6 +766,9 @@ a{ color:var(--accent-text); }
    미지원 브라우저는 일반 줄바꿈으로 폴백(무해). */
 .bread-reveal-story p{ margin:0; color:var(--ink); font-size:.9rem; line-height:1.65; text-wrap:balance; }
 .bread-reveal-list{ display:grid; gap:12px; text-align:left; margin-bottom:24px; }
+/* 빵 종류 바로가기(이슈 #73 B1): "확인된 곳" / "가능성 있는 곳" 구분 소제목 */
+.bread-reveal-list-label{ font-size:.82rem; font-weight:700; color:var(--muted); margin:6px 0 2px; }
+.bread-reveal-list-label:first-child{ margin-top:0; }
 .bakery-mini-card{ cursor:pointer; border:1px solid var(--line); border-radius:14px; padding:14px 16px;
   background:var(--card); transition:border-color .15s, box-shadow .15s; }
 .bakery-mini-card:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
@@ -758,10 +848,17 @@ a{ color:var(--accent-text); }
 .pil-gate p{ color:var(--muted); margin:0 0 24px; }
 .pil-gate-cards{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
 .pil-gate-card{ border:1px solid var(--line); border-radius:14px; padding:20px; background:var(--card); display:flex; flex-direction:column; gap:12px; align-items:center; transition:border-color .2s ease, background-color .2s ease, box-shadow .2s ease; }
-.pil-gate-card.done{ border-color:#8EB0C1; background:#F5FAFC; box-shadow:0 8px 20px rgba(65,109,134,.09); }
+.pil-gate-card.done{ border-color:#A9CC7A; background:#F5FBEC; box-shadow:0 8px 20px rgba(93,143,62,.09); justify-content:center; }
 .pil-gate-card b{ display:inline-flex; align-items:center; justify-content:center; gap:7px; color:var(--brown); }
-.pil-gate-card.done b{ color:#416D86; }
-.pil-completion-mark{ width:22px; height:22px; flex:0 0 auto; filter:drop-shadow(0 2px 3px rgba(65,109,134,.14)); }
+.pil-gate-card.done b{ color:#4C7A32; font-size:1.2rem; gap:9px; }
+.pil-completion-mark{ width:26px; height:26px; flex:0 0 auto; filter:drop-shadow(0 2px 3px rgba(93,143,62,.14)); }
+.pil-gate-preview{ margin-top:18px; padding:16px 20px; border:1px solid var(--line); border-radius:14px; background:var(--card3); text-align:left; }
+.pil-gate-preview p{ margin:0; color:var(--brown); font-size:.92rem; line-height:1.6; }
+.pil-gate-preview p + p{ margin-top:8px; }
+.pil-gate-preview b{ color:var(--ink); }
+.pil-gate-tips{ margin:14px 0 0; padding:0; list-style:none; display:flex; flex-direction:column; gap:6px; text-align:left; }
+.pil-gate-tips li{ position:relative; padding-left:14px; color:var(--muted); font-size:.82rem; line-height:1.6; }
+.pil-gate-tips li::before{ content:'·'; position:absolute; left:0; }
 
 .pil-page{ display:grid; grid-template-columns:400px 1fr; gap:16px; align-items:start; min-height:560px; }
 .pil-panel{ border:1px solid var(--line); border-radius:14px; background:var(--card); padding:16px; display:flex; flex-direction:column; gap:12px; }
@@ -1134,3 +1231,267 @@ a{ color:var(--accent-text); }
 }
 
 @media (prefers-reduced-motion:reduce){ .stamp-share-loading-mark{ animation:none; } }
+/* Bakery map: reference layout, scoped to the browse screen. */
+.page.bm-map-page{max-width:none;width:100%;padding:0;margin:0;flex:1;min-height:0;display:flex;}
+.bm-landing[data-view="map"] .bm-nav-links button:nth-child(3){background:var(--card2);color:var(--accent);}
+.result-browse{border:1px solid var(--line);border-radius:0 0 22px 22px;box-shadow:0 12px 30px rgba(76,49,13,.06);}
+.result-browse .result-body{grid-template-columns:380px minmax(0,1fr);gap:0;padding:0;flex:1;min-height:0;}
+.result-browse .result-map{grid-column:2;grid-row:1;position:relative;min-width:0;height:100%;}
+.result-browse .map-wrap{border:0;border-radius:0;}
+.result-browse .result-list-col{grid-column:1;grid-row:1;display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--line);overflow:hidden;background:var(--card);}
+.result-browse .bm-sidebar-controls{padding:18px 16px 14px;border-bottom:1px solid var(--line);}
+.result-browse .bm-map-search-form{position:relative;}
+.result-browse .bm-map-search-input{margin:0;width:100%;height:48px;padding:0 35px 0 43px;border:1px solid var(--line);border-radius:15px;background:var(--card);font-size:var(--bm-fs-body-sm,14.5px);box-shadow:0 4px 10px rgba(76,49,13,.03);}
+.result-browse .bm-map-search-input::placeholder{color:var(--muted);}
+.result-browse .bm-search-icon{position:absolute;top:16px;left:14px;width:16px;height:16px;color:var(--accent);}
+.result-browse .bm-search-clear{position:absolute;right:3px;top:2px;width:42px;height:44px;border:0;background:none;color:var(--accent);font-size:22px;cursor:pointer;}
+.result-browse .bm-district-filters{display:flex;flex-wrap:nowrap;gap:6px;overflow-x:auto;padding:12px 0 0;margin:0;scrollbar-width:thin;}
+.result-browse .bm-district-chip{flex-shrink:0;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 11px;font-size:var(--bm-fs-body-sm,14.5px);color:var(--brown);}
+.result-browse .bm-district-chip.active{background:var(--accent);border-color:var(--accent);color:white;}
+.result-browse .bm-list-subheader{display:flex;justify-content:space-between;padding:16px 16px 9px;margin:0;color:var(--ink);font-size:var(--bm-fs-body-sm,14.5px);}
+.result-browse .bm-list-subheader span:last-child{font-weight:400;color:var(--muted);}
+.result-browse .rec-list{padding:0 8px 16px;overflow-y:auto;min-height:0;}
+.result-browse .rec-list-item{position:relative;flex-wrap:nowrap;align-items:flex-start;gap:14px;padding:12px 10px;min-height:94px;border-radius:14px;}
+.result-browse .rec-list-item:hover{background:var(--card3);}
+.result-browse .rec-list-item.active{background:var(--card2);}
+.result-browse .rec-list-item .rank{flex:0 0 30px;width:30px;height:30px;border-radius:10px;background:var(--card3);color:var(--muted);font-size:var(--bm-fs-body-sm,14.5px);font-weight:400;}
+.result-browse .rec-list-item.active .rank{background:var(--accent);color:white;}
+.result-browse .rl-body{display:flex;flex-direction:column;gap:5px;padding-right:25px;}
+.result-browse .rl-name-row{width:100%;}
+.result-browse .rl-name{font-size:var(--bm-fs-body-sm,14.5px);color:var(--ink);}
+.result-browse .rl-heart-btn{position:absolute;right:5px;top:9px;display:grid;place-items:center;width:40px;height:40px;color:var(--muted);}
+.result-browse .rl-heart-btn.saved,.result-browse .active .rl-heart-btn{color:var(--accent);}
+.result-browse .rl-dist{font-size:var(--bm-fs-small,13px);line-height:1.5;}
+.result-browse .result-header{position:absolute;top:18px;left:18px;right:18px;z-index:10;display:flex;align-items:flex-start;padding:0;margin:0;background:none;pointer-events:none;gap:8px;}
+.result-browse .result-header h2{margin:0;padding:11px 15px;color:var(--ink);background:var(--card);border-radius:13px;font-size:var(--bm-fs-body-sm,14.5px);font-weight:700;box-shadow:0 8px 22px rgba(76,49,13,.12);}
+.result-browse .result-header h2{display:flex;align-items:center;gap:9px;}
+.result-browse .result-back{display:none;}
+.result-browse .result-header .badge{font-size:11px;background:var(--card);padding:8px;}
+.result-browse .bm-list-toggle{pointer-events:auto;margin-left:auto;padding:11px 13px;background:var(--card);color:var(--ink);border:0;border-radius:12px;box-shadow:0 8px 22px rgba(76,49,13,.12);white-space:nowrap;}
+.bm-map-zoom{position:absolute;z-index:9;right:18px;top:78px;display:flex;flex-direction:column;background:var(--card);border-radius:13px;box-shadow:0 8px 22px rgba(76,49,13,.12);overflow:hidden;}
+.bm-map-zoom button{height:42px;width:42px;background:var(--card);border:0;font-size:21px;color:var(--brown);cursor:pointer;}
+.bm-map-zoom button+button{border-top:1px solid var(--line);}
+.bm-floating-detail{position:absolute;z-index:10;left:18px;bottom:18px;width:min(390px,calc(100% - 36px));max-height:45%;overflow-y:auto;border-radius:18px;box-shadow:0 12px 30px rgba(76,49,13,.12);}
+.result-browse .rec-card-compact{display:flex;flex-direction:column;margin:0;padding:16px;border:1px solid var(--line);border-radius:18px;background:var(--card);}
+.rec-card-compact .rec-name{font-size:var(--bm-fs-h3,17px);color:var(--ink);font-weight:700;}
+.rec-card-compact .rec-name-row>.save-btn{font-size:0;background:none;border:0;color:var(--accent);padding:8px;min-height:32px;}
+.rec-card-compact .rec-tags:empty{display:none;}
+.rec-card-compact .rec-desc-wrap{border-top:1px solid var(--line);margin-top:12px;padding-top:10px;}
+.rec-card-compact .rec-actions{order:9;display:flex;gap:8px;margin-top:14px;}
+.rec-card-compact .rec-actions .save-btn{border:1px solid var(--line);background:var(--card);border-radius:11px;color:var(--ink);}
+.bm-course-btn{border:0;border-radius:11px;background:var(--accent);color:white;padding:10px 14px;font:inherit;font-size:var(--bm-fs-body-sm,14.5px);cursor:pointer;}
+.rec-card-compact .rec-meta{font-size:11px;}
+.rec-card-compact .rec-link{margin:0;padding:8px 0 0;font-size:12px;}
+.result-browse :focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+@media(min-width:821px){
+  .result-browse .result-body.list-collapsed{grid-template-columns:minmax(0,1fr);}
+  .result-browse .list-collapsed .result-list-col{display:none;}
+  .result-browse .list-collapsed .result-map{grid-column:1;}
+}
+@media(max-width:820px){
+  .page.bm-map-page{padding:0;}
+  .result-browse{overflow:hidden;}
+  .result-browse .result-body{display:flex;flex-direction:column;height:auto;min-height:0;}
+  .result-browse .result-map{order:0;position:relative;top:auto;height:52dvh;min-height:330px;}
+  .result-browse .result-map.is-collapsed{height:56px;min-height:56px;}
+  .result-browse .result-map.is-collapsed .result-header,.result-browse .result-map.is-collapsed .bm-floating-detail{display:none;}
+  .result-browse .result-list-col{order:1;display:flex;max-height:65dvh;border-right:0;}
+  .result-browse .result-header{top:12px;left:12px;right:12px;}
+  .result-browse .result-header h2{font-size:12px;padding:10px;}
+  .result-browse .result-header .badge{display:none;}
+  .result-browse .bm-list-toggle{display:none;}
+  .result-browse .bm-floating-detail{left:12px;bottom:45px;max-height:45%;width:calc(100% - 72px);}
+  .result-browse .bm-map-zoom{right:12px;top:65px;}
+  .result-browse .result-map-toggle{z-index:11;}
+}
+
+.result-browse button,.result-browse input{font-family:inherit;}
+.result-browse .bm-district-filters{scrollbar-width:none;}
+.result-browse .bm-district-filters::-webkit-scrollbar{display:none;}
+.result-browse .rec-card-compact .rec-desc-wrap:not(.expanded) .rec-desc{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;line-height:1.5;}
+.result-browse .rec-card-compact .rec-desc-toggle{display:inline-block;margin-top:6px;}
+.result-browse .map-error{background:var(--card3);color:var(--muted);}
+.result-browse .rec-card-compact .rec-tags,.result-browse .rec-card-compact .rec-tel,.result-browse .rec-card-compact .rec-meta{display:none;}
+.result-browse .bm-floating-detail{max-height:55%;}
+.result-browse .rec-card-compact .rec-actions{position:sticky;bottom:-16px;background:var(--card);padding:8px 0;margin-top:6px;}
+@media(max-width:820px){.result-browse .bm-floating-detail{max-height:55%;}}
+
+/* Both browse and survey maps fill the space below the shared navigation. */
+.bm-landing:has(> .bm-map-page){height:100dvh;display:flex;flex-direction:column;overflow:hidden;}
+.bm-landing:has(> .bm-map-page)>.bm-nav{flex-shrink:0;}
+.bm-map-page>.result-browse{display:flex;flex-direction:column;width:100%;min-height:0;border:0;border-radius:0;box-shadow:none;}
+.result-browse .result-map>.map-wrap{max-width:none;margin:0;}
+.result-browse .bm-sidebar-controls,.result-browse .bm-list-subheader,.bm-sidebar-back-row{flex-shrink:0;}
+.bm-sidebar-back-row{padding:8px 16px 0;}
+.bm-sidebar-back{display:inline-flex;align-items:center;min-height:40px;padding:6px 4px;border:0;background:none;color:var(--brown);font:inherit;font-size:var(--bm-fs-small);}
+.bm-sidebar-back:hover{color:var(--accent-text);}
+.bm-sidebar-back-row+.bm-sidebar-controls{padding-top:12px;}
+.bm-map-title-icon{width:36px;height:36px;object-fit:contain;flex-shrink:0;}
+.bm-map-location-icon{width:26px;height:32px;}
+@media(max-width:820px){
+  .result-browse .result-body{height:100%;overflow:hidden;}
+  .result-browse .result-map{height:48%;min-height:0;flex:0 0 48%;}
+  .result-browse .result-map.is-collapsed{height:56px;min-height:56px;flex-basis:56px;}
+  .result-browse .result-list-col{flex:1;min-height:0;max-height:none;}
+  .bm-map-title-icon{width:28px;height:28px;}
+  .bm-map-location-icon{width:22px;height:28px;}
+}
+
+/* Full-width page shells; cards and dialogs retain their own useful sizes. */
+.bm-nav-inner{width:100%;max-width:none;margin:0;justify-content:flex-start;}
+.bm-nav-links{justify-content:flex-start;}
+.bm-nav-actions{margin-left:auto;}
+.bread-reveal,.tour-reveal,.tour-detail,.mypage-panel,.pil-gate,.mypage-gate{width:100%;max-width:none;}
+.bm-section-head,.bm-problem-body,.tour-hub-header{max-width:none;}
+@media(min-width:821px){
+  .bread-reveal-list,.tour-reveal-list{grid-template-columns:repeat(auto-fit,minmax(320px,1fr));align-items:stretch;}
+  .bread-reveal-list-label{grid-column:1 / -1;}
+  .bread-reveal-desc,.bread-reveal-reason,.bread-reveal-story,.tour-reveal-desc,.tour-reveal-reason{max-width:none;}
+}
+/* Keep the service introduction hero centered within the full-width page. */
+.bm-landing .bm-hero>.bm-hero-grid{max-width:1180px;margin-inline:auto;}
+.bm-hero .bm-hero-copy{align-items:center;text-align:center;}
+.bm-hero .bm-hero-actions{justify-content:center;}
+@media(min-width:821px){
+  .bm-hero .bm-hero-copy{position:relative;left:-64px;}
+}
+/* Keep section backgrounds full width; inset only the content. */
+@media(min-width:821px){
+  .bm-landing:not([data-view="mypage"])>.page:not(.bm-map-page),
+  .bm-landing>.bm-footer{
+    width:94%;
+    max-width:1600px;
+    margin-left:auto;
+    margin-right:auto;
+  }
+  .bm-landing>section{
+    --bm-container:1600px;
+    width:100%;
+    max-width:none;
+    padding-left:max(24px,3vw);
+    padding-right:max(24px,3vw);
+  }
+  .bm-landing>.bm-home{width:100%;max-width:none;}
+  .bm-home .bm-mhero-copy{width:94%;max-width:1600px;margin-inline:auto;}
+}
+/* Give short tourism results room to breathe instead of crowding the top. */
+.tour-reveal{min-height:calc(100dvh - 150px);display:flex;flex-direction:column;justify-content:center;padding:32px 0 40px;}
+.tour-reveal-eyebrow{margin:0 0 12px;}
+.tour-reveal .tour-reveal-reason{max-width:720px;line-height:1.7;margin:0 auto 32px;}
+.tour-reveal .tour-reveal-list{width:100%;grid-template-columns:repeat(auto-fit,minmax(260px,360px));justify-content:center;gap:24px;margin:0 auto 32px;}
+.tour-reveal-card{position:relative;flex-direction:column;align-items:stretch;padding:20px;gap:16px;min-height:190px;}
+.tour-reveal-card img{width:100%;height:180px;object-fit:cover;border-radius:12px;}
+.tour-reveal-rank{position:absolute;left:28px;top:28px;display:grid;place-items:center;width:30px;height:30px;border-radius:10px;background:var(--card);box-shadow:0 2px 8px #4c310d18;}
+.tour-reveal-card:not(:has(img)){padding-top:64px;}
+.tour-reveal-card-name{font-size:1.1rem;line-height:1.4;}
+.tour-reveal-card-reason{line-height:1.6;margin-top:10px;}
+.tour-reveal-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;}
+.tour-reveal-footnote{margin:18px 0 0;font-size:.8rem;color:var(--muted);}
+@media(max-width:820px){
+  .tour-reveal{min-height:calc(100dvh - 130px);padding:20px 0;}
+  .tour-reveal .tour-reveal-list{grid-template-columns:minmax(0,1fr);gap:16px;}
+  .tour-reveal-card{min-height:0;}
+  .tour-reveal-card img{height:160px;}
+}
+.bm-locker-details{background:var(--card);border-top:1px solid var(--line);padding:0 16px 12px;}
+.bm-locker-details summary{cursor:pointer;padding:16px 0 4px;font-size:.9rem;font-weight:700;color:var(--brown);}
+.bm-locker-details summary span{color:var(--accent-text);margin-left:8px;}
+.bm-locker-details .luggage-section{margin:12px 0 0;padding:0;border:0;}
+.bm-locker-details .luggage-title{font-size:.85rem;line-height:1.5;}
+.bm-locker-details .luggage-ref{display:block;font-size:.75rem;}
+.bm-locker-details .luggage-item-head{align-items:flex-start;}
+.bm-locker-details .luggage-dist{white-space:nowrap;}
+.bm-locker-empty{font-size:.85rem;line-height:1.5;color:var(--muted);}
+.bm-locker-map-label{padding:10px 28px 10px 12px;max-width:240px;font-size:13px;color:var(--brown);line-height:1.5;}
+/* Neighboring panels have independent scrolling on roomy maps. */
+.result-browse .result-map{container-type:inline-size;}
+.result-browse .bm-floating-detail{display:flex;align-items:flex-end;gap:12px;width:min(790px,calc(100% - 36px));overflow:visible;border-radius:0;box-shadow:none;max-height:55%;}
+.bm-bakery-detail-panel,.bm-floating-detail>.bm-locker-details{flex:1;min-width:0;max-height:min(420px,calc(55dvh - 60px));overflow-y:auto;border:1px solid var(--line);border-radius:18px;background:var(--card);box-shadow:0 12px 30px rgba(76,49,13,.12);}
+.result-browse .bm-bakery-detail-panel .rec-card-compact{border:0;}
+.bm-floating-detail>.bm-locker-details{padding:0 16px 12px;}
+.bm-floating-detail>.bm-locker-details summary{position:sticky;top:0;background:var(--card);padding:16px 0;z-index:1;}
+@container(max-width:680px){
+  .result-browse .bm-floating-detail{display:block;width:min(390px,calc(100% - 36px));overflow-y:auto;border-radius:18px;background:var(--card);box-shadow:0 12px 30px rgba(76,49,13,.12);}
+  .bm-bakery-detail-panel,.bm-floating-detail>.bm-locker-details{max-height:none;overflow:visible;box-shadow:none;border:0;}
+  .bm-floating-detail>.bm-locker-details{border-top:1px solid var(--line);border-radius:0;}
+}
+/* The bakery card determines the height of both side-by-side panels. */
+@container(min-width:681px){
+  .result-browse .bm-floating-detail{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch;}
+  .bm-floating-detail>.bm-locker-details{contain:size;min-height:0;max-height:none;}
+}
+.bm-floating-detail>.bm-locker-details[open] summary{border-bottom:1px solid var(--line);}
+/* A closed locker panel stays beside the bakery card, aligned to its bottom. */
+@container(min-width:681px){
+  .bm-floating-detail>.bm-locker-details:not([open]){contain:none;align-self:end;padding-bottom:0;}
+}
+.rec-visit-info{border-top:1px solid var(--line);margin-top:12px;padding-top:12px;}
+.rec-visit-info h4{margin:0 0 10px;font-size:.85rem;font-weight:700;color:var(--brown);}
+.rec-visit-info dl{display:grid;gap:10px;margin:0;font-size:.8rem;line-height:1.5;}
+.rec-visit-info dl>div{display:grid;grid-template-columns:105px minmax(0,1fr);gap:8px;}
+.rec-visit-info dt{color:var(--brown);}
+.rec-visit-info dd{margin:0;color:var(--ink);}
+.rec-visit-info small{display:block;font-size:.75rem;color:var(--muted);}
+@container(min-width:681px){
+  .bm-bakery-detail-panel{height:min(340px,calc(55dvh - 60px));}
+  .result-browse .bm-bakery-detail-panel .rec-card-compact{min-height:100%;}
+  .result-browse .bm-bakery-detail-panel .rec-actions{margin-top:auto;flex-shrink:0;}
+}
+.bm-floating-detail>.bm-locker-details summary{font-size:calc(.9rem + 2pt);}
+
+@media(min-width:821px){
+  .bm-nav-inner>.bm-logo{margin-left:28px;}
+  .bm-nav-links{margin-left:12px;}
+}
+@media(min-width:1100px){
+  .bm-nav-inner{display:grid;grid-template-columns:minmax(max-content,1fr) auto minmax(max-content,1fr);gap:16px;}
+  .bm-nav-links{margin-left:0;justify-content:center;gap:clamp(14px,1.6vw,24px);}
+  .bm-nav-links button{font-size:16.5px;white-space:nowrap;}
+  .bm-nav-actions{justify-self:end;}
+}
+/* On phones, details live in the scrollable area below the map, never on it. */
+@media(max-width:820px){
+  .result-browse .result-list-col{display:block;overflow-y:auto;overscroll-behavior:contain;}
+  .result-browse .rec-list{overflow:visible;}
+  .bm-mobile-detail{position:static;width:100%;padding:12px;border-bottom:1px solid var(--line);background:var(--card3);}
+  .bm-mobile-detail .bm-bakery-detail-panel{height:auto;max-height:none;overflow:visible;box-shadow:none;}
+  .bm-mobile-detail .rec-card-compact{min-height:0;}
+  .bm-mobile-detail>.bm-locker-details{margin-top:8px;border:1px solid var(--line);border-radius:14px;}
+  .bm-mobile-detail>.bm-locker-details summary{font-size:calc(.9rem + 2pt);padding:14px 0;}
+  .bm-mobile-detail>.bm-locker-details[open] summary{border-bottom:1px solid var(--line);}
+  .result-browse .result-header{right:68px;}
+  .result-browse .result-header h2{max-width:100%;font-size:12px;line-height:1.4;}
+  .result-browse .result-header h2>span{overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;}
+}
+@media(max-width:820px){
+  .result-browse .result-map-toggle{position:absolute;top:auto;bottom:8px;left:50%;right:auto;transform:translateX(-50%);margin:0;width:auto;}
+  .result-browse .result-map.is-collapsed .result-map-toggle{bottom:6px;}
+}
+.result-browse .bm-floating-detail:not(:has(>.bm-locker-details)){width:min(389px,calc(100% - 36px));grid-template-columns:minmax(0,1fr);}
+/* Keep the map link and actions in a stable footer; only the content scrolls. */
+.rec-content-default,.rec-footer-default{display:contents;}
+.result-browse .rec-card-compact .rec-content{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;}
+.result-browse .rec-card-compact .rec-footer{flex:0 0 auto;margin-top:12px;padding-top:10px;border-top:1px solid var(--line);background:var(--card);}
+.result-browse .rec-card-compact .rec-footer .rec-link{display:block;margin:0;padding:4px 0 8px;}
+.result-browse .bm-bakery-detail-panel .rec-footer .rec-actions{position:static;order:initial;margin:0;padding:0;flex-wrap:wrap;}
+@media(min-width:821px){
+  .result-browse .bm-bakery-detail-panel{height:min(340px,calc(55dvh - 60px));overflow:hidden;}
+  .result-browse .bm-bakery-detail-panel .rec-card-compact{height:100%;min-height:0;overflow:hidden;}
+}
+@media(max-width:820px){
+  .result-browse .bm-mobile-detail .rec-content{overflow:visible;}
+}
+
+.bm-landing[data-view="bread"] .bm-nav-links button:nth-child(2){background:var(--card2);color:var(--accent);}
+.bm-location-notice{margin:0 0 12px;font-size:.8rem;line-height:1.5;color:var(--brown);background:var(--card3);padding:8px 10px;border-radius:8px;}
+/* Hide the detail-panel scrollbar while preserving wheel/touch scrolling. */
+.result-browse .rec-card-compact .rec-content{scrollbar-width:none;}
+.result-browse .rec-card-compact .rec-content::-webkit-scrollbar{display:none;}
+.bm-floating-detail>.bm-locker-details{scrollbar-width:none;}
+.bm-floating-detail>.bm-locker-details::-webkit-scrollbar{display:none;}
+
+.result-browse .rec-card-compact .rec-desc-wrap{max-width:92%;margin-inline:auto;flex:1;display:flex;flex-direction:column;justify-content:center;}
+.result-browse .rec-card-compact .rec-desc{text-align:left;}
+
+.bm-location-notice.warn{color:#8a3b12;background:#fff0d9;border:1px solid #dba76a;}
+.bm-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}

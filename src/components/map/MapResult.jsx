@@ -1,37 +1,26 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useAppStore } from '../../store/useAppStore'
 import { useBakeries } from '../../hooks/useBakeries'
 import { useCurrentLocation } from '../../hooks/useCurrentLocation'
 import { getRegion } from '../../config/regions'
-import { isWithinBbox, formatDistance, haversineKm } from '../../lib/distance'
+import { nearestAttraction, mapLocationNotice } from '../../lib/mapPresentation'
 import { getBakeryDistanceInfo } from '../../lib/bakeryDistance'
-import { pickBreadResult, matchBakeries } from '../../lib/breadRecommend'
+import { pickBreadResult, matchBakeries, matchBakeriesGrouped } from '../../lib/breadRecommend'
+import { getBreadById } from '../../data/breadCandidates'
 import { useAttractions } from '../../hooks/useAttractions'
-import MapView from './MapView'
-import RecommendCard from './RecommendCard'
-import MapSelectionSummary from './MapSelectionSummary'
+import BakeryMapPage from './BakeryMapPage'
 
-// 빵집 한 곳에서 가장 가까운 관광지 1곳 → { name, km, lat, lng }
-function nearestAttraction(bakery, spots) {
-  if (!Number.isFinite(bakery.lat) || !Number.isFinite(bakery.lng)) return null
-  let best = null
-  for (const t of spots) {
-    const km = haversineKm({ lat: bakery.lat, lng: bakery.lng }, { lat: t.lat, lng: t.lng })
-    if (!best || km < best.km) best = { name: t.name, km, lat: t.lat, lng: t.lng }
-  }
-  return best
-}
-
-// 취향 일치율 기반 지도 + 추천 리스트. onRetake: 취향 설문 다시 하기.
-export default function MapResult({ onRetake }) {
+const EMPTY = [] // 로딩 중 빈 목록 — 렌더마다 새 []를 만들면 memo가 깨진다
+// 취향 일치율 기반 지도 + 추천 리스트.
+export default function MapResult({ onAddToCourse, onBack, onBackToResult, mapState, onMapChange }) {
   const regionId = useAppStore((s) => s.regionId)
   const origin = useAppStore((s) => s.origin)
   const answers = useAppStore((s) => s.answers)
-  const selectedBakeryId = useAppStore((s) => s.selectedBakeryId)
-  const selectBakery = useAppStore((s) => s.selectBakery)
+  const directBreadId = useAppStore((s) => s.directBreadId)
   const region = getRegion(regionId)
   // 이슈 #70 1번: 모바일에서 sticky 지도 접기/펼치기 — 데스크톱에선 버튼 자체가 CSS로 숨는다.
-  const [mapCollapsed, setMapCollapsed] = useState(false)
+  // 빵 종류 바로가기(이슈 #73 B1): 설문 없이 고른 빵. 있으면 스코어링 대신 이 빵으로 필터한다.
+  const directBread = directBreadId ? getBreadById(directBreadId) : null
 
   // answers 는 넘기지 않는다 — 옛 태그-가중치 정렬(recommend.js)은 새 Q1~Q5 응답과 안 맞아 항상
   // 무력화된다. limit: Infinity 로 전체 풀을 받아와서 아래에서 breadResult 기준으로 직접 추린다.
@@ -41,8 +30,7 @@ export default function MapResult({ onRetake }) {
     origin,
     limit: Infinity,
   })
-  const { status: locStatus, coords, label: locLabel } = useCurrentLocation()
-  const inRegion = isWithinBbox(coords, region.bbox)
+  const { coords, status: locStatus, label: locLabel } = useCurrentLocation()
 
   // 관광지 좌표만 추림(이름·좌표). 빵집별 최근접 1곳 계산에 재사용.
   const { raw: attractionsRaw, loading: attractionsLoading } = useAttractions()
@@ -55,8 +43,29 @@ export default function MapResult({ onRetake }) {
   // 결과가 없으면(Q1 미응답 등) 대전 전역을 가까운 순으로 보여주는 기존 방식으로 폴백한다.
   // 로딩 중엔 bakeries 가 비어있어 필터가 자연히 no-op 되고, 로딩이 끝나면 실제 목록으로 재계산된다
   // (§CP10-2 — 연결된 빵집이 없는 빵은 애초에 후보에서 제외).
-  const breadResult = pickBreadResult(answers, bakeries)
-  const filteredBakeries = breadResult ? matchBakeries(bakeries, breadResult.bread, 10) : bakeries
+  //
+  // PR #82 리뷰: 이 아래 값들이 매 렌더 새 객체/배열이면 bakeriesWithDist → BakeryMapPage의
+  // selected → nearbyLockers 까지 연쇄로 새 참조가 되어, 짐 보관함 InfoWindow가 무관한
+  // 리렌더에 닫히고 LuggageStorageSection이 같은 계산을 한 번 더 했다. 입력이 같으면 같은
+  // 참조를 유지하도록 useMemo로 묶는다(useBakeries 쪽 bakeries도 같은 이유로 memo).
+  const breadResult = useMemo(
+    () => (directBread ? { bread: directBread, branch: null, score: null } : pickBreadResult(answers, bakeries)),
+    [directBread, answers, bakeries],
+  )
+  // 바로가기: 확인된 곳 + (빈약할 때만) 가능성 있는 곳. possibleIds 로 "가능성 있음" 배지를 단다.
+  const { filteredBakeries, possibleIds } = useMemo(() => {
+    if (directBread) {
+      const groups = matchBakeriesGrouped(bakeries, directBread, { limit: 10, minConfirmed: 3 })
+      return {
+        filteredBakeries: [...groups.confirmed, ...groups.possible],
+        possibleIds: new Set(groups.possible.map((b) => b.id)),
+      }
+    }
+    return {
+      filteredBakeries: breadResult ? matchBakeries(bakeries, breadResult.bread, 10) : bakeries,
+      possibleIds: null,
+    }
+  }, [directBread, bakeries, breadResult])
 
   // 빵집별 거리: 설문서 고른 origin 우선, 없으면 현재 위치/역 폴백
   const bakeriesWithDist = useMemo(
@@ -68,18 +77,9 @@ export default function MapResult({ onRetake }) {
         breadType: breadResult?.bread?.name,
         breadTypeEmoji: breadResult?.bread?.emoji,
         breadTypeIllustration: breadResult?.bread?.illustration,
+        isPossible: possibleIds ? possibleIds.has(b.id) : false,
       })),
-    [
-      filteredBakeries,
-      origin,
-      coords,
-      region,
-      tourSpots,
-      attractionsLoading,
-      breadResult?.bread?.name,
-      breadResult?.bread?.emoji,
-      breadResult?.bread?.illustration,
-    ],
+    [filteredBakeries, possibleIds, origin, coords, region, tourSpots, attractionsLoading, breadResult],
   )
 
   // 재검증 발견: attractionsLoading을 nearSpot 계산에만 반영했더니, 로딩 중이든 아니든
@@ -91,99 +91,19 @@ export default function MapResult({ onRetake }) {
   // 대가: 목록이 뜨는 시점이 근소하게 늦어지지만(빵집 로딩만 끝났을 때 대신 관광지까지
   // 끝난 뒤), 한 번 뜨면 완성된 상태로 뜨고 이후에 항목이 튀지 않는다.
   const listReady = !loading && !attractionsLoading
-  const selected =
-    bakeriesWithDist.find((b) => b.id === selectedBakeryId) || bakeriesWithDist[0]
-
-  // 유저가 실제로 클릭한 빵집만 (초기 자동선택 제외) → 그 빵집의 최근접 관광지 1개만 지도에 표시
-  const clickedBakery = selectedBakeryId
-    ? bakeriesWithDist.find((b) => b.id === selectedBakeryId)
-    : null
-  const nearbyAttractions = useMemo(
-    () => (clickedBakery?.nearSpot ? [clickedBakery.nearSpot] : []),
-    [clickedBakery],
+  const recommendation = useMemo(
+    () => ({
+      bakeries: listReady ? bakeriesWithDist : EMPTY,
+      loading: !listReady,
+      error,
+      source,
+      locationNotice: mapLocationNotice({ origin, status: locStatus, coords, label: locLabel, bbox: region.bbox }),
+      locationTone: !origin && (locStatus === 'denied' || locStatus === 'unsupported') ? 'warn' : '',
+      emptyMessage: `이 지역엔 아직 추천할 ${breadResult?.bread?.name ? breadResult.bread.name + ' ' : ''}맛집 정보가 없어요.`,
+      title: breadResult ? `${breadResult.bread.name} 맛집 추천` : '대전 빵집 추천',
+      illustration: breadResult?.bread.illustration,
+    }),
+    [listReady, bakeriesWithDist, error, source, origin, locStatus, coords, locLabel, region, breadResult],
   )
-
-  return (
-    <div className="result result-quiz">
-      <header className="result-header">
-        <button type="button" className="result-back" onClick={onRetake} aria-label="취향 다시 설정">
-          <svg viewBox="0 0 16 28" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="13 4 3 14 13 24" />
-          </svg>
-        </button>
-        <h2>
-          {breadResult ? `${breadResult.bread.name} 맛집 추천` : '대전 빵집 추천'} (
-          {bakeriesWithDist.length}곳)
-        </h2>
-        {source === 'sample' && (
-          <span className="badge warn">샘플 데이터 (API 키 미설정)</span>
-        )}
-        {origin ? (
-          <span className="badge location">📍 출발: {origin.label} · 가까운 순</span>
-        ) : (
-          <>
-            {locStatus === 'ready' && (
-              <span className="badge location">
-                📍 현재 위치: {locLabel || `${coords.lat.toFixed(3)}, ${coords.lng.toFixed(3)}`}
-                {!inRegion && ' · 대전 밖 → 역 기준 거리 표시'}
-              </span>
-            )}
-            {locStatus === 'denied' && (
-              <span className="badge warn">위치 접근 거부됨 · 역 기준 거리로 표시</span>
-            )}
-          </>
-        )}
-      </header>
-
-      {error && <div className="banner error">데이터 오류: {String(error.message)}</div>}
-      {!listReady && <div className="banner">불러오는 중…</div>}
-      {listReady && breadResult && bakeriesWithDist.length === 0 && (
-        <div className="banner">이 지역엔 아직 추천할 {breadResult.bread.name} 맛집 정보가 없어요.</div>
-      )}
-
-      <div className="result-body">
-        <section className={'result-map' + (mapCollapsed ? ' is-collapsed' : '')}>
-          <MapView
-            bakeries={bakeriesWithDist}
-            selectedId={selectedBakeryId}
-            onSelect={selectBakery}
-            attractions={nearbyAttractions}
-          />
-          <MapSelectionSummary bakery={selected} />
-          <button
-            type="button"
-            className="result-map-toggle"
-            onClick={() => setMapCollapsed((v) => !v)}
-          >
-            {mapCollapsed ? '지도 펼치기 ▾' : '지도 접기 ▴'}
-          </button>
-        </section>
-
-        <aside className="result-list-col">
-          <ol className="rec-list">
-            {listReady && bakeriesWithDist.map((b, i) => (
-              <li
-                key={b.id}
-                className={'rec-list-item' + (b.id === selected?.id ? ' active' : '')}
-                onClick={() => selectBakery(b.id)}
-              >
-                <span className="rank">{i + 1}</span>
-                <span className="rl-name">{b.name}</span>
-                {b.distInfo && (
-                  <span className="rl-dist">{formatDistance(b.distInfo.km)}</span>
-                )}
-                {b.nearSpot && (
-                  <span className="rl-near">📸 근처 관광지 · {b.nearSpot.name} · {formatDistance(b.nearSpot.km)}</span>
-                )}
-              </li>
-            ))}
-          </ol>
-        </aside>
-
-        <aside className={'result-detail-col' + (mapCollapsed ? ' is-collapsed' : '')}>
-          <RecommendCard bakery={selected} />
-        </aside>
-      </div>
-    </div>
-  )
+  return <BakeryMapPage mapState={mapState} onMapChange={onMapChange} onAddToCourse={onAddToCourse} onBack={onBack} onBackToResult={onBackToResult} recommendation={recommendation} />
 }

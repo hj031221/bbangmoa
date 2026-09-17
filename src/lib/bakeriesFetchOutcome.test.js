@@ -1,0 +1,56 @@
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import { resolveFetchOutcome } from './bakeriesFetchOutcome.js'
+
+// PR #82 검증 발견 (P2) — 관광공사·카카오 요청이 모두 실패해도 이전엔 각각 .catch(()=>[])로
+// 삼켜져 merged.length===0 인 "정상적인 0건"과 구분 없이 샘플 데이터로 조용히 대체됐다.
+// resolveFetchOutcome이 Promise.allSettled 결과를 받아 error/sample/api 중 무엇으로 처리할지
+// 결정하는 순수 로직이라 여기서 직접 검증한다.
+
+const kakaoDoc = (id) => ({
+  id,
+  place_name: `빵집${id}`,
+  road_address_name: '대전 중구',
+  x: '127.4217',
+  y: '36.3283',
+  category_name: '음식점 > 카페 > 베이커리',
+})
+
+test('resolveFetchOutcome — 두 요청 모두 실패하면 error(샘플 폴백 아님)', () => {
+  const tourResult = { status: 'rejected', reason: new Error('tour down') }
+  const kakaoResult = { status: 'rejected', reason: new Error('kakao down') }
+  const outcome = resolveFetchOutcome(tourResult, kakaoResult)
+  assert.equal(outcome.status, 'error')
+  assert.equal(outcome.error.message, 'tour down')
+})
+
+test('resolveFetchOutcome — 한쪽만 실패하고 결과가 0건이면 error', () => {
+  const tourResult = { status: 'rejected', reason: new Error('tour down') }
+  const kakaoResult = { status: 'fulfilled', value: [] }
+  const outcome = resolveFetchOutcome(tourResult, kakaoResult)
+  assert.equal(outcome.status, 'error')
+  assert.equal(outcome.error.message, 'tour down')
+})
+
+test('resolveFetchOutcome — 둘 다 성공했는데 정말 0건이면 sample(에러 아님)', () => {
+  const tourResult = { status: 'fulfilled', value: [] }
+  const kakaoResult = { status: 'fulfilled', value: [] }
+  const outcome = resolveFetchOutcome(tourResult, kakaoResult)
+  assert.equal(outcome.status, 'sample')
+})
+
+test('resolveFetchOutcome — 한쪽이 실패해도 다른 쪽에 결과가 있으면 api로 정상 처리', () => {
+  const tourResult = { status: 'rejected', reason: new Error('tour down') }
+  const kakaoResult = { status: 'fulfilled', value: [kakaoDoc('1')] }
+  const outcome = resolveFetchOutcome(tourResult, kakaoResult)
+  assert.equal(outcome.status, 'api')
+  assert.equal(outcome.merged.length, 1)
+})
+
+test('resolveFetchOutcome — 둘 다 성공하고 결과가 있으면 api', () => {
+  const tourResult = { status: 'fulfilled', value: [] }
+  const kakaoResult = { status: 'fulfilled', value: [kakaoDoc('2')] }
+  const outcome = resolveFetchOutcome(tourResult, kakaoResult)
+  assert.equal(outcome.status, 'api')
+  assert.equal(outcome.merged.length, 1)
+})
