@@ -12,13 +12,11 @@ import BakeryMapPage from './BakeryMapPage'
 
 const EMPTY = [] // 로딩 중 빈 목록 — 렌더마다 새 []를 만들면 memo가 깨진다
 // 취향 일치율 기반 지도 + 추천 리스트.
-export default function MapResult({ onAddToCourse, onBack }) {
+export default function MapResult({ onAddToCourse, onBack, mapState, onMapChange }) {
   const regionId = useAppStore((s) => s.regionId)
   const origin = useAppStore((s) => s.origin)
   const answers = useAppStore((s) => s.answers)
   const directBreadId = useAppStore((s) => s.directBreadId)
-  const selectedBakeryId = useAppStore((s) => s.selectedBakeryId)
-  const selectBakery = useAppStore((s) => s.selectBakery)
   const region = getRegion(regionId)
   // 이슈 #70 1번: 모바일에서 sticky 지도 접기/펼치기 — 데스크톱에선 버튼 자체가 CSS로 숨는다.
   // 빵 종류 바로가기(이슈 #73 B1): 설문 없이 고른 빵. 있으면 스코어링 대신 이 빵으로 필터한다.
@@ -104,10 +102,8 @@ export default function MapResult({ onAddToCourse, onBack }) {
       emptyMessage: `이 지역엔 아직 추천할 ${breadResult?.bread?.name ? breadResult.bread.name + ' ' : ''}맛집 정보가 없어요.`,
       title: breadResult ? `${breadResult.bread.name} 맛집 추천` : '대전 빵집 추천',
       illustration: breadResult?.bread.illustration,
-      selectedId: selectedBakeryId,
-      onSelect: selectBakery,
     }),
-    [listReady, bakeriesWithDist, error, source, origin, locStatus, coords, locLabel, region, breadResult, selectedBakeryId, selectBakery],
+    [listReady, bakeriesWithDist, error, source, origin, locStatus, coords, locLabel, region, breadResult],
   )
-  return <BakeryMapPage onAddToCourse={onAddToCourse} onBack={onBack} recommendation={recommendation} />
+  return <BakeryMapPage mapState={mapState} onMapChange={onMapChange} onAddToCourse={onAddToCourse} onBack={onBack} recommendation={recommendation} />
 }

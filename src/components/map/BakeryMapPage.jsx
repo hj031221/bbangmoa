@@ -24,10 +24,8 @@ const RANK_LIMIT = 10
 // 상위 NEARBY_LIMIT 곳만 보여주는 "근처 빵집" 모드로 전환된다.
 export default function BakeryMapPage({
   onBack,
-  origin = null,
-  onClearOrigin,
-  initialSearch = '',
-  initialSelectedId = null,
+  mapState,
+  onMapChange,
   onAddToCourse,
   recommendation = null,
 }) {
@@ -39,15 +37,23 @@ export default function BakeryMapPage({
     media.addEventListener('change', update)
     return () => media.removeEventListener('change', update)
   }, [])
-  const [district, setDistrict] = useState(null) // null = 전체
-  const [localSelectedId, setLocalSelectedId] = useState(initialSelectedId)
-  const selectedId = recommendation ? recommendation.selectedId : localSelectedId
-  const setSelectedId = recommendation?.onSelect || setLocalSelectedId
-  // 이슈 #70 1번: 모바일에서 sticky 지도 접기/펼치기 — 데스크톱에선 버튼 자체가 CSS로 숨는다.
+  const { district, search, selectedId, origin } = mapState
+  // 입력을 시작할 때만 push하고 같은 입력 중에는 replace한다.
+  // Back/선택/포커스 이탈 뒤의 검색은 새로운 조작으로 기록한다.
+  const searchEditing = useRef(false)
+  useEffect(() => {
+    const endSearch = () => { searchEditing.current = false }
+    window.addEventListener('popstate', endSearch)
+    return () => window.removeEventListener('popstate', endSearch)
+  }, [])
+  const changeMap = (patch, replace = false) => onMapChange({ ...mapState, ...patch }, replace)
+  const setSelectedId = (id) => {
+    searchEditing.current = false
+    changeMap({ selectedId: id })
+  }
   const [mapCollapsed, setMapCollapsed] = useState(false)
   // 이슈 #80 지도 UI 개편: 데스크톱에서 리스트를 접어 지도를 넓게 보고 싶을 때.
   const [listCollapsed, setListCollapsed] = useState(false)
-  const [search, setSearch] = useState(initialSearch.trim())
   // 목록 필터링(filtered)은 매 키 입력마다 즉시 반응해야 하지만, 지도 재조정(MapView의
   // search prop)까지 그대로 즉시 반응하면 타이핑 한 글자마다 지도가 움직인다(리뷰 지적) —
   // 지도 쪽에만 디바운스된 값을 넘긴다.
@@ -130,8 +136,8 @@ export default function BakeryMapPage({
 
   // 구를 바꾸면 이전 선택은 더 이상 유효하지 않으니 같이 초기화 → 지도가 대전 전체 시점으로 복귀한다.
   const selectDistrict = (d) => {
-    setDistrict(d)
-    setSelectedId(null)
+    searchEditing.current = false
+    changeMap({ district: d, selectedId: null })
   }
 
   const originAttraction = nearbyMode
@@ -243,18 +249,19 @@ export default function BakeryMapPage({
             className="bm-map-search-input"
             placeholder="빵집 이름을 검색해보세요" aria-label="빵집 이름 검색"
             value={search}
+            onBlur={() => { searchEditing.current = false }}
             onChange={(e) => {
-              setSearch(e.target.value)
-              setSelectedId(null)
+              changeMap({ search: e.target.value, selectedId: null }, searchEditing.current)
+              searchEditing.current = true
             }}
           />
-          {search && <button type="button" className="bm-search-clear" aria-label="검색어 지우기" onClick={() => { setSearch(''); setSelectedId(null) }}>×</button>}
+          {search && <button type="button" className="bm-search-clear" aria-label="검색어 지우기" onClick={() => changeMap({ search: '', selectedId: null })}>×</button>}
         </form>
       )}
 
       {nearbyMode ? (
         <div className="bm-district-filters">
-          <button type="button" className="bm-district-chip" onClick={onClearOrigin}>
+          <button type="button" className="bm-district-chip" onClick={() => changeMap({ origin: null })}>
             ← 전체 빵 지도 보기
           </button>
         </div>
@@ -264,10 +271,7 @@ export default function BakeryMapPage({
             type="button"
             className="bm-district-chip"
             onClick={() => {
-              setSearch('')
-              // 이슈 #60 — 구 필터를 걸어둔 채 검색했다가 이 버튼을 누르면, 검색만 지워지고
-              // 이전 구 필터로 돌아가 "전체로" 라벨과 실제 동작(구 필터 유지)이 어긋났다.
-              setDistrict(null)
+              changeMap({ search: '', district: null, selectedId: null })
             }}
           >
             ← 전체 빵 지도 보기

@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Q1, BRANCHES } from '../../data/surveyConfig'
 import { resolveBranch } from '../../lib/breadRecommend'
 import { useAppStore } from '../../store/useAppStore'
@@ -14,10 +13,9 @@ const TOTAL_STEPS = 6
 
 // 취향 설문 다단계 흐름. 0번째 스텝은 출발 위치 선택(LocationStep), 1번째는 Q1(branch 분기),
 // 이후 Q1 응답으로 정해진 branch 의 Q2~Q5 가 이어진다. 마지막 문항 응답 직후(또는 건너뛰기) onComplete 호출.
-export default function SurveyFlow({ onComplete, onSkip, onPickBreadType }) {
+export default function SurveyFlow({ onComplete, onSkip, onPickBreadType, step, onStepChange, onBack }) {
   const answers = useAppStore((s) => s.answers)
   const setAnswer = useAppStore((s) => s.setAnswer)
-  const [step, setStep] = useState(0)
 
   const branch = resolveBranch(answers)
   const isLocationStep = step === 0
@@ -26,7 +24,7 @@ export default function SurveyFlow({ onComplete, onSkip, onPickBreadType }) {
 
   const advance = () => {
     if (isLast) onComplete()
-    else setStep((s) => s + 1)
+    else onStepChange(step + 1)
   }
   const choose = (optionId) => {
     setAnswer(question.id, optionId)
@@ -53,7 +51,7 @@ export default function SurveyFlow({ onComplete, onSkip, onPickBreadType }) {
       )}
       {step > 0 && (
         <div className="survey-nav">
-          <button className="ghost-btn" onClick={() => setStep((s) => s - 1)}>
+          <button className="ghost-btn" onClick={onBack}>
             ← 이전
           </button>
           <button className="ghost-btn" onClick={onSkip}>

@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useAppStore } from '../../store/useAppStore'
 import { Q0, Q1, BRANCHES } from '../../data/tourSurveyConfig'
 import { resolveBranch } from '../../lib/tourRecommend'
@@ -13,10 +12,9 @@ import SurveyJourney from '../survey/SurveyJourney'
 // 별도 스텝 컴포넌트 없이 통일된 흐름으로 처리한다.
 const TOTAL_STEPS = 6 // Q0, Q1, Q2, Q3, Q4, Q5
 
-export default function TourSurveyFlow({ onComplete, onSkip }) {
+export default function TourSurveyFlow({ onComplete, onSkip, step, onStepChange, onBack }) {
   const answers = useAppStore((s) => s.tourAnswers)
   const setTourAnswer = useAppStore((s) => s.setTourAnswer)
-  const [step, setStep] = useState(0)
 
   const branch = resolveBranch(answers)
   const question = step === 0 ? Q0 : step === 1 ? Q1 : BRANCHES[branch]?.questions[step - 2]
@@ -26,7 +24,7 @@ export default function TourSurveyFlow({ onComplete, onSkip }) {
     const next = { ...answers, [question.id]: optionId }
     setTourAnswer(question.id, optionId)
     if (isLast) onComplete(next)
-    else setStep((s) => s + 1)
+    else onStepChange(step + 1)
   }
 
   return (
@@ -35,7 +33,7 @@ export default function TourSurveyFlow({ onComplete, onSkip }) {
       <SurveyStep kind="tour" question={question} selectedOptionId={answers[question.id]} onSelect={choose} />
       <div className="survey-nav">
         {step > 0 && (
-          <button className="ghost-btn" onClick={() => setStep((s) => s - 1)}>
+          <button className="ghost-btn" onClick={onBack}>
             ← 이전
           </button>
         )}
