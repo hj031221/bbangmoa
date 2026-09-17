@@ -19,6 +19,7 @@ import { useAttractions } from '../../hooks/useAttractions'
 import { useSavedCourses } from '../../hooks/useSavedCourses'
 import AddStopModal from './AddStopModal'
 import CourseNameModal from './CourseNameModal'
+import LocationStep from '../survey/LocationStep'
 import gateIllustration from '../../assets/survey-city-illustration.png'
 
 const MODES = [
@@ -541,6 +542,18 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
       )
     }
     return <div className="banner">코스를 준비하는 중…</div>
+  }
+
+  // 게이트를 우회해(pendingCourseLoad 등) 설문 없이 들어온 경우 origin이 없을 수 있다. route는
+  // origin 없이 계산되지 않아(위 :255) 그대로 두면 담아둔 항목이 있어도 "코스가 비었어요"로
+  // 보인다(검증 발견 — P1) — customStops는 그대로 두고 출발지만 마저 받는다.
+  if (!origin) {
+    return (
+      <div className="pil-gate">
+        <p className="pil-gate-eyebrow">담아둔 곳을 코스로 만들려면 출발지가 필요해요.</p>
+        <LocationStep />
+      </div>
+    )
   }
 
   // 상단 요약 배지 — "계산 자체가 성공했나"(preciseMinutes/preciseDistanceKm != null)만 보면
