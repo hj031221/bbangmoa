@@ -36,6 +36,12 @@ export default function MarkerLayer({ map, bakeries, selectedId, onSelect, clust
   const markersRef = useRef([]) // [{ id, marker, pos, rank }]
   const infoRef = useRef(null)
   const imagesRef = useRef(null) // { normal, selected, numbered:Map<number,{normal,selected}> }
+  // 호출부(BakeryMapPage)가 매 렌더 새 함수를 넘긴다 — onSelect를 마커 생성 effect의 deps에
+  // 넣으면 선택과 무관한 리렌더(찜 토글, 목록 접기 등)마다 마커가 전부 재생성돼 선택 강조가
+  // 초기화된다(검증 발견 — P2, 재생성 뒤엔 selectedId가 그대로라 강조 effect가 다시 안 돔).
+  // ref로 최신 콜백만 따라가고 effect deps에선 빼서 재생성 자체를 막는다.
+  const onSelectRef = useRef(onSelect)
+  onSelectRef.current = onSelect
 
   // 번호별 마커 이미지를 필요한 것만 그때그때 만들어 캐싱한다(kakao MarkerImage 생성 비용을
   // rankById 크기만큼만 쓰고, 기능 자체를 안 쓰는 화면은 0개).
@@ -86,7 +92,7 @@ export default function MarkerLayer({ map, bakeries, selectedId, onSelect, clust
         title: b.name,
         image: images.normal,
       })
-      kakao.maps.event.addListener(marker, 'click', () => onSelect?.(b.id))
+      kakao.maps.event.addListener(marker, 'click', () => onSelectRef.current?.(b.id))
       next.push({ id: b.id, marker, pos, rank })
     })
     markersRef.current = next
@@ -104,17 +110,17 @@ export default function MarkerLayer({ map, bakeries, selectedId, onSelect, clust
       markersRef.current.forEach((m) => m.marker.setMap(null))
       markersRef.current = []
     }
-  }, [map, bakeries, onSelect, clusterer, rankById])
+  }, [map, bakeries, clusterer, rankById])
 
   // 지도의 빈 영역(마커·오버레이가 아닌 곳)을 클릭하면 선택 해제. 카카오에서 마커 click 은
   // map click 으로 전파되지 않으므로 마커 선택과 충돌하지 않는다.
   useEffect(() => {
     const { kakao } = window
     if (!kakao || !map) return
-    const handleMapClick = () => onSelect?.(null)
+    const handleMapClick = () => onSelectRef.current?.(null)
     kakao.maps.event.addListener(map, 'click', handleMapClick)
     return () => kakao.maps.event.removeListener(map, 'click', handleMapClick)
-  }, [map, onSelect])
+  }, [map])
 
   // 선택 동작: 줌인 + 포커스 + 나머지 흐리게
   useEffect(() => {
