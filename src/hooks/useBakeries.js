@@ -65,34 +65,57 @@ export function useBakeries({ regionId, answers, origin, limit = MAX_RESULTS, en
     // merged.length === 0 인 "정상적인 0건"과 구분 없이 샘플 데이터로 조용히 대체됐다.
     // allSettled로 실제 실패 여부를 따로 들고 있다가, 결과가 0건인데 요청 중 하나라도 실패했으면
     // (실패 없이 정말 0건인 경우와 구분해) 샘플 대신 에러로 표시해 재시도 경로를 태운다.
+    // outcome을 화면 상태(raw/source/error)에 반영만 한다 — 캐시 기록은 호출부가 최종
+    // outcome(재시도까지 끝난 것)에 대해서만 따로 한다.
+    const showOutcome = (outcome) => {
+      if (outcome.status === 'error') {
+        setError(outcome.error)
+      } else if (outcome.status === 'sample') {
+        setRaw(SAMPLE_BAKERIES)
+        setSource('sample')
+      } else {
+        setRaw(outcome.merged)
+        setSource('api')
+      }
+    }
+
     Promise.allSettled([fetchTourBakeries(regionId), fetchKakaoBakeries(regionId)])
-      .then(async ([tourResult, kakaoResult]) => {
-        let outcome = resolveFetchOutcome(tourResult, kakaoResult)
-        // 이슈 #86: 관광공사(실측 성공률 ~40%)만 실패했으면 그 쪽만 1회 재시도 — 독립 시도
-        // 두 번이면 성공률이 ~64%로 오른다. 카카오만 실패하는 경우도 같은 논리로 재시도.
-        if (outcome.status === 'partial' && alive) {
-          if (tourResult.status === 'rejected') {
-            tourResult = await settleOne(fetchTourBakeries(regionId))
-          } else if (kakaoResult.status === 'rejected') {
-            kakaoResult = await settleOne(fetchKakaoBakeries(regionId))
-          }
-          outcome = resolveFetchOutcome(tourResult, kakaoResult)
-        }
+      .then(([tourResult, kakaoResult]) => {
         if (!alive) return
+        const outcome = resolveFetchOutcome(tourResult, kakaoResult)
         console.log(`[bakeries] 로드 ${Math.round(performance.now() - t0)}ms`)
         logBakeryStats({ tour: outcome.tour, kakao: outcome.kakao, merged: outcome.merged })
-        if (outcome.status === 'error') {
-          setError(outcome.error)
-        } else if (outcome.status === 'sample') {
-          setRaw(SAMPLE_BAKERIES)
-          setSource('sample')
-        } else {
-          // 'api'(완전 성공)일 때만 캐시한다. 'partial'(재시도까지 실패)을 캐시하면 다음
-          // 방문에서도 관광공사 없는 데이터가 고정돼 다시 시도할 기회가 사라진다.
-          if (outcome.status === 'api') mergedCache.set(regionId, outcome.merged)
-          setRaw(outcome.merged)
-          setSource('api')
-        }
+        // 이미 성공한 쪽 데이터는 재시도를 기다리지 않고 바로 보여준다 — 로딩도 여기서 끝낸다.
+        showOutcome(outcome)
+        setLoading(false)
+        if (outcome.status === 'api') mergedCache.set(regionId, outcome.merged)
+        if (outcome.status !== 'partial') return
+
+        // 이슈 #86: 관광공사(실측 성공률 ~40%)만 실패했으면 그 쪽만 1회 재시도 — 독립 시도
+        // 두 번이면 성공률이 ~64%로 오른다. 카카오만 실패하는 경우도 같은 논리로 재시도.
+        // 코드리뷰 발견: 이 재시도를 화면 표시 전에 기다리면 이미 성공한 쪽까지 최대 2배
+        // (원래 타임아웃 × 2) 로딩 화면에 묶인다 — 위에서 먼저 보여준 뒤 백그라운드로 돌린다.
+        const retry =
+          tourResult.status === 'rejected'
+            ? settleOne(fetchTourBakeries(regionId)).then((r) => {
+                tourResult = r
+              })
+            : settleOne(fetchKakaoBakeries(regionId)).then((r) => {
+                kakaoResult = r
+              })
+
+        return retry.then(() => {
+          if (!alive) return
+          const retried = resolveFetchOutcome(tourResult, kakaoResult)
+          logBakeryStats({ tour: retried.tour, kakao: retried.kakao, merged: retried.merged })
+          showOutcome(retried)
+          // 'api'와 재시도까지 마친 'partial' 모두 캐시한다 — 이 세션에서 재시도 기회는
+          // 이미 다 썼으니, 재방문마다 이미 성공한 쪽까지 다시 부르는 것보다 지금 결과를
+          // 쓰는 게 낫다(캐시 목적인 '카카오 재호출 방지'가 partial에서만 빠지는 걸 막는다).
+          if (retried.status === 'api' || retried.status === 'partial') {
+            mergedCache.set(regionId, retried.merged)
+          }
+        })
       })
       // allSettled 자체는 reject하지 않지만, 위 .then 콜백(resolveFetchOutcome/mergeBakeries)이
       // 예상 밖 응답 모양으로 동기 throw하면 이 체인이 unhandled rejection이 되어 error가 영영
