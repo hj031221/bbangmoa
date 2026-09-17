@@ -2,13 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   fetchTourBakeries,
   fetchKakaoBakeries,
-  mergeBakeries,
   tourEnabled,
   kakaoLocalEnabled,
 } from '../api'
 import { normalizeKakao } from '../api/normalize'
 import { recommend } from '../lib/recommend'
 import { haversineKm } from '../lib/distance'
+import { resolveFetchOutcome } from '../lib/bakeriesFetchOutcome'
 import { SAMPLE_BAKERIES } from '../data/sampleBakeries'
 
 // 빵집 데이터 파이프라인 훅.
@@ -60,26 +60,28 @@ export function useBakeries({ regionId, answers, origin, limit = MAX_RESULTS, en
     setLoading(true)
     setSource('api')
     const t0 = performance.now()
-    Promise.all([
-      fetchTourBakeries(regionId).catch(() => []),
-      fetchKakaoBakeries(regionId).catch(() => []),
-    ])
-      .then(([tour, kakao]) => {
+    // 검증 발견 — 이전엔 각 요청의 실패를 여기서 빈 배열로 바꿔 삼켰다. 그러면 Promise.all이
+    // 절대 reject하지 않아 아래 .catch(setError)가 죽은 코드가 되고, 두 요청이 모두 실패해도
+    // merged.length === 0 인 "정상적인 0건"과 구분 없이 샘플 데이터로 조용히 대체됐다.
+    // allSettled로 실제 실패 여부를 따로 들고 있다가, 결과가 0건인데 요청 중 하나라도 실패했으면
+    // (실패 없이 정말 0건인 경우와 구분해) 샘플 대신 에러로 표시해 재시도 경로를 태운다.
+    Promise.allSettled([fetchTourBakeries(regionId), fetchKakaoBakeries(regionId)])
+      .then(([tourResult, kakaoResult]) => {
         if (!alive) return
-        const merged = mergeBakeries(tour, kakao)
+        const outcome = resolveFetchOutcome(tourResult, kakaoResult)
         console.log(`[bakeries] 로드 ${Math.round(performance.now() - t0)}ms`)
-        logBakeryStats({ tour, kakao, merged })
-        // 둘 다 0건이면 폴백
-        if (merged.length === 0) {
+        logBakeryStats({ tour: outcome.tour, kakao: outcome.kakao, merged: outcome.merged })
+        if (outcome.status === 'error') {
+          setError(outcome.error)
+        } else if (outcome.status === 'sample') {
           setRaw(SAMPLE_BAKERIES)
           setSource('sample')
         } else {
-          mergedCache.set(regionId, merged)
-          setRaw(merged)
+          mergedCache.set(regionId, outcome.merged)
+          setRaw(outcome.merged)
           setSource('api')
         }
       })
-      .catch((e) => alive && setError(e))
       .finally(() => alive && setLoading(false))
 
     return () => {
