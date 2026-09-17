@@ -12,7 +12,7 @@ import BakeryMapPage from './BakeryMapPage'
 
 const EMPTY = [] // 로딩 중 빈 목록 — 렌더마다 새 []를 만들면 memo가 깨진다
 // 취향 일치율 기반 지도 + 추천 리스트.
-export default function MapResult({ onAddToCourse, onBack, mapState, onMapChange }) {
+export default function MapResult({ onAddToCourse, onBack, onBackToResult, mapState, onMapChange }) {
   const regionId = useAppStore((s) => s.regionId)
   const origin = useAppStore((s) => s.origin)
   const answers = useAppStore((s) => s.answers)
@@ -105,5 +105,5 @@ export default function MapResult({ onAddToCourse, onBack, mapState, onMapChange
     }),
     [listReady, bakeriesWithDist, error, source, origin, locStatus, coords, locLabel, region, breadResult],
   )
-  return <BakeryMapPage mapState={mapState} onMapChange={onMapChange} onAddToCourse={onAddToCourse} onBack={onBack} recommendation={recommendation} />
+  return <BakeryMapPage mapState={mapState} onMapChange={onMapChange} onAddToCourse={onAddToCourse} onBack={onBack} onBackToResult={onBackToResult} recommendation={recommendation} />
 }

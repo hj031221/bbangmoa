@@ -320,6 +320,13 @@ export default function LandingPage() {
     setStage('map')
     pushSubState({ stage: 'map', resultMap: { ...MAP_STATE_DEFAULTS, selectedId: useAppStore.getState().selectedBakeryId } })
   }
+  // 추천 지도의 "← 추천 결과로 돌아가기" — 655cd7f 이후 지도 조작(구 필터·검색·선택)마다
+  // 히스토리가 쌓여, 일반 onBack(history.back)을 쓰면 결과 화면 대신 직전 지도 조작만
+  // 한 단계씩 되돌아갔다(검증 발견 — P2). 목적지가 고정돼 있으니 뒤로가기 대신 바로 이동한다.
+  const backToBreadReveal = () => {
+    setStage('reveal')
+    pushSubState({ stage: 'reveal' })
+  }
   const retakeTourSurvey = () => {
     resetTourAnswers()
     setTourStage('survey')
@@ -440,7 +447,7 @@ export default function LandingPage() {
               onGoToPilgrimage={openPilgrimage}
             />
           )}
-          {stage === 'map' && <MapResult mapState={resultMap} onMapChange={(next, replace) => changeMap('resultMap', next, replace)} onBack={goBackInApp} onAddToCourse={(bakery) => loadCourseIntoPilgrimage({ mode: 'append', stops: [{ ...bakery, type: 'bakery' }] })} />}
+          {stage === 'map' && <MapResult mapState={resultMap} onMapChange={(next, replace) => changeMap('resultMap', next, replace)} onBack={goBackInApp} onBackToResult={backToBreadReveal} onAddToCourse={(bakery) => loadCourseIntoPilgrimage({ mode: 'append', stops: [{ ...bakery, type: 'bakery' }] })} />}
         </div>
       )}
 

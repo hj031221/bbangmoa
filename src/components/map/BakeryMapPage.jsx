@@ -24,6 +24,7 @@ const RANK_LIMIT = 10
 // 상위 NEARBY_LIMIT 곳만 보여주는 "근처 빵집" 모드로 전환된다.
 export default function BakeryMapPage({
   onBack,
+  onBackToResult,
   mapState,
   onMapChange,
   onAddToCourse,
@@ -232,7 +233,7 @@ export default function BakeryMapPage({
 
         <aside ref={mobilePanelRef} className={'result-list-col' + (listCollapsed ? ' is-collapsed' : '')}>
           {isMobile && detailPanel}
-          {recommendation && <div className="bm-sidebar-back-row"><button type="button" className="bm-sidebar-back" onClick={onBack}>← 추천 결과로 돌아가기</button></div>}
+          {recommendation && <div className="bm-sidebar-back-row"><button type="button" className="bm-sidebar-back" onClick={onBackToResult || onBack}>← 추천 결과로 돌아가기</button></div>}
           <div className="bm-sidebar-controls">
           {recommendation?.locationNotice && <p className={'bm-location-notice ' + (recommendation.locationTone || '')} role="status">{recommendation.locationNotice}</p>}
       {!nearbyMode && (
