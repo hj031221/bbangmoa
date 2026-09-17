@@ -39,11 +39,14 @@ test('resolveFetchOutcome — 둘 다 성공했는데 정말 0건이면 sample(�
   assert.equal(outcome.status, 'sample')
 })
 
-test('resolveFetchOutcome — 한쪽이 실패해도 다른 쪽에 결과가 있으면 api로 정상 처리', () => {
+// 이슈 #86: 예전엔 이 경우도 'api'(정상)로 취급해 "관광공사가 이번엔 빠졌다"는 사실이
+// 삼켜졌다 — 같은 빵을 반복 요청해도 매칭 결과가 매번 달라지는 원인. 'api'와 구분되는
+// 'partial'로 반환해 호출부가 캐시하지 않고 재시도할 여지를 남기게 한다.
+test('resolveFetchOutcome — 한쪽이 실패해도 다른 쪽에 결과가 있으면 partial(캐시 금지 신호)', () => {
   const tourResult = { status: 'rejected', reason: new Error('tour down') }
   const kakaoResult = { status: 'fulfilled', value: [kakaoDoc('1')] }
   const outcome = resolveFetchOutcome(tourResult, kakaoResult)
-  assert.equal(outcome.status, 'api')
+  assert.equal(outcome.status, 'partial')
   assert.equal(outcome.merged.length, 1)
 })
 

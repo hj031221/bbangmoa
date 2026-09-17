@@ -66,9 +66,19 @@ export function useBakeries({ regionId, answers, origin, limit = MAX_RESULTS, en
     // allSettled로 실제 실패 여부를 따로 들고 있다가, 결과가 0건인데 요청 중 하나라도 실패했으면
     // (실패 없이 정말 0건인 경우와 구분해) 샘플 대신 에러로 표시해 재시도 경로를 태운다.
     Promise.allSettled([fetchTourBakeries(regionId), fetchKakaoBakeries(regionId)])
-      .then(([tourResult, kakaoResult]) => {
+      .then(async ([tourResult, kakaoResult]) => {
+        let outcome = resolveFetchOutcome(tourResult, kakaoResult)
+        // 이슈 #86: 관광공사(실측 성공률 ~40%)만 실패했으면 그 쪽만 1회 재시도 — 독립 시도
+        // 두 번이면 성공률이 ~64%로 오른다. 카카오만 실패하는 경우도 같은 논리로 재시도.
+        if (outcome.status === 'partial' && alive) {
+          if (tourResult.status === 'rejected') {
+            tourResult = await settleOne(fetchTourBakeries(regionId))
+          } else if (kakaoResult.status === 'rejected') {
+            kakaoResult = await settleOne(fetchKakaoBakeries(regionId))
+          }
+          outcome = resolveFetchOutcome(tourResult, kakaoResult)
+        }
         if (!alive) return
-        const outcome = resolveFetchOutcome(tourResult, kakaoResult)
         console.log(`[bakeries] 로드 ${Math.round(performance.now() - t0)}ms`)
         logBakeryStats({ tour: outcome.tour, kakao: outcome.kakao, merged: outcome.merged })
         if (outcome.status === 'error') {
@@ -77,7 +87,9 @@ export function useBakeries({ regionId, answers, origin, limit = MAX_RESULTS, en
           setRaw(SAMPLE_BAKERIES)
           setSource('sample')
         } else {
-          mergedCache.set(regionId, outcome.merged)
+          // 'api'(완전 성공)일 때만 캐시한다. 'partial'(재시도까지 실패)을 캐시하면 다음
+          // 방문에서도 관광공사 없는 데이터가 고정돼 다시 시도할 기회가 사라진다.
+          if (outcome.status === 'api') mergedCache.set(regionId, outcome.merged)
           setRaw(outcome.merged)
           setSource('api')
         }
@@ -112,6 +124,17 @@ export function useBakeries({ regionId, answers, origin, limit = MAX_RESULTS, en
   }, [raw, answersKey, origin, limit])
 
   return { bakeries, loading: enabled && loading, error, source, reload }
+}
+
+// Promise 하나를 Promise.allSettled 항목과 같은 모양({status, value|reason})으로 바꾼다.
+// 이슈 #86의 단건 재시도(관광공사/카카오 중 실패한 쪽만 한 번 더)에 resolveFetchOutcome을
+// 그대로 재사용하려고 둔다.
+async function settleOne(promise) {
+  try {
+    return { status: 'fulfilled', value: await promise }
+  } catch (reason) {
+    return { status: 'rejected', reason }
+  }
 }
 
 // origin → 빵집 직선거리(km). 좌표 없으면 맨 뒤로 밀리도록 Infinity.
