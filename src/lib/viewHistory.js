@@ -5,6 +5,7 @@
 //   stage / tourStage : 빵·관광 플로우의 단계
 //   breadStep / tourStep : 각 설문의 문항 번호
 //   browseMap / resultMap : 일반·추천 지도 상태 (서로 독립)
+//   myPage : 마이페이지 패널·친구 선택 (지도 방문 후 직전 찜 목록으로 복귀)
 //   surveySnapshot : 과거 문항의 분기와 결과를 복원할 응답·출발지
 //   tourSelectedId / tourHubFromReveal : 관광 허브 진입 맥락
 //   directBreadId : 빵 종류 바로가기(이슈 #73 B1)로 고정된 빵
@@ -12,12 +13,14 @@
 //       스토어의 directBreadId 가 그대로 남아 새로 답한 설문 결과 대신 옛 칩 빵이 계속 떴다.
 //       뒤로가기로 "칩을 고르기 전" 지점에 돌아가면 이 값도 같이 되돌아가야 한다.
 export const MAP_STATE_DEFAULTS = Object.freeze({ district: null, search: '', selectedId: null, origin: null })
+export const MYPAGE_STATE_DEFAULTS = Object.freeze({ panel: 'home', friend: null })
 
 export const HISTORY_STATE_DEFAULTS = Object.freeze({
   breadStep: 0,
   tourStep: 0,
   browseMap: MAP_STATE_DEFAULTS,
   resultMap: MAP_STATE_DEFAULTS,
+  myPage: MYPAGE_STATE_DEFAULTS,
   surveySnapshot: null,
   stage: 'survey',
   tourStage: 'survey',

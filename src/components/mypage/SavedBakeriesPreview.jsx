@@ -1,6 +1,7 @@
 import { useSavedBakeries } from '../../hooks/useSavedBakeries'
 import PreviewChevron from './PreviewChevron'
 import { HeartIcon } from './PreviewIcons'
+import { sortSavedBakeries } from '../../lib/savedBakerySort'
 import { getBreadById, getBreadByName } from '../../data/breadCandidates'
 
 // 마이페이지 홈 미리보기 카드. 헤더에서 전체 개수를 바로 확인할 수 있다.
@@ -23,7 +24,7 @@ export default function SavedBakeriesPreview({ onExpand }) {
           <p className="mypage-preview-empty">아직 찜한 빵집이 없어요.</p>
         ) : (
           <div className="mypage-preview-bakery-grid">
-            {saved.map((b) => {
+            {sortSavedBakeries(saved).map((b) => {
               const illustration =
                 b.breadTypeIllustration || getBreadByName(b.breadType)?.illustration || fallbackIllustration
 

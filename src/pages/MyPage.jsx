@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import ProfileCard from '../components/mypage/ProfileCard'
 import SavedBakeriesPanel from '../components/mypage/SavedBakeriesPanel'
@@ -16,10 +15,10 @@ import VisitStampBand from '../components/mypage/VisitStampBand'
 // panel 이 'home' 이 아니면 해당 패널만 전체 화면으로 보여주고 '‹' 로 home 으로 돌아간다.
 // friend 가 설정돼 있으면 friendBakeries/friendCourses/friendDiary 패널이 그 친구 데이터를
 // 읽기 전용으로 보여준다(SavedBakeriesPanel 등을 targetUserId+readOnly 로 그대로 재사용).
-export default function MyPage({ onLoadCourse, onViewBakeryOnMap }) {
+export default function MyPage({ pageState, onPageChange, onLoadCourse, onViewBakeryOnMap }) {
   const { user, loading } = useAuth()
-  const [panel, setPanel] = useState('home')
-  const [friend, setFriend] = useState(null) // { userId, nickname, avatarUrl } | null
+  const { panel, friend } = pageState
+  const setPanel = (panel) => onPageChange({ ...pageState, panel })
 
   if (loading) return null
 
@@ -33,8 +32,7 @@ export default function MyPage({ onLoadCourse, onViewBakeryOnMap }) {
   }
 
   const backToFriendList = () => {
-    setFriend(null)
-    setPanel('friends')
+    onPageChange({ panel: 'friends', friend: null })
   }
 
   if (panel === 'friends') {
@@ -42,8 +40,7 @@ export default function MyPage({ onLoadCourse, onViewBakeryOnMap }) {
       <FriendsPanel
         onBack={() => setPanel('home')}
         onSelectFriend={(f) => {
-          setFriend(f)
-          setPanel('friendDetail')
+          onPageChange({ panel: 'friendDetail', friend: f })
         }}
       />
     )
