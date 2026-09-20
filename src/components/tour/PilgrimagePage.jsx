@@ -593,6 +593,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
       </header>
 
       <div className="pil-panel">
+        <p className="pil-panel-intro">고른 빵집과 관광지를 이어 만든 오늘의 코스예요.</p>
         {route ? (
           <div className="pil-summary">
             <div>
