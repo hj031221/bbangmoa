@@ -112,7 +112,6 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
   // 그 뒤로는 add/remove를 해도 이 순서를 존중한다(그리디로 되돌아가지 않는다).
   const [manualOrderIds, setManualOrderIds] = useState(() => draft?.orderIds ?? null)
   const [addOpen, setAddOpen] = useState(false)
-  const [panelCollapsed, setPanelCollapsed] = useState(false)
   // 6곳 상한에 걸려 담지 못한 경우 안내(추가하기 버튼 아래에 표시).
   const [limitNotice, setLimitNotice] = useState('')
   const [saveState, setSaveState] = useState('idle') // 'idle' | 'saving' | 'saved' | 'error'
@@ -578,18 +577,10 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
   const courseFull = (customStops || []).length >= MAX_COURSE_STOPS
 
   return (
-    <div className={'pil-page' + (panelCollapsed ? ' panel-collapsed' : '')}>
+    <div className="pil-page">
       <header className="pil-header">
         <h2 className="pil-title">대전한바퀴</h2>
         <p className="pil-intro">내가 고른 빵집과 가볼 만한 곳을 한 번에 이어, 대전을 한 바퀴 도는 나만의 코스를 만들어 보세요.</p>
-        <button
-          type="button"
-          className="pil-panel-toggle"
-          aria-expanded={!panelCollapsed}
-          onClick={() => setPanelCollapsed((v) => !v)}
-        >
-          {panelCollapsed ? '코스 목록 펼치기 ▸' : '◂ 코스 목록 접기'}
-        </button>
       </header>
 
       <div className="pil-panel">
