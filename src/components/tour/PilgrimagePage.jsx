@@ -363,6 +363,8 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
   // 같은 제스처 안에서 순서대로 발생해 mouseenter가 세팅한 값을 click이 바로 도로 지워버려
   // 탭이 항상 무효였다(리뷰 발견) — 그냥 "이 index로 고정"만 하도록 단순화해서 탭도 동작하게 함.
   const [highlightIndex, setHighlightIndex] = useState(null)
+  // 리스트에서 클릭한 경유지 — 지도가 그 핀으로 이동하고 핀이 커진다.
+  const [selectedIndex, setSelectedIndex] = useState(null)
 
   // 이슈 #60 — .pil-stop-remove(✕)가 순수 CSS :hover였는데, 삭제로 목록이 재배치될 때
   // 커서 아래로 다음 줄이 밀려 들어오면 브라우저가 그 자리 :hover를 못 떼고 남겨서 엉뚱한
@@ -378,6 +380,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
     setLimitNotice('')
     setManualOrderIds((prev) => (prev ? prev.filter((i) => i !== id) : prev))
     setHighlightIndex(null)
+    setSelectedIndex(null)
     setHoveredRemoveId(null)
   }
   const addStop = (stop) => {
@@ -394,6 +397,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
     setRealOrderIds((prev) => (prev ? [...prev, stop.id] : prev))
     setAddOpen(false)
     setHighlightIndex(null)
+    setSelectedIndex(null)
   }
 
   // 햄버거 핸들을 눌러 드래그 → 리스트 순서를 손으로 바꾼다. 이후엔 그리디 재정렬 대신
@@ -432,6 +436,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
     // 자리에 도로 놓으면(from===to) 여기서 그냥 return해버려 하이라이트가 리셋 안 되고
     // .leg-highlight 스타일에 갇혔다. dragOverIndex처럼 조건 밖으로 빼서 무조건 실행한다.
     setHighlightIndex(null)
+    setSelectedIndex(null)
     if (from == null || to == null || from === to || !route) return
     const ids = route.stops.map((s) => s.id)
     const [moved] = ids.splice(from, 1)
@@ -574,18 +579,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
   const distanceFullyMeasured =
     preciseDistanceKm != null && (!legDistanceEstimated || legDistanceEstimated.every((e) => !e))
 
-  const courseFull = (customStops || []).length >= MAX_COURSE_STOPS
-
-  return (
-    <div className="pil-page">
-      <header className="pil-header">
-        <h2 className="pil-title">대전한바퀴</h2>
-        <p className="pil-intro">내가 고른 빵집과 가볼 만한 곳을 한 번에 이어, 대전을 한 바퀴 도는 나만의 코스를 만들어 보세요.</p>
-      </header>
-
-      <div className="pil-panel">
-        <p className="pil-panel-intro">고른 빵집과 관광지를 이어 만든 오늘의 코스예요.</p>
-        {route ? (
+  const summaryEl = route ? (
           <div className="pil-summary">
             <div>
               <b>{formatMinutes(preciseMinutes ?? route.totalMinutes)}</b>
@@ -610,7 +604,23 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
               </div>
             )}
           </div>
-        ) : (
+  ) : null
+
+  const courseFull = (customStops || []).length >= MAX_COURSE_STOPS
+
+  return (
+    <div className="pil-page">
+      <header className="pil-header">
+        <h2 className="pil-title">대전한바퀴</h2>
+        <p className="pil-intro">내가 고른 빵집과 가볼 만한 곳을 한 번에 이어, 대전을 한 바퀴 도는 나만의 코스를 만들어 보세요.</p>
+      </header>
+
+      <div className="pil-panel">
+        <div className="pil-panel-head">
+          <span className="pil-panel-title">오늘의 코스</span>
+          <span className="pil-panel-count">{route?.stops.length ?? 0} / {MAX_COURSE_STOPS}곳</span>
+        </div>
+        {!route && (
           <p className="pil-empty-msg">코스가 비었어요 — 아래 "추가하기"로 빵집·관광지를 넣어보세요.</p>
         )}
 
@@ -625,7 +635,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
             <li
               key={stop.id}
               data-index={index}
-              className={`pil-stop ${stop.type}${dragOverIndex === index ? ' drag-over' : ''}${highlightIndex === index ? ' leg-highlight' : ''}`}
+              className={`pil-stop ${stop.type}${dragOverIndex === index ? ' drag-over' : ''}${highlightIndex === index ? ' leg-highlight' : ''}${selectedIndex === index ? ' is-selected' : ''}`}
             >
               <span
                 className="pil-stop-handle"
@@ -660,6 +670,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
                   if (e.pointerType === 'mouse') setHighlightIndex(null)
                 }}
                 onClick={(e) => {
+                  setSelectedIndex((prev) => (prev === index ? null : index))
                   // 마우스는 호버가 이미 담당하므로 클릭으로 토글하면 안 된다 — 호버 중인
                   // 행(prev===index)을 클릭하면 마우스가 그대로 위에 있어도 꺼져버린다.
                   // 터치/펜만 토글(호버 이벤트가 안 오므로 클릭이 유일한 신호).
@@ -671,12 +682,12 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
                 }}
               >
                 <span className="pil-stop-name">{stop.name}</span>
-                <span className="pil-stop-type">
-                  {stop.type === 'attraction' ? '📍 관광지' : '🥐 빵집'}
-                  {legDistancesKm && legMinutes && (
-                    <> · 이전 경유지에서 {formatDistance(legDistancesKm[index]) ?? '-'} · {legMinutes[index] ?? '-'}분</>
-                  )}
-                </span>
+                <span className="pil-stop-type">{stop.type === 'attraction' ? '관광지' : '빵집'}</span>
+                {legDistancesKm && legMinutes && (
+                  <span className="pil-stop-leg">
+                    {index === 0 ? '출발지' : '이전 경유지'}에서 {formatDistance(legDistancesKm[index]) ?? '-'} · {legMinutes[index] ?? '-'}분
+                  </span>
+                )}
               </button>
               {travelMode === 'transit' && (
                 <a
@@ -707,54 +718,43 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
           ))}
         </ol>
 
-        <button
-          type="button"
-          className="pil-add-btn"
-          onClick={() => setAddOpen(true)}
-          disabled={courseFull}
-        >
-          {courseFull ? `코스가 가득 찼어요 (최대 ${MAX_COURSE_STOPS}곳)` : '+ 추가하기 (전체 지도에서 검색)'}
-        </button>
-        {limitNotice && <p className="pil-limit-notice" role="status">{limitNotice}</p>}
-
-        <div className="pil-modes">
-          {MODES.map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              className={travelMode === m.id ? 'active' : ''}
-              onClick={() => setTravelMode(m.id)}
-            >
-              {m.label}
-            </button>
-          ))}
+        <div className="pil-panel-actions">
+          <button
+            type="button"
+            className="pil-add-btn"
+            onClick={() => setAddOpen(true)}
+            disabled={courseFull}
+          >
+            {courseFull ? `코스가 가득 찼어요 (최대 ${MAX_COURSE_STOPS}곳)` : '+ 추가하기 (전체 지도에서 검색)'}
+          </button>
+          {limitNotice && <p className="pil-limit-notice" role="status">{limitNotice}</p>}
+  
+          <button
+            type="button"
+            className="pil-save-btn"
+            onClick={() => setNameModalOpen(true)}
+            disabled={
+              !user ||
+              !route ||
+              saveState === 'saving' ||
+              saveState === 'saved' ||
+              isDuplicateOfSaved ||
+              savedCoursesLoading
+            }
+          >
+            {!user
+              ? '로그인 후 저장 가능'
+              : saveState === 'saving'
+                ? '저장 중…'
+                : saveState === 'saved'
+                  ? '저장됨 ✓'
+                  : isDuplicateOfSaved
+                    ? '이미 저장된 코스예요'
+                    : saveState === 'error'
+                      ? '저장 실패, 다시 시도'
+                      : '코스 저장하기'}
+          </button>
         </div>
-
-        <button
-          type="button"
-          className="pil-save-btn"
-          onClick={() => setNameModalOpen(true)}
-          disabled={
-            !user ||
-            !route ||
-            saveState === 'saving' ||
-            saveState === 'saved' ||
-            isDuplicateOfSaved ||
-            savedCoursesLoading
-          }
-        >
-          {!user
-            ? '로그인 후 저장 가능'
-            : saveState === 'saving'
-              ? '저장 중…'
-              : saveState === 'saved'
-                ? '저장됨 ✓'
-                : isDuplicateOfSaved
-                  ? '이미 저장된 코스예요'
-                  : saveState === 'error'
-                    ? '저장 실패, 다시 시도'
-                    : '코스 저장하기'}
-        </button>
       </div>
 
       <div className="pil-map">
@@ -766,7 +766,29 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
           legMinutes={legMinutes}
           legEstimated={legEstimated}
           highlightIndex={highlightIndex}
+          selectedIndex={selectedIndex}
         />
+        <div className="pil-map-top">
+          {summaryEl && <div className="pil-map-summary">{summaryEl}</div>}
+          <div className="pil-map-modes">
+            <div className="pil-modes">
+              {MODES.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  className={travelMode === m.id ? 'active' : ''}
+                  onClick={() => setTravelMode(m.id)}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="pil-legend" aria-hidden="true">
+          <span><i className="bakery" />빵집</span>
+          <span><i className="attraction" />관광지</span>
+        </div>
       </div>
 
       <p className="pil-footnote">
@@ -806,7 +828,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
 // 배열을 채워 넣어서 실측처럼 늘 실선으로 보이던 버그가 있었다 — legEstimated로 명시적으로 구분.)
 // highlightIndex가 가리키는 구간은 리스트에서 그 경유지를 호버/탭했을 때 굵은 선 + 거리·시간
 // 라벨로 강조된다.
-function RouteMap({ origin, stops, legPaths, legDistancesKm, legMinutes, legEstimated, highlightIndex }) {
+function RouteMap({ origin, stops, legPaths, legDistancesKm, legMinutes, legEstimated, highlightIndex, selectedIndex }) {
   const { loaded, error } = useKakaoLoader()
   const containerRef = useRef(null)
   const mapRef = useRef(null)
@@ -883,7 +905,7 @@ function RouteMap({ origin, stops, legPaths, legDistancesKm, legMinutes, legEsti
       const overlay = new kakao.maps.CustomOverlay({
         map,
         position: new kakao.maps.LatLng(stop.lat, stop.lng),
-        content: `<div class="pil-pin pil-pin-${stop.type}">${i + 1}</div>`,
+        content: `<div class="pil-pin pil-pin-${stop.type}" data-stop="${i}">${i + 1}</div>`,
         yAnchor: 0.5,
       })
       overlaysRef.current.push(overlay)
@@ -955,6 +977,20 @@ function RouteMap({ origin, stops, legPaths, legDistancesKm, legMinutes, legEsti
       }
     }
   }, [highlightIndex, origin, stops, legPaths, legDistancesKm, legMinutes, legEstimated])
+
+  // 리스트에서 고른 경유지: 해당 핀을 키우고 지도를 그 위치로 부드럽게 이동한다.
+  // (핀은 위 effect가 다시 그릴 때마다 새로 만들어지므로 같은 deps로 다시 표시한다.)
+  useEffect(() => {
+    const el = containerRef.current
+    const map = mapRef.current
+    if (!el || !map) return
+    el.querySelectorAll('.pil-pin.is-selected').forEach((n) => n.classList.remove('is-selected'))
+    if (selectedIndex == null) return
+    const stop = stops[selectedIndex]
+    if (!stop) return
+    el.querySelector(`.pil-pin[data-stop="${selectedIndex}"]`)?.classList.add('is-selected')
+    map.panTo(new window.kakao.maps.LatLng(stop.lat, stop.lng))
+  }, [selectedIndex, stops, legPaths])
 
   return (
     <div className="map-wrap">
