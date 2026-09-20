@@ -1,4 +1,4 @@
-import { appendCourseStops } from '../../lib/courseDraft'
+import { appendCourseStops, MAX_COURSE_STOPS } from '../../lib/courseDraft'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAppStore } from '../../store/useAppStore'
 import { useAuth } from '../../hooks/useAuth'
@@ -112,6 +112,9 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
   // 그 뒤로는 add/remove를 해도 이 순서를 존중한다(그리디로 되돌아가지 않는다).
   const [manualOrderIds, setManualOrderIds] = useState(() => draft?.orderIds ?? null)
   const [addOpen, setAddOpen] = useState(false)
+  const [panelCollapsed, setPanelCollapsed] = useState(false)
+  // 6곳 상한에 걸려 담지 못한 경우 안내(추가하기 버튼 아래에 표시).
+  const [limitNotice, setLimitNotice] = useState('')
   const [saveState, setSaveState] = useState('idle') // 'idle' | 'saving' | 'saved' | 'error'
   // useSavedCourses는 마운트 시점 한 번만 조회해서, 이 화면에서 방금 막 저장한 코스는 반영이
   // 안 돼 있다 — 그래서 이번에 저장 성공한 것들만 세션 안에서 따로 기억해둔다(중복판정용).
@@ -154,6 +157,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
       const next = appendCourseStops(customStops, manualOrderIds, validStops)
       setCustomStops(next.stops)
       setManualOrderIds(next.orderIds)
+      if (next.dropped > 0) setLimitNotice(`코스는 최대 ${MAX_COURSE_STOPS}곳까지라 ${next.dropped}곳은 담지 못했어요.`)
     } else {
       loadedFromSavedRef.current = true
       setCustomStops(validStops)
@@ -372,11 +376,17 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
   // 엉뚱한 구간이 지도에 강조 표시됐다 — 셋 다 하이라이트를 초기화한다.
   const removeStop = (id) => {
     setCustomStops((prev) => (prev || []).filter((s) => s.id !== id))
+    setLimitNotice('')
     setManualOrderIds((prev) => (prev ? prev.filter((i) => i !== id) : prev))
     setHighlightIndex(null)
     setHoveredRemoveId(null)
   }
   const addStop = (stop) => {
+    if ((customStops || []).length >= MAX_COURSE_STOPS) {
+      setAddOpen(false)
+      return
+    }
+    setLimitNotice('')
     setCustomStops((prev) => [...(prev || []), stop])
     setManualOrderIds((prev) => (prev ? [...prev, stop.id] : prev))
     // manualOrderIds와 똑같이 realOrderIds도 미러링한다 — 안 하면 실주행 재정렬이 활성인
@@ -565,13 +575,24 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
   const distanceFullyMeasured =
     preciseDistanceKm != null && (!legDistanceEstimated || legDistanceEstimated.every((e) => !e))
 
-  return (
-    <div className="pil-page">
-      <div className="pil-panel">
-        <div className="pil-title-row">
-          <span className="pil-title">대전한바퀴</span>
-        </div>
+  const courseFull = (customStops || []).length >= MAX_COURSE_STOPS
 
+  return (
+    <div className={'pil-page' + (panelCollapsed ? ' panel-collapsed' : '')}>
+      <header className="pil-header">
+        <h2 className="pil-title">대전한바퀴</h2>
+        <p className="pil-intro">내가 고른 빵집과 가볼 만한 곳을 한 번에 이어, 대전을 한 바퀴 도는 나만의 코스를 만들어 보세요.</p>
+        <button
+          type="button"
+          className="pil-panel-toggle"
+          aria-expanded={!panelCollapsed}
+          onClick={() => setPanelCollapsed((v) => !v)}
+        >
+          {panelCollapsed ? '코스 목록 펼치기 ▸' : '◂ 코스 목록 접기'}
+        </button>
+      </header>
+
+      <div className="pil-panel">
         {route ? (
           <div className="pil-summary">
             <div>
@@ -694,9 +715,15 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
           ))}
         </ol>
 
-        <button type="button" className="pil-add-btn" onClick={() => setAddOpen(true)}>
-          + 추가하기 (전체 지도에서 검색)
+        <button
+          type="button"
+          className="pil-add-btn"
+          onClick={() => setAddOpen(true)}
+          disabled={courseFull}
+        >
+          {courseFull ? `코스가 가득 찼어요 (최대 ${MAX_COURSE_STOPS}곳)` : '+ 추가하기 (전체 지도에서 검색)'}
         </button>
+        {limitNotice && <p className="pil-limit-notice" role="status">{limitNotice}</p>}
 
         <div className="pil-modes">
           {MODES.map((m) => (
@@ -750,6 +777,10 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
         />
       </div>
 
+      <p className="pil-footnote">
+        이 코스는 정보 제공용 참고 자료예요. 소요 시간·거리·택시요금은 예상치이며, 영업시간과 휴무일, 실제 교통 상황에 따라 달라질 수 있으니 방문 전에 꼭 확인해 주세요.
+      </p>
+
       {addOpen && (
         <AddStopModal
           bakeries={allBakeries}
@@ -790,6 +821,15 @@ function RouteMap({ origin, stops, legPaths, legDistancesKm, legMinutes, legEsti
   const overlaysRef = useRef([]) // 출발/경유지 번호 핀만 — 하이라이트 라벨은 별도 ref로 관리
   const polylinesRef = useRef([])
   const highlightOverlayRef = useRef(null)
+
+  // 코스 목록을 접거나 펼쳐 지도 영역 크기가 바뀌면 카카오맵이 타일을 다시 그리도록 알린다.
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(() => mapRef.current?.relayout())
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
 
   // 지도 생성 + 핀/기본 경로선 그리기. highlightIndex는 여기서 안 본다 — 예전엔 이 effect가
   // highlightIndex에도 반응해서, 리스트를 호버할 때마다 전체를 지웠다 다시 그리고
