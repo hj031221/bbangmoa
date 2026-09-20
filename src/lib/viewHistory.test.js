@@ -7,6 +7,15 @@ const base = () => ({
   stage: 'survey', tourStage: 'survey', tourSelectedId: null, tourHubFromReveal: false, directBreadId: null,
 })
 
+test('찜 목록 → 빵 지도 → 뒤로가기에서 직전 마이페이지 패널을 복원한다', () => {
+  const list = buildHistoryState(base(), { myPage: { panel: 'bakeries', friend: null } })
+  const map = buildHistoryState(list, { browseMap: { ...base().browseMap, selectedId: 'bakery-1' } })
+  assert.deepEqual(restoreHistoryState(structuredClone(list), map).myPage, { panel: 'bakeries', friend: null })
+  const friendList = buildHistoryState(base(), { myPage: { panel: 'friendBakeries', friend: { userId: 'friend-1', nickname: '친구' } } })
+  assert.deepEqual(restoreHistoryState(structuredClone(friendList), map).myPage, friendList.myPage)
+  assert.equal(restoreHistoryState(base(), friendList).myPage.panel, 'home')
+})
+
 test('buildHistoryState: 현재 상태에 patch만 덮어써서 병합한다', () => {
   const result = buildHistoryState(base(), { stage: 'reveal' })
   assert.deepEqual(result, { ...base(), stage: 'reveal' })

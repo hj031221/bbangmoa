@@ -34,6 +34,14 @@ export default async function handler(request, response) {
     if (!indexResponse.ok) throw new Error(`index.html 응답 ${indexResponse.status}`)
 
     let html = await indexResponse.text()
+    const title = '대전 빵 스탬프 투어'
+    const description = '대전 5개 구 빵집을 돌면서 스탬프를 채우고 친구와 공유하세요.'
+    html = html.replace(/<title>[^<]*<\/title>/i, `<title>${title}</title>`)
+    html = replaceMeta(html, 'description', description, 'name')
+    html = replaceMeta(html, 'og:title', title)
+    html = replaceMeta(html, 'og:description', description)
+    html = replaceMeta(html, 'twitter:title', title, 'name')
+    html = replaceMeta(html, 'twitter:description', description, 'name')
     html = replaceMeta(html, 'og:url', shareUrl)
     html = replaceMeta(html, 'og:image', ogImage)
     html = replaceMeta(html, 'og:image:secure_url', ogImage)

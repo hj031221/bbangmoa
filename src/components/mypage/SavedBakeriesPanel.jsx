@@ -1,5 +1,6 @@
 import { useSavedBakeries } from '../../hooks/useSavedBakeries'
 import { SaveHeartIcon } from './PreviewIcons'
+import { sortSavedBakeries } from '../../lib/savedBakerySort'
 import { getBreadById, getBreadByName } from '../../data/breadCandidates'
 
 // 마이페이지 찜한 빵 목록 패널. targetUserId 가 있으면(친구 상세 조회) 그 유저 데이터를 읽어오고,
@@ -17,11 +18,12 @@ export default function SavedBakeriesPanel({ onBack, targetUserId, readOnly = fa
         </button>
         <h3>찜한 빵 목록{saved.length > 0 && ` (${saved.length}곳)`}</h3>
       </div>
+      {saved.length > 0 && <p className="saved-sort-label">빵집 이름 가나다순</p>}
       {saved.length === 0 ? (
         <p className="saved-empty">아직 찜한 빵집이 없어요.</p>
       ) : (
         <div className="mypage-card-grid">
-          {saved.map((b) => {
+          {sortSavedBakeries(saved).map((b) => {
             const illustration =
               b.breadTypeIllustration || getBreadByName(b.breadType)?.illustration || fallbackIllustration
 
