@@ -34,9 +34,6 @@ export default async function handler(request, response) {
     if (!indexResponse.ok) throw new Error(`index.html 응답 ${indexResponse.status}`)
 
     let html = await indexResponse.text()
-    // 기본 메타는 사이트 전체 소개이므로, 스탬프 공유 링크는 스탬프 문구로 덮어쓴다.
-    html = replaceMeta(html, 'og:title', '대전 빵 스탬프 투어')
-    html = replaceMeta(html, 'og:description', '대전 5개 구 빵집을 돌면서 스탬프를 채우고 친구와 공유하세요.')
     html = replaceMeta(html, 'og:url', shareUrl)
     html = replaceMeta(html, 'og:image', ogImage)
     html = replaceMeta(html, 'og:image:secure_url', ogImage)
@@ -45,6 +42,7 @@ export default async function handler(request, response) {
     html = replaceMeta(html, 'og:image:height', '630')
     html = replaceMeta(html, 'og:image:alt', '대전 5개 구 빵집 방문 스탬프 카드')
     html = replaceMeta(html, 'twitter:image', ogImage, 'name')
+
     response.setHeader('Content-Type', 'text/html; charset=utf-8')
     response.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=3600')
     return response.status(200).send(html)
