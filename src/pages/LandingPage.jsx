@@ -238,7 +238,16 @@ export default function LandingPage() {
   }
   const openMyPage = () => {
     setMyPageResetKey((k) => k + 1)
-    navigateToView('mypage', { myPage: MYPAGE_STATE_DEFAULTS })
+    // 이미 마이페이지 홈이면 patch 없이 호출해 같은 항목을 또 push 하지 않는다(메뉴 재클릭).
+    // 다른 패널에 있을 때만 홈으로 되돌리는 전환을 히스토리에 남긴다.
+    const atMyPageHome = myPage.panel === 'home' && !myPage.friend
+    navigateToView('mypage', atMyPageHome ? null : { myPage: MYPAGE_STATE_DEFAULTS })
+  }
+  // 마이페이지 '‹' — goBackInApp 과 같이 히스토리를 한 칸 되돌린다. 패널 전환은 모두 push 되므로
+  // 직전 항목이 상위 패널이다. 되돌릴 항목이 없으면(주소창 직접 진입 등) fallback 패널로 전환한다.
+  const backInMyPage = (fallback) => {
+    if (window.history.state?.appDepth > 0) window.history.back()
+    else pushSubState({ myPage: fallback })
   }
   const openInfo = () => {
     navigateToView('info')
@@ -433,7 +442,7 @@ export default function LandingPage() {
 
       {view === 'mypage' && (
         <div className="page">
-          <MyPage key={myPageResetKey} pageState={myPage} onPageChange={(next) => pushSubState({ myPage: next })} onLoadCourse={loadCourseIntoPilgrimage} onViewBakeryOnMap={viewBakeryOnMap} />
+          <MyPage key={myPageResetKey} pageState={myPage} onPageChange={(next) => pushSubState({ myPage: next })} onBack={backInMyPage} onLoadCourse={loadCourseIntoPilgrimage} onViewBakeryOnMap={viewBakeryOnMap} />
         </div>
       )}
 
