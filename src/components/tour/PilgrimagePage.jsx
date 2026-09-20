@@ -1,4 +1,5 @@
 import { appendCourseStops, MAX_COURSE_STOPS } from '../../lib/courseDraft'
+import { kakaoPlaceLink } from '../../lib/kakaoPlaceLink'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAppStore } from '../../store/useAppStore'
 import { useAuth } from '../../hooks/useAuth'
@@ -660,35 +661,45 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
                   반응하게 해서(터치는 pointerEnter/Leave를 무시) 그 경합 자체를 없앴다 —
                   터치에서는 click(토글)만 동작하므로 같은 카드를 다시 탭하면 꺼진다(요청 반영:
                   드래그 후 하이라이트가 갇히는 문제의 연장선 — 재클릭으로도 빠져나올 수 있게). */}
-              <button
-                type="button"
-                className="pil-stop-info"
-                onPointerEnter={(e) => {
-                  if (e.pointerType === 'mouse') setHighlightIndex(index)
-                }}
-                onPointerLeave={(e) => {
-                  if (e.pointerType === 'mouse') setHighlightIndex(null)
-                }}
-                onClick={(e) => {
-                  setSelectedIndex((prev) => (prev === index ? null : index))
-                  // 마우스는 호버가 이미 담당하므로 클릭으로 토글하면 안 된다 — 호버 중인
-                  // 행(prev===index)을 클릭하면 마우스가 그대로 위에 있어도 꺼져버린다.
-                  // 터치/펜만 토글(호버 이벤트가 안 오므로 클릭이 유일한 신호).
-                  if (e.pointerType === 'mouse') {
-                    setHighlightIndex(index)
-                    return
-                  }
-                  setHighlightIndex((prev) => (prev === index ? null : index))
-                }}
-              >
-                <span className="pil-stop-name">{stop.name}</span>
-                <span className="pil-stop-type">{stop.type === 'attraction' ? '관광지' : '빵집'}</span>
-                {legDistancesKm && legMinutes && (
-                  <span className="pil-stop-leg">
-                    {index === 0 ? '출발지' : '이전 경유지'}에서 {formatDistance(legDistancesKm[index]) ?? '-'} · {legMinutes[index] ?? '-'}분
-                  </span>
-                )}
-              </button>
+              <div className="pil-stop-body">
+                <button
+                  type="button"
+                  className="pil-stop-info"
+                  onPointerEnter={(e) => {
+                    if (e.pointerType === 'mouse') setHighlightIndex(index)
+                  }}
+                  onPointerLeave={(e) => {
+                    if (e.pointerType === 'mouse') setHighlightIndex(null)
+                  }}
+                  onClick={(e) => {
+                    setSelectedIndex((prev) => (prev === index ? null : index))
+                    // 마우스는 호버가 이미 담당하므로 클릭으로 토글하면 안 된다 — 호버 중인
+                    // 행(prev===index)을 클릭하면 마우스가 그대로 위에 있어도 꺼져버린다.
+                    // 터치/펜만 토글(호버 이벤트가 안 오므로 클릭이 유일한 신호).
+                    if (e.pointerType === 'mouse') {
+                      setHighlightIndex(index)
+                      return
+                    }
+                    setHighlightIndex((prev) => (prev === index ? null : index))
+                  }}
+                >
+                  <span className="pil-stop-name">{stop.name}</span>
+                  <span className="pil-stop-type">{stop.type === 'attraction' ? '관광지' : '빵집'}</span>
+                  {legDistancesKm && legMinutes && (
+                    <span className="pil-stop-leg">
+                      {index === 0 ? '출발지' : '이전 경유지'}에서 {formatDistance(legDistancesKm[index]) ?? '-'} · {legMinutes[index] ?? '-'}분
+                    </span>
+                  )}
+                </button>
+                <a
+                  className="pil-stop-review"
+                  href={kakaoPlaceLink(stop)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  카카오맵에서 후기·사진 보기 ↗
+                </a>
+              </div>
               {travelMode === 'transit' && (
                 <a
                   className="pil-stop-transit-link"
