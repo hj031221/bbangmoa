@@ -365,7 +365,8 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
   // 탭이 항상 무효였다(리뷰 발견) — 그냥 "이 index로 고정"만 하도록 단순화해서 탭도 동작하게 함.
   const [highlightIndex, setHighlightIndex] = useState(null)
   // 리스트에서 클릭한 경유지 — 지도가 그 핀으로 이동하고 핀이 커진다.
-  const [selectedIndex, setSelectedIndex] = useState(null)
+  // 순서가 바뀌어도(이동수단 변경·실주행 재정렬) 같은 정류장이 선택된 채로 남도록 id 로 든다.
+  const [selectedStopId, setSelectedStopId] = useState(null)
 
   // 이슈 #60 — .pil-stop-remove(✕)가 순수 CSS :hover였는데, 삭제로 목록이 재배치될 때
   // 커서 아래로 다음 줄이 밀려 들어오면 브라우저가 그 자리 :hover를 못 떼고 남겨서 엉뚱한
@@ -381,7 +382,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
     setLimitNotice('')
     setManualOrderIds((prev) => (prev ? prev.filter((i) => i !== id) : prev))
     setHighlightIndex(null)
-    setSelectedIndex(null)
+    setSelectedStopId(null)
     setHoveredRemoveId(null)
   }
   const addStop = (stop) => {
@@ -398,7 +399,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
     setRealOrderIds((prev) => (prev ? [...prev, stop.id] : prev))
     setAddOpen(false)
     setHighlightIndex(null)
-    setSelectedIndex(null)
+    setSelectedStopId(null)
   }
 
   // 햄버거 핸들을 눌러 드래그 → 리스트 순서를 손으로 바꾼다. 이후엔 그리디 재정렬 대신
@@ -437,7 +438,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
     // 자리에 도로 놓으면(from===to) 여기서 그냥 return해버려 하이라이트가 리셋 안 되고
     // .leg-highlight 스타일에 갇혔다. dragOverIndex처럼 조건 밖으로 빼서 무조건 실행한다.
     setHighlightIndex(null)
-    setSelectedIndex(null)
+    setSelectedStopId(null)
     if (from == null || to == null || from === to || !route) return
     const ids = route.stops.map((s) => s.id)
     const [moved] = ids.splice(from, 1)
@@ -607,6 +608,8 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
           </div>
   ) : null
 
+  const selectedIndex = selectedStopId == null ? -1 : (route?.stops || []).findIndex((s) => s.id === selectedStopId)
+
   const courseFull = (customStops || []).length >= MAX_COURSE_STOPS
 
   return (
@@ -636,7 +639,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
             <li
               key={stop.id}
               data-index={index}
-              className={`pil-stop ${stop.type}${dragOverIndex === index ? ' drag-over' : ''}${highlightIndex === index ? ' leg-highlight' : ''}${selectedIndex === index ? ' is-selected' : ''}`}
+              className={`pil-stop ${stop.type}${dragOverIndex === index ? ' drag-over' : ''}${highlightIndex === index ? ' leg-highlight' : ''}${selectedStopId === stop.id ? ' is-selected' : ''}`}
             >
               <span
                 className="pil-stop-handle"
@@ -672,7 +675,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
                     if (e.pointerType === 'mouse') setHighlightIndex(null)
                   }}
                   onClick={(e) => {
-                    setSelectedIndex((prev) => (prev === index ? null : index))
+                    setSelectedStopId((prev) => (prev === stop.id ? null : stop.id))
                     // 마우스는 호버가 이미 담당하므로 클릭으로 토글하면 안 된다 — 호버 중인
                     // 행(prev===index)을 클릭하면 마우스가 그대로 위에 있어도 꺼져버린다.
                     // 터치/펜만 토글(호버 이벤트가 안 오므로 클릭이 유일한 신호).
@@ -777,7 +780,7 @@ export default function PilgrimagePage({ onStartBreadSurvey, onStartTourSurvey }
           legMinutes={legMinutes}
           legEstimated={legEstimated}
           highlightIndex={highlightIndex}
-          selectedIndex={selectedIndex}
+          selectedIndex={selectedIndex >= 0 ? selectedIndex : null}
         />
         <div className="pil-map-top">
           {summaryEl && <div className="pil-map-summary">{summaryEl}</div>}
@@ -851,7 +854,14 @@ function RouteMap({ origin, stops, legPaths, legDistancesKm, legMinutes, legEsti
   useEffect(() => {
     const el = containerRef.current
     if (!el || typeof ResizeObserver === 'undefined') return
-    const observer = new ResizeObserver(() => mapRef.current?.relayout())
+    const observer = new ResizeObserver(() => {
+      const map = mapRef.current
+      if (!map) return
+      // relayout()은 중심점을 유지하지 않는다 — 직전 중심을 잡아두고 다시 지정한다.
+      const center = map.getCenter()
+      map.relayout()
+      map.setCenter(center)
+    })
     observer.observe(el)
     return () => observer.disconnect()
   }, [])
@@ -1000,8 +1010,18 @@ function RouteMap({ origin, stops, legPaths, legDistancesKm, legMinutes, legEsti
     const stop = stops[selectedIndex]
     if (!stop) return
     el.querySelector(`.pil-pin[data-stop="${selectedIndex}"]`)?.classList.add('is-selected')
-    map.panTo(new window.kakao.maps.LatLng(stop.lat, stop.lng))
   }, [selectedIndex, stops, legPaths])
+
+  // 지도 이동은 선택한 정류장이 바뀔 때만 — 경로(legPaths)가 뒤늦게 도착할 때마다 다시 끌려가지 않게 분리.
+  const selectedStopKey = selectedIndex == null ? null : (stops[selectedIndex]?.id ?? null)
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || selectedStopKey == null) return
+    const stop = stops.find((x) => x.id === selectedStopKey)
+    if (stop) map.panTo(new window.kakao.maps.LatLng(stop.lat, stop.lng))
+    // stops 는 일부러 deps 에서 뺀다(선택이 바뀔 때만 이동).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedStopKey])
 
   return (
     <div className="map-wrap">

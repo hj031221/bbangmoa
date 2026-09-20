@@ -1535,9 +1535,9 @@ a{ color:var(--accent-text); }
 .pil-panel-head{display:flex;align-items:baseline;justify-content:space-between;}
 .pil-panel-title{font-family:'HakgyoansimDunggeunmisoTTF-B',sans-serif;color:var(--brown);font-size:1.1rem;}
 .pil-panel-count{color:var(--muted);font-size:.78rem;font-weight:700;}
-/* 패널 남는 높이를 정류장 행이 나눠 갖는다(행마다 상한을 둬 정류장이 적을 땐 과하게 늘어지지 않게). */
-.pil-stops{gap:0;flex:1 0 auto;}
-.pil-stop{flex:1 0 auto;max-height:118px;}
+/* 행은 최소 높이만 보장하고 내용이 늘면 같이 커진다(고정 상한이 있으면 이름·링크 줄바꿈 시 다음 행과 겹친다). */
+.pil-stops{gap:0;flex:0 0 auto;}
+.pil-stop{flex:0 0 auto;min-height:86px;}
 .pil-stop{border:0;border-radius:12px;background:none;align-items:flex-start;padding:8px 6px 8px 0;position:relative;}
 .pil-stop:not(:last-child)::before{content:'';position:absolute;left:41px;top:32px;bottom:-8px;width:2px;background:repeating-linear-gradient(to bottom,var(--line) 0 4px,transparent 4px 8px);}
 .pil-stop.leg-highlight,.pil-stop.is-selected{background:var(--card2);}
