@@ -7,10 +7,11 @@ import { useDiaryEntries } from '../../hooks/useDiaryEntries'
 import DiaryEntryModal from '../mypage/DiaryEntryModal'
 import { SaveHeartIcon, PaperIcon } from '../mypage/PreviewIcons'
 import { formatDistance } from '../../lib/distance'
+import VisitRadiusStatus from './VisitRadiusStatus'
 
 // 선택된 빵집 상세 카드.
 // 관광공사 출처(contentId 보유)면 detailCommon2 로 설명/대표이미지를 보강한다.
-export default function RecommendCard({ bakery, compact = false, onAddToCourse, visitInfo = null }) {
+export default function RecommendCard({ bakery, compact = false, onAddToCourse, visitInfo = null, myLocation = null }) {
   const [detail, setDetail] = useState(null)
   const { toggleSave, isSaved } = useSavedBakeries()
   const { user } = useAuth()
@@ -94,6 +95,7 @@ export default function RecommendCard({ bakery, compact = false, onAddToCourse, 
         <p className="rec-dist">🚶 {bakery.distInfo.from}에서 {formatDistance(bakery.distInfo.km)}</p>
       )}
       {bakery.phone && <p className="rec-tel">📞 {bakery.phone}</p>}
+      {myLocation && <VisitRadiusStatus bakery={bakery} myLocation={myLocation} />}
       {overview && (
         <div className={'rec-desc-wrap' + (descExpanded ? ' expanded' : '')}>
           {/* 데스크탑은 원문 그대로 보여주고, 모바일 3줄 clamp는 CSS(.rec-desc-wrap)가 담당한다.
@@ -146,6 +148,7 @@ export default function RecommendCard({ bakery, compact = false, onAddToCourse, 
       {diaryOpen && (
         <DiaryEntryModal
           bakery={bakery}
+          myLocation={myLocation}
           onClose={() => setDiaryOpen(false)}
           onSubmit={(text, location) => addEntry(bakery, text, location)}
         />
