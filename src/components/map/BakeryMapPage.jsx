@@ -128,18 +128,16 @@ export default function BakeryMapPage({
   const selected = resolveMapSelection(filtered, selectedId)
   const effectiveSelectedId = selectedId && selected ? selected.id : null
 
-  // 방문 인증 범위 확인용 내 위치 — 지도 진입만으로는 권한을 묻지 않고, "내 위치" 버튼을 누르거나
-  // 빵집을 처음 선택할 때 켠다. 한 번 켜지면 이 화면에 있는 동안 유지한다.
+  // 방문 인증 범위 확인용 내 위치 — 지도 진입만으로는 권한을 묻지 않는다. 빵집이 선택돼 있는
+  // 동안 따라가고, "내 위치" 버튼을 한 번 누르면 이 화면에 있는 동안 계속 켠다(GPS 배터리 소모 때문에
+  // 선택을 풀면 자동으로 끈다).
   const [locateOn, setLocateOn] = useState(false)
   const [locateRetry, setLocateRetry] = useState(0)
-  const hasSelection = !!selected
-  useEffect(() => {
-    if (hasSelection) setLocateOn(true)
-  }, [hasSelection])
-  const myLocation = useWatchLocation(locateOn, locateRetry)
+  const myLocation = useWatchLocation(locateOn || !!selected, locateRetry)
   const requestLocate = () => {
     setLocateOn(true)
-    if (myLocation.status === 'denied' || myLocation.status === 'unavailable') setLocateRetry((n) => n + 1)
+    // 실패 상태에서 다시 누르면 재요청한다 — 상태 객체가 새로 바뀌어야 MapView가 결과를 판정할 수 있다.
+    if (!['idle', 'loading', 'ready'].includes(myLocation.status)) setLocateRetry((n) => n + 1)
   }
 
   const nearbyLockers = useMemo(() => selected ? nearestLockers(selected) : [], [selected])
@@ -193,6 +191,7 @@ export default function BakeryMapPage({
             nearbyMode={nearbyMode}
             rankById={rankById}
             lockers={nearbyLockers}
+            selectedBakery={selected}
             myLocation={myLocation}
             onLocate={requestLocate}
           />

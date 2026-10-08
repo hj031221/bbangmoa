@@ -22,7 +22,8 @@ export default function VisitRadiusStatus({ bakery, myLocation }) {
   }
 
   return (
-    <p className={`visit-radius-status visit-radius-${tone}`} role="status" aria-live="polite">
+    // live region으로 두면 watchPosition 갱신마다 스크린리더가 거리를 다시 읽어 입력을 방해한다.
+    <p className={`visit-radius-status visit-radius-${tone}`}>
       {result?.inside ? '✓ ' : '📍 '}
       {text}
     </p>

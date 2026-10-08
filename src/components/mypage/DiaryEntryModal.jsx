@@ -16,7 +16,11 @@ export default function DiaryEntryModal({ bakery, myLocation = null, onClose, on
     if (!trimmed) return
     setSaving(true)
     setError(false)
-    const location = await captureVisitLocation()
+    // 지도에서 이미 따라가고 있는 좌표가 있으면 그걸 쓴다 — 위에 보여준 "범위 안/밖" 안내와 실제
+    // 저장 좌표가 같아지고, 실내에서 새 측위를 최대 8초 기다리다 null로 끝나는 일도 없다.
+    const location = myLocation?.coords
+      ? { lat: myLocation.coords.lat, lng: myLocation.coords.lng }
+      : await captureVisitLocation()
     const result = await onSubmit(trimmed, location)
     setSaving(false)
     if (result?.error) {

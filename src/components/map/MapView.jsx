@@ -129,6 +129,7 @@ export default function MapView({
   nearbyMode = false,
   rankById = null,
   lockers = [],
+  selectedBakery = null,
   myLocation = null,
   onLocate = null,
 }) {
@@ -167,7 +168,6 @@ export default function MapView({
   // 이 객체에서 바뀐 뒤에만 실패로 판단한다.
   const locateFromRef = useRef(null)
   const myCoords = myLocation?.coords ?? null
-  const selectedBakery = selectedId ? bakeries.find((b) => b.id === selectedId) : null
 
   // 지도 생성 + 대전 외곽 딤 + 시점 고정 (1회)
   useEffect(() => {
@@ -331,6 +331,14 @@ export default function MapView({
       .filter((c) => typeof c === 'function')
     return () => cleanups.forEach((c) => c())
   }, [map])
+
+  // 첫 측위를 기다리는 동안 사용자가 지도를 직접 옮기면 늦게 도착한 좌표로 끌고 가지 않는다.
+  useEffect(() => {
+    if (!map || !locatePending) return
+    const cancel = () => setLocatePending(false)
+    window.kakao.maps.event.addListener(map, 'dragstart', cancel)
+    return () => window.kakao.maps.event.removeListener(map, 'dragstart', cancel)
+  }, [map, locatePending])
 
   useEffect(() => {
     if (!map || !locatePending) return
