@@ -3,6 +3,7 @@ import { useAttractions } from '../../hooks/useAttractions'
 import { useBakeries } from '../../hooks/useBakeries'
 import { useSavedBakeries } from '../../hooks/useSavedBakeries'
 import { useDebouncedValue } from '../../hooks/useDebouncedValue'
+import { useWatchLocation } from '../../hooks/useWatchLocation'
 import { getRegion } from '../../config/regions'
 import { haversineKm, formatDistance } from '../../lib/distance'
 import MapView from './MapView'
@@ -127,6 +128,18 @@ export default function BakeryMapPage({
   const selected = resolveMapSelection(filtered, selectedId)
   const effectiveSelectedId = selectedId && selected ? selected.id : null
 
+  // 방문 인증 범위 확인용 내 위치 — 지도 진입만으로는 권한을 묻지 않는다. 빵집이 선택돼 있는
+  // 동안 따라가고, "내 위치" 버튼을 한 번 누르면 이 화면에 있는 동안 계속 켠다(GPS 배터리 소모 때문에
+  // 선택을 풀면 자동으로 끈다).
+  const [locateOn, setLocateOn] = useState(false)
+  const [locateRetry, setLocateRetry] = useState(0)
+  const myLocation = useWatchLocation(locateOn || !!selected, locateRetry)
+  const requestLocate = () => {
+    setLocateOn(true)
+    // 실패 상태에서 다시 누르면 재요청한다 — 상태 객체가 새로 바뀌어야 MapView가 결과를 판정할 수 있다.
+    if (!['idle', 'loading', 'ready'].includes(myLocation.status)) setLocateRetry((n) => n + 1)
+  }
+
   const nearbyLockers = useMemo(() => selected ? nearestLockers(selected) : [], [selected])
 
   const visitInfo = useMemo(() => {
@@ -149,7 +162,7 @@ export default function BakeryMapPage({
     if (isMobile && selectedId) mobilePanelRef.current?.scrollTo({ top: 0 })
   }, [isMobile, selectedId])
 
-  const detailPanel = (selected && <aside className={isMobile ? 'bm-mobile-detail' : 'bm-floating-detail'}><div className="bm-bakery-detail-panel"><RecommendCard key={selected.id} bakery={selected} compact onAddToCourse={onAddToCourse} visitInfo={visitInfo} /></div>
+  const detailPanel = (selected && <aside className={isMobile ? 'bm-mobile-detail' : 'bm-floating-detail'}><div className="bm-bakery-detail-panel"><RecommendCard key={selected.id} bakery={selected} compact onAddToCourse={onAddToCourse} visitInfo={visitInfo} myLocation={myLocation} /></div>
             {nearbyLockers.length > 0 && <details className="bm-locker-details" key={selected.id}>
               <summary>주변 짐 보관소 <span>{nearbyLockers.length}곳</span></summary>
               <LuggageStorageSection lockers={nearbyLockers} label={selected.name} />
@@ -178,6 +191,9 @@ export default function BakeryMapPage({
             nearbyMode={nearbyMode}
             rankById={rankById}
             lockers={nearbyLockers}
+            selectedBakery={selected}
+            myLocation={myLocation}
+            onLocate={requestLocate}
           />
       <header className="result-header">
         {/* 앱 내부 이력이 없으면 홈으로 돌아간다. */}

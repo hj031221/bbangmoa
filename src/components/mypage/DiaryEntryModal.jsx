@@ -1,9 +1,11 @@
 import { useState } from 'react'
-import { captureVisitLocation } from '../../lib/visitLocation'
+import { resolveVisitLocation } from '../../lib/visitLocation'
+import { VISIT_RADIUS_M } from '../../lib/visitRadius'
 import Modal from '../common/Modal'
+import VisitRadiusStatus from '../map/VisitRadiusStatus'
 
 // 빵집 상세 카드(RecommendCard)에서 "기록 남기기" 클릭 시 뜨는 텍스트 작성 모달.
-export default function DiaryEntryModal({ bakery, onClose, onSubmit }) {
+export default function DiaryEntryModal({ bakery, myLocation = null, onClose, onSubmit }) {
   const [text, setText] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(false)
@@ -14,7 +16,8 @@ export default function DiaryEntryModal({ bakery, onClose, onSubmit }) {
     if (!trimmed) return
     setSaving(true)
     setError(false)
-    const location = await captureVisitLocation()
+    // 최근 측위만 재사용하고, 오래된 좌표는 새로 확인한다. 실패하면 미인증으로 저장한다.
+    const location = await resolveVisitLocation(myLocation?.coords)
     const result = await onSubmit(trimmed, location)
     setSaving(false)
     if (result?.error) {
@@ -36,8 +39,9 @@ export default function DiaryEntryModal({ bakery, onClose, onSubmit }) {
     >
       <form className="diary-modal-form" onSubmit={submit}>
         <p className="diary-modal-location-note">
-          현재 위치가 확인되면 인증 방문으로 기록돼요. 위치를 확인하지 못해도 기록은 저장할 수 있어요.
+          빵집 반경 {VISIT_RADIUS_M}m 안에서 기록하면 인증 방문으로 저장돼요. 위치를 확인하지 못해도 기록은 저장할 수 있어요.
         </p>
+        {myLocation && <VisitRadiusStatus bakery={bakery} myLocation={myLocation} />}
         <textarea
           className="diary-modal-textarea"
           value={text}

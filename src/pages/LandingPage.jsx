@@ -9,6 +9,7 @@ import { useInviteLink } from '../hooks/useInviteLink'
 import InviteFriendModal from '../components/mypage/InviteFriendModal'
 import { getAppPath, getAppView } from '../lib/appRoute'
 import { buildHistoryState, restoreHistoryState, MAP_STATE_DEFAULTS, MYPAGE_STATE_DEFAULTS } from '../lib/viewHistory'
+import { expireSurveyHistory } from '../lib/surveySession'
 
 // 홈 이외의 화면은 view 별로 분리 로드한다. 첫 진입에서 마이페이지·대전한바퀴·카카오맵 코드까지
 // 한 번에 내려받지 않도록 — 홈에 필요한 NavBar/MainHero 만 정적 import 로 남긴다.
@@ -51,6 +52,7 @@ export default function LandingPage() {
   const [browseMap, setBrowseMap] = useState(MAP_STATE_DEFAULTS)
   const [resultMap, setResultMap] = useState(MAP_STATE_DEFAULTS)
   const answers = useAppStore((s) => s.answers)
+  const visitStartedAt = useRef(Date.now())
   const origin = useAppStore((s) => s.origin)
   const directBreadId = useAppStore((s) => s.directBreadId)
   const setDirectBread = useAppStore((s) => s.setDirectBread)
@@ -94,7 +96,7 @@ export default function LandingPage() {
   const captureState = (patch) => {
     const store = useAppStore.getState()
     return buildHistoryState(historyStateRef.current, {
-      surveySnapshot: { answers: store.answers, tourAnswers: store.tourAnswers, origin: store.origin },
+      surveySnapshot: { answers: store.answers, tourAnswers: store.tourAnswers, origin: store.origin, surveyStartedAt: store.surveyStartedAt },
       ...patch,
     })
   }
@@ -117,14 +119,14 @@ export default function LandingPage() {
       const nextView = getAppView(window.location.pathname)
       setView(nextView)
       const current = historyStateRef.current
-      const restored = restoreHistoryState(event.state, current)
+      const restored = restoreHistoryState(expireSurveyHistory(event.state, Date.now(), visitStartedAt.current), current)
       applySubState(restored)
       // 홈으로 돌아갈 때 완료한 설문을 지우지 않는다. 해당 플로우만 복원한다.
       if (restored.surveySnapshot && nextView === 'bread') {
-        useAppStore.setState({ answers: restored.surveySnapshot.answers, origin: restored.surveySnapshot.origin })
+        useAppStore.setState({ answers: restored.surveySnapshot.answers, origin: restored.surveySnapshot.origin, surveyStartedAt: restored.surveySnapshot.surveyStartedAt })
       }
       if (restored.surveySnapshot && nextView === 'tour') {
-        useAppStore.setState({ tourAnswers: restored.surveySnapshot.tourAnswers })
+        useAppStore.setState({ tourAnswers: restored.surveySnapshot.tourAnswers, surveyStartedAt: restored.surveySnapshot.surveyStartedAt })
       }
       setStage(restored.stage)
       setTourStage(restored.tourStage)

@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { DEFAULT_REGION, getRegion } from '../config/regions'
 import { sanitizeOriginForSave } from '../lib/originPrivacy'
+import { restoreSurveySession } from '../lib/surveySession'
 
 // 앱 전역 상태 (가볍게 유지)
 //  - answers: 빵모아 설문 응답 { [questionId]: optionId }
@@ -22,13 +23,13 @@ import { sanitizeOriginForSave } from '../lib/originPrivacy'
 //    빵 id. answers(설문 응답)와 상호배타 — 칩으로 진입하면 설문 응답을 비우고 이 값을 세팅한다.
 //    세션 성격이라 아래 persist 대상에서는 제외한다(새로고침하면 설문 홈으로 돌아간다).
 //
-// answers/tourAnswers/origin/district는 localStorage에 영속화한다(이슈 #70 2번) — GNB를
-// 한 번 거치거나 새로고침해도 "완료된 설문" 상태가 유지돼야 대전한바퀴 코스가 안 사라진다.
+// 마지막 설문 조작 후 24시간 동안만 다음 방문에 복원한다. 사용 중에는 만료시키지 않는다.
 // pendingCourseLoad(1회성 전달값)·selectedBakeryId(화면별 임시 선택)는 세션 성격이라 제외한다.
 export const useAppStore = create(
   persist(
     (set) => ({
       regionId: DEFAULT_REGION,
+      surveyStartedAt: null,
       origin: null,
       district: null,
       answers: {},
@@ -42,21 +43,21 @@ export const useAppStore = create(
       setCourseDraft: (courseDraft) => set({ courseDraft }),
 
       setAnswer: (questionId, optionId) =>
-        set((s) => ({ answers: { ...s.answers, [questionId]: optionId } })),
+        set((s) => ({ answers: { ...s.answers, [questionId]: optionId }, surveyStartedAt: Date.now() })),
 
       setTourAnswer: (questionId, optionId) =>
-        set((s) => ({ tourAnswers: { ...s.tourAnswers, [questionId]: optionId } })),
+        set((s) => ({ tourAnswers: { ...s.tourAnswers, [questionId]: optionId }, surveyStartedAt: Date.now() })),
 
-      setOrigin: (origin) => set({ origin }),
+      setOrigin: (origin) => set({ origin, surveyStartedAt: Date.now() }),
 
       setDistrict: (district) => set({ district }),
 
       resetAnswers: () =>
-        set({ courseDraft: null, answers: {}, origin: null, district: null, selectedBakeryId: null, directBreadId: null }),
+        set({ courseDraft: null, answers: {}, origin: null, district: null, selectedBakeryId: null, directBreadId: null, surveyStartedAt: Date.now() }),
 
       // 빵 종류 바로가기 진입: 설문 응답을 비우고 고른 빵을 세팅한다(둘은 상호배타).
       setDirectBread: (breadId) =>
-        set({ courseDraft: null, directBreadId: breadId, answers: {}, origin: null, district: null, selectedBakeryId: null }),
+        set({ courseDraft: null, directBreadId: breadId, answers: {}, origin: null, district: null, selectedBakeryId: null, surveyStartedAt: Date.now() }),
 
       // 바로가기 상태만 해제(설문 응답은 건드리지 않음) — 홈 CTA로 설문에 다시 들어갈 때 등.
       clearDirectBread: () => set({ directBreadId: null }),
@@ -66,7 +67,7 @@ export const useAppStore = create(
       // 상태만 되돌리는 거라 진행 중이던 설문 답변까지 지우면 안 된다. directBreadId 만 되돌린다.
       restoreDirectBread: (breadId) => set({ directBreadId: breadId }),
 
-      resetTourAnswers: () => set({ tourAnswers: {}, courseDraft: null }),
+      resetTourAnswers: () => set({ tourAnswers: {}, courseDraft: null, surveyStartedAt: Date.now() }),
 
       selectBakery: (id) => set({ selectedBakeryId: id }),
 
@@ -74,7 +75,9 @@ export const useAppStore = create(
     }),
     {
       name: 'bbangmoa-app-store',
+      merge: (saved, current) => ({ ...current, ...restoreSurveySession(saved) }),
       partialize: (s) => ({
+        surveyStartedAt: s.surveyStartedAt,
         answers: s.answers,
         tourAnswers: s.tourAnswers,
         origin: sanitizeOriginForSave(s.origin, getRegion(s.regionId)),

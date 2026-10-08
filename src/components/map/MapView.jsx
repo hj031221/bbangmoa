@@ -7,6 +7,7 @@ import { DISTRICT_RINGS } from '../../data/daejeonDistricts'
 import MarkerLayer from './MarkerLayer'
 import AttractionMarkers from './AttractionMarkers'
 import LuggageMarkers from './LuggageMarkers'
+import VisitRadiusLayer from './VisitRadiusLayer'
 import { getEnabledFeatures, createClusterer } from './features'
 
 // DISTRICT_RINGS(구별 14~23점, southkorea-maps kostat/2013 단순화)와 DAEJEON_RING(353점, 별도
@@ -128,6 +129,9 @@ export default function MapView({
   nearbyMode = false,
   rankById = null,
   lockers = [],
+  selectedBakery = null,
+  myLocation = null,
+  onLocate = null,
 }) {
   const { loaded, error } = useKakaoLoader()
   const regionId = useAppStore((s) => s.regionId)
@@ -157,6 +161,13 @@ export default function MapView({
   bakeriesRef.current = bakeries
   const attractionsRef = useRef(attractions)
   attractionsRef.current = attractions
+  // "내 위치" 버튼을 눌렀는데 좌표가 아직 없으면(권한 팝업/첫 측위 대기) 도착하는 순간 한 번만 이동.
+  const [locatePending, setLocatePending] = useState(false)
+  const [locateFailed, setLocateFailed] = useState(false)
+  // 클릭 시점의 위치 상태. 거부된 뒤 다시 누르면 재요청 결과가 오기 전엔 상태가 여전히 'denied'라,
+  // 이 객체에서 바뀐 뒤에만 실패로 판단한다.
+  const locateFromRef = useRef(null)
+  const myCoords = myLocation?.coords ?? null
 
   // 지도 생성 + 대전 외곽 딤 + 시점 고정 (1회)
   useEffect(() => {
@@ -321,6 +332,25 @@ export default function MapView({
     return () => cleanups.forEach((c) => c())
   }, [map])
 
+  // 첫 측위를 기다리는 동안 사용자가 지도를 직접 옮기면 늦게 도착한 좌표로 끌고 가지 않는다.
+  useEffect(() => {
+    if (!map || !locatePending) return
+    const cancel = () => setLocatePending(false)
+    window.kakao.maps.event.addListener(map, 'dragstart', cancel)
+    return () => window.kakao.maps.event.removeListener(map, 'dragstart', cancel)
+  }, [map, locatePending])
+
+  useEffect(() => {
+    if (!map || !locatePending) return
+    if (myCoords) {
+      map.panTo(new window.kakao.maps.LatLng(myCoords.lat, myCoords.lng))
+      setLocatePending(false)
+    } else if (myLocation && myLocation !== locateFromRef.current && !['idle', 'loading'].includes(myLocation.status)) {
+      setLocatePending(false)
+      setLocateFailed(true)
+    }
+  }, [map, locatePending, myCoords, myLocation])
+
   useEffect(() => {
     if (!map || !containerRef.current) return
     const observer = new ResizeObserver(() => {
@@ -341,11 +371,36 @@ export default function MapView({
         </div>
       )}
       <div ref={containerRef} className="map-canvas" />
-      {map && <div className="bm-map-zoom"><button type="button" aria-label="지도 확대" onClick={() => map.setLevel(map.getLevel() - 1)}>+</button><button type="button" aria-label="지도 축소" onClick={() => map.setLevel(map.getLevel() + 1)}>−</button></div>}
+      {map && <div className="bm-map-zoom"><button type="button" aria-label="지도 확대" onClick={() => map.setLevel(map.getLevel() - 1)}>+</button><button type="button" aria-label="지도 축소" onClick={() => map.setLevel(map.getLevel() + 1)}>−</button>
+        {onLocate && (
+          <button
+            type="button"
+            className={'bm-locate-btn' + (myCoords ? ' is-active' : '')}
+            aria-label="내 위치로 이동"
+            title={myLocation?.status === 'denied' ? '위치 권한이 꺼져 있어요' : '내 위치'}
+            onClick={() => {
+              locateFromRef.current = myLocation
+              onLocate()
+              setLocateFailed(false)
+              setLocatePending(true)
+            }}
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /></svg>
+          </button>
+        )}
+      </div>}
+      {map && locateFailed && !myCoords && (
+        <p className="bm-locate-msg" role="status">
+          {myLocation?.status === 'denied'
+            ? '위치 권한이 꺼져 있어요. 브라우저 설정에서 허용하면 내 위치를 볼 수 있어요.'
+            : '현재 위치를 확인하지 못했어요.'}
+        </p>
+      )}
       {map && (
         <>
           <AttractionMarkers map={map} attractions={attractions} />
           <LuggageMarkers map={map} lockers={lockers} />
+          <VisitRadiusLayer map={map} bakery={selectedBakery} myCoords={myCoords} />
           <MarkerLayer
             map={map}
             bakeries={bakeries}
