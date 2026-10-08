@@ -8,7 +8,7 @@ const TABS = [
 ]
 
 // 전체 지도(설문 후보 풀 밖 포함)에서 빵집/관광지를 검색해 코스에 추가하는 모달.
-// §07 확정사항: 개수 상한 없음, 후보 풀 밖도 허용.
+// 후보 풀 밖도 허용. 코스 상한(MAX_COURSE_STOPS=6)은 PilgrimagePage 에서 추가하기 버튼을 막는 것으로 강제한다.
 export default function AddStopModal({
   bakeries,
   attractions,

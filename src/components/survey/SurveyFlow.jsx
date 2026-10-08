@@ -1,3 +1,4 @@
+import { useLayoutEffect } from 'react'
 import { Q1, BRANCHES } from '../../data/surveyConfig'
 import { resolveBranch } from '../../lib/breadRecommend'
 import { useAppStore } from '../../store/useAppStore'
@@ -21,6 +22,10 @@ export default function SurveyFlow({ onComplete, onSkip, onPickBreadType, step, 
   const isLocationStep = step === 0
   const question = isLocationStep ? null : step === 1 ? Q1 : BRANCHES[branch]?.questions[step - 2]
   const isLast = step === TOTAL_STEPS - 1
+
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
+  }, [step])
 
   const advance = () => {
     if (isLast) onComplete()

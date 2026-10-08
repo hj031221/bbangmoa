@@ -1,25 +1,35 @@
-import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Fragment, Suspense, lazy, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { isSurveyComplete } from '../lib/breadRecommend'
-import SurveyFlow from '../components/survey/SurveyFlow'
-import BreadReveal from '../components/result/BreadReveal'
-import MapResult from '../components/map/MapResult'
-import MyPage from './MyPage'
-import InfoPage from './InfoPage'
 import NavBar from '../components/landing/NavBar'
 import MainHero from '../components/landing/MainHero'
-import BakeryMapPage from '../components/map/BakeryMapPage'
-import TourPage from '../components/tour/TourPage'
-import TourSurveyFlow from '../components/tour/TourSurveyFlow'
-import TourReveal from '../components/tour/TourReveal'
-import PilgrimagePage from '../components/tour/PilgrimagePage'
 import { resolveDistrict, isTourSurveyComplete } from '../lib/tourRecommend'
 import { useFriends } from '../hooks/useFriends'
 import { useInviteLink } from '../hooks/useInviteLink'
 import InviteFriendModal from '../components/mypage/InviteFriendModal'
 import { getAppPath, getAppView } from '../lib/appRoute'
-import { buildHistoryState, restoreHistoryState, MAP_STATE_DEFAULTS } from '../lib/viewHistory'
+import { buildHistoryState, restoreHistoryState, MAP_STATE_DEFAULTS, MYPAGE_STATE_DEFAULTS } from '../lib/viewHistory'
 import { expireSurveyHistory } from '../lib/surveySession'
+
+// 홈 이외의 화면은 view 별로 분리 로드한다. 첫 진입에서 마이페이지·대전한바퀴·카카오맵 코드까지
+// 한 번에 내려받지 않도록 — 홈에 필요한 NavBar/MainHero 만 정적 import 로 남긴다.
+const SurveyFlow = lazy(() => import('../components/survey/SurveyFlow'))
+const BreadReveal = lazy(() => import('../components/result/BreadReveal'))
+const MapResult = lazy(() => import('../components/map/MapResult'))
+const MyPage = lazy(() => import('./MyPage'))
+const InfoPage = lazy(() => import('./InfoPage'))
+const BakeryMapPage = lazy(() => import('../components/map/BakeryMapPage'))
+const TourPage = lazy(() => import('../components/tour/TourPage'))
+const TourSurveyFlow = lazy(() => import('../components/tour/TourSurveyFlow'))
+const TourReveal = lazy(() => import('../components/tour/TourReveal'))
+const PilgrimagePage = lazy(() => import('../components/tour/PilgrimagePage'))
+
+// 청크를 내려받는 짧은 순간의 자리표시자 — 기존 "불러오는 중…" 배너 톤을 그대로 쓴다.
+const viewFallback = (
+  <div className="page">
+    <div className="banner">불러오는 중…</div>
+  </div>
+)
 
 // 랜딩 = 마케팅 사이트. 상단 메뉴바(NavBar)는 어떤 화면에서도 항상 떠 있고,
 // 메뉴 클릭에 따라 그 아래 본문만 바뀐다. "취향 테스트 시작" 계열 버튼을 누르면
@@ -30,11 +40,10 @@ export default function LandingPage() {
   const [menuRevision, setMenuRevision] = useState(0)
   const [view, setView] = useState(() => getAppView(window.location.pathname))
   const [stage, setStage] = useState('survey') // 'survey' | 'reveal' | 'map'
-  // MyPage 는 기록장 상세 등 내부 화면 전환을 자체 상태(panel/selectedId)로 관리한다.
-  // 이미 마이페이지 안(예: 기록장 상세)에 있을 때 메뉴바 "마이페이지"를 다시 누르면
-  // view 는 그대로라 리렌더가 안 일어나 화면이 안 바뀌었다 — key 를 바꿔 강제로
-  // MyPage 를 새로 마운트해서 항상 홈으로 돌아가게 한다.
+  // 패널·친구 선택은 히스토리에 보관한다. 코스·기록장 내부의 상세 상태도 메뉴 재클릭 시
+  // 초기화하도록 key를 바꿔 마이페이지 홈으로 돌아간다.
   const [myPageResetKey, setMyPageResetKey] = useState(0)
+  const [myPage, setMyPage] = useState(MYPAGE_STATE_DEFAULTS)
   const [tourStage, setTourStage] = useState('survey') // 'survey' | 'reveal' | 'hub'
   const [tourSelectedId, setTourSelectedId] = useState(null) // hub 진입 시 바로 선택할 관광지
   const [tourHubFromReveal, setTourHubFromReveal] = useState(false) // 결과 카드 → 상세로 진입했는가(뒤로가기 목적지 판단)
@@ -61,7 +70,7 @@ export default function LandingPage() {
 
   // 히스토리에 실어 보낼 "지금 화면 상태" 튜플. popstate 핸들러는 마운트 때 한 번만 등록돼
   // 클로저가 초기값에 고정되므로, fallback 으로 쓸 최신값은 ref 로 들고 있는다.
-  const historyState = { stage, tourStage, tourSelectedId, tourHubFromReveal, directBreadId, breadStep, tourStep, browseMap, resultMap }
+  const historyState = { stage, tourStage, tourSelectedId, tourHubFromReveal, directBreadId, breadStep, tourStep, browseMap, resultMap, myPage }
   const historyStateRef = useRef(historyState)
   historyStateRef.current = historyState
 
@@ -81,6 +90,7 @@ export default function LandingPage() {
     setTourStep(state.tourStep)
     setBrowseMap(state.browseMap)
     setResultMap(state.resultMap)
+    setMyPage(state.myPage)
     historyStateRef.current = state
   }
   const captureState = (patch) => {
@@ -230,7 +240,16 @@ export default function LandingPage() {
   }
   const openMyPage = () => {
     setMyPageResetKey((k) => k + 1)
-    navigateToView('mypage')
+    // 이미 마이페이지 홈이면 patch 없이 호출해 같은 항목을 또 push 하지 않는다(메뉴 재클릭).
+    // 다른 패널에 있을 때만 홈으로 되돌리는 전환을 히스토리에 남긴다.
+    const atMyPageHome = myPage.panel === 'home' && !myPage.friend
+    navigateToView('mypage', atMyPageHome ? null : { myPage: MYPAGE_STATE_DEFAULTS })
+  }
+  // 마이페이지 '‹' — goBackInApp 과 같이 히스토리를 한 칸 되돌린다. 패널 전환은 모두 push 되므로
+  // 직전 항목이 상위 패널이다. 되돌릴 항목이 없으면(주소창 직접 진입 등) fallback 패널로 전환한다.
+  const backInMyPage = (fallback) => {
+    if (window.history.state?.appDepth > 0) window.history.back()
+    else pushSubState({ myPage: fallback })
   }
   const openInfo = () => {
     navigateToView('info')
@@ -376,6 +395,7 @@ export default function LandingPage() {
         </div>
       )}
 
+      <Suspense fallback={viewFallback}>
       {view === 'info' && <InfoPage onStart={startTest} />}
 
       {view === 'map' && (
@@ -424,7 +444,7 @@ export default function LandingPage() {
 
       {view === 'mypage' && (
         <div className="page">
-          <MyPage key={myPageResetKey} onLoadCourse={loadCourseIntoPilgrimage} onViewBakeryOnMap={viewBakeryOnMap} />
+          <MyPage key={myPageResetKey} pageState={myPage} onPageChange={(next) => pushSubState({ myPage: next })} onBack={backInMyPage} onLoadCourse={loadCourseIntoPilgrimage} onViewBakeryOnMap={viewBakeryOnMap} />
         </div>
       )}
 
@@ -452,6 +472,7 @@ export default function LandingPage() {
           {stage === 'map' && <MapResult mapState={resultMap} onMapChange={(next, replace) => changeMap('resultMap', next, replace)} onBack={goBackInApp} onBackToResult={backToBreadReveal} onAddToCourse={(bakery) => loadCourseIntoPilgrimage({ mode: 'append', stops: [{ ...bakery, type: 'bakery' }] })} />}
         </div>
       )}
+      </Suspense>
 
       {isHome && (
         <div className="bm-home">
