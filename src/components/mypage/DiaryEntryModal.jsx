@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { captureVisitLocation } from '../../lib/visitLocation'
+import { resolveVisitLocation } from '../../lib/visitLocation'
 import { VISIT_RADIUS_M } from '../../lib/visitRadius'
 import Modal from '../common/Modal'
 import VisitRadiusStatus from '../map/VisitRadiusStatus'
@@ -16,11 +16,8 @@ export default function DiaryEntryModal({ bakery, myLocation = null, onClose, on
     if (!trimmed) return
     setSaving(true)
     setError(false)
-    // 지도에서 이미 따라가고 있는 좌표가 있으면 그걸 쓴다 — 위에 보여준 "범위 안/밖" 안내와 실제
-    // 저장 좌표가 같아지고, 실내에서 새 측위를 최대 8초 기다리다 null로 끝나는 일도 없다.
-    const location = myLocation?.coords
-      ? { lat: myLocation.coords.lat, lng: myLocation.coords.lng }
-      : await captureVisitLocation()
+    // 최근 측위만 재사용하고, 오래된 좌표는 새로 확인한다. 실패하면 미인증으로 저장한다.
+    const location = await resolveVisitLocation(myLocation?.coords)
     const result = await onSubmit(trimmed, location)
     setSaving(false)
     if (result?.error) {

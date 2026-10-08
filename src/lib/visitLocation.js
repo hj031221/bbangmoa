@@ -1,3 +1,17 @@
+export const VISIT_LOCATION_MAX_AGE_MS = 10000
+
+export function isFreshVisitLocation(coords, now = Date.now()) {
+  return Number.isFinite(coords?.lat) && Number.isFinite(coords?.lng)
+    && Number.isFinite(coords?.timestamp) && coords.timestamp <= now
+    && now - coords.timestamp < VISIT_LOCATION_MAX_AGE_MS
+}
+
+export function resolveVisitLocation(coords, geolocation = globalThis.navigator?.geolocation, now = Date.now()) {
+  return isFreshVisitLocation(coords, now)
+    ? Promise.resolve({ lat: coords.lat, lng: coords.lng })
+    : captureVisitLocation(geolocation)
+}
+
 export const VISIT_LOCATION_OPTIONS = Object.freeze({
   enableHighAccuracy: true,
   timeout: 8000,

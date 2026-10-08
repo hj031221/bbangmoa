@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { DEFAULT_REGION, getRegion } from '../config/regions'
 import { sanitizeOriginForSave } from '../lib/originPrivacy'
+import { emptySurveySession, isSurveySessionFresh, restoreSurveySession } from '../lib/surveySession'
 
 // 앱 전역 상태 (가볍게 유지)
 //  - answers: 빵모아 설문 응답 { [questionId]: optionId }
@@ -22,13 +23,14 @@ import { sanitizeOriginForSave } from '../lib/originPrivacy'
 //    빵 id. answers(설문 응답)와 상호배타 — 칩으로 진입하면 설문 응답을 비우고 이 값을 세팅한다.
 //    세션 성격이라 아래 persist 대상에서는 제외한다(새로고침하면 설문 홈으로 돌아간다).
 //
-// answers/tourAnswers/origin/district는 localStorage에 영속화한다(이슈 #70 2번) — GNB를
-// 한 번 거치거나 새로고침해도 "완료된 설문" 상태가 유지돼야 대전한바퀴 코스가 안 사라진다.
+// 설문은 시작 후 24시간 동안만 복원한다. GNB 이동·새로고침은 유지하고 장기 재방문은 초기화한다.
 // pendingCourseLoad(1회성 전달값)·selectedBakeryId(화면별 임시 선택)는 세션 성격이라 제외한다.
 export const useAppStore = create(
   persist(
     (set) => ({
       regionId: DEFAULT_REGION,
+      surveyStartedAt: Date.now(),
+      expireSurveySession: () => set((s) => isSurveySessionFresh(s.surveyStartedAt) ? s : emptySurveySession()),
       origin: null,
       district: null,
       answers: {},
@@ -74,7 +76,9 @@ export const useAppStore = create(
     }),
     {
       name: 'bbangmoa-app-store',
+      merge: (saved, current) => ({ ...current, ...restoreSurveySession(saved) }),
       partialize: (s) => ({
+        surveyStartedAt: s.surveyStartedAt,
         answers: s.answers,
         tourAnswers: s.tourAnswers,
         origin: sanitizeOriginForSave(s.origin, getRegion(s.regionId)),
