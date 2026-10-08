@@ -19,7 +19,7 @@ import { useInviteLink } from '../hooks/useInviteLink'
 import InviteFriendModal from '../components/mypage/InviteFriendModal'
 import { getAppPath, getAppView } from '../lib/appRoute'
 import { buildHistoryState, restoreHistoryState, MAP_STATE_DEFAULTS } from '../lib/viewHistory'
-import { expireSurveyHistory, isSurveySessionFresh, SURVEY_SESSION_MAX_AGE_MS } from '../lib/surveySession'
+import { expireSurveyHistory } from '../lib/surveySession'
 
 // 랜딩 = 마케팅 사이트. 상단 메뉴바(NavBar)는 어떤 화면에서도 항상 떠 있고,
 // 메뉴 클릭에 따라 그 아래 본문만 바뀐다. "취향 테스트 시작" 계열 버튼을 누르면
@@ -43,7 +43,7 @@ export default function LandingPage() {
   const [browseMap, setBrowseMap] = useState(MAP_STATE_DEFAULTS)
   const [resultMap, setResultMap] = useState(MAP_STATE_DEFAULTS)
   const answers = useAppStore((s) => s.answers)
-  const surveyStartedAt = useAppStore((s) => s.surveyStartedAt)
+  const visitStartedAt = useRef(Date.now())
   const origin = useAppStore((s) => s.origin)
   const directBreadId = useAppStore((s) => s.directBreadId)
   const setDirectBread = useAppStore((s) => s.setDirectBread)
@@ -106,11 +106,10 @@ export default function LandingPage() {
   // 지우지 않는다(리셋은 retakeSurvey 에만 건다).
   useEffect(() => {
     const restoreViewFromHistory = (event) => {
-      useAppStore.getState().expireSurveySession()
       const nextView = getAppView(window.location.pathname)
       setView(nextView)
       const current = historyStateRef.current
-      const restored = restoreHistoryState(expireSurveyHistory(event.state), current)
+      const restored = restoreHistoryState(expireSurveyHistory(event.state, Date.now(), visitStartedAt.current), current)
       applySubState(restored)
       // 홈으로 돌아갈 때 완료한 설문을 지우지 않는다. 해당 플로우만 복원한다.
       if (restored.surveySnapshot && nextView === 'bread') {
@@ -148,36 +147,6 @@ export default function LandingPage() {
     window.addEventListener('popstate', restoreViewFromHistory)
     return () => window.removeEventListener('popstate', restoreViewFromHistory)
   }, [])
-
-  // 열어 둔 탭이나 브라우저 복원에서도 만료된 결과를 계속 표시하지 않는다.
-  useEffect(() => {
-    let timer
-    const checkExpiry = () => {
-      clearTimeout(timer)
-      const store = useAppStore.getState()
-      if (!isSurveySessionFresh(store.surveyStartedAt)) {
-        store.expireSurveySession()
-        setStage('survey')
-        setTourStage((value) => value === 'hub' ? value : 'survey')
-        setBreadStep(0)
-        setTourStep(0)
-        const state = expireSurveyHistory(window.history.state)
-        if (state) window.history.replaceState(state, '')
-      }
-      timer = setTimeout(checkExpiry, Math.max(1,
-        useAppStore.getState().surveyStartedAt + SURVEY_SESSION_MAX_AGE_MS - Date.now()))
-    }
-    checkExpiry()
-    window.addEventListener('pageshow', checkExpiry)
-    window.addEventListener('focus', checkExpiry)
-    document.addEventListener('visibilitychange', checkExpiry)
-    return () => {
-      clearTimeout(timer)
-      window.removeEventListener('pageshow', checkExpiry)
-      window.removeEventListener('focus', checkExpiry)
-      document.removeEventListener('visibilitychange', checkExpiry)
-    }
-  }, [surveyStartedAt])
 
   // 서비스 소개처럼 스크롤 가능한 화면에서 새로고침하면 브라우저가 이전 scrollY를 복원한다.
   // 앱 상태는 홈으로 초기화되므로 홈에 들어올 때 항상 상단으로 되돌린다.

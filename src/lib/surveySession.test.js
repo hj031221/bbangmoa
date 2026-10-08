@@ -8,6 +8,22 @@ const saved = {
   origin: { lat: 36.3, lng: 127.4 }, district: '중구', surveyStartedAt: now - 1000,
 }
 
+test('단순 방문이나 만료 초기화만으로 설문 시계가 시작되지 않는다', () => {
+  assert.equal(restoreSurveySession(null, now).surveyStartedAt, null)
+  assert.equal(restoreSurveySession({ answers: {}, tourAnswers: {} }, now).surveyStartedAt, null)
+})
+
+test('사용 중 24시간을 넘어도 뒤로가기는 유지하고 다음 방문에는 만료한다', () => {
+  const history = { stage: 'reveal', breadStep: 5, surveySnapshot: saved }
+  assert.equal(expireSurveyHistory(history, now + TTL, now), history)
+  assert.equal(expireSurveyHistory(history, now + TTL).surveySnapshot, null)
+})
+
+test('오래 열린 탭에서 새로 응답한 결과는 해당 방문에서도 유효하다', () => {
+  const history = { stage: 'reveal', surveySnapshot: { ...saved, surveyStartedAt: now + TTL } }
+  assert.equal(expireSurveyHistory(history, now + TTL + 1000, now), history)
+})
+
 test('당일 새로고침은 설문과 출발지를 복원하고 만료 시각을 연장하지 않는다', () => {
   assert.deepEqual(restoreSurveySession(saved, now), saved)
   assert.deepEqual(restoreSurveySession(saved, now + 1000), saved)
@@ -20,7 +36,7 @@ test('24시간 경계, 저장 시각 없는 기존 데이터, 미래 시각은 �
     assert.deepEqual(restored.tourAnswers, {})
     assert.equal(restored.origin, null)
     assert.equal(restored.courseDraft, null)
-    assert.equal(restored.surveyStartedAt, now)
+    assert.equal(restored.surveyStartedAt, null)
   }
 })
 
